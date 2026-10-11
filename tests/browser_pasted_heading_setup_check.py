@@ -6,7 +6,6 @@ import app
 from playwright.sync_api import sync_playwright
 with tempfile.TemporaryDirectory() as tmp:
     app.DB_PATH=Path(tmp)/'test.sqlite3'
-    inventory=app.save_equipment_inventory({'name':'Custom signage','layout':{'columns':[dict(key='description',label='Description',type='text',filter='none',important=False,options=[]),dict(key='location',label='Location',type='text',filter='none',important=False,options=[])],'primary_search':'description','identifier':'','show_status':False}})
     server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
@@ -17,13 +16,18 @@ with tempfile.TemporaryDirectory() as tmp:
             page.goto(f'http://127.0.0.1:{server.server_port}/inventory')
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
             page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled")
-            page.locator('#equipment-inventory-select').select_option(str(inventory['id']))
-            page.wait_for_function("() => document.getElementById('equipment-inventory-title').textContent==='Custom signage' && !document.getElementById('equipment-inventory-select').disabled")
+            page.locator('#new-equipment-inventory').click()
+            page.locator('#equipment-inventory-name').fill('Custom signage')
+            page.locator('#equipment-template').select_option('custom')
+            page.locator('#save-equipment-inventory').click()
+            page.locator('#paste-inventory-dialog').wait_for(state='visible')
+            assert page.locator('#inventory-columns-dialog').is_hidden()
+            inventory=next(row for row in app.equipment_inventories() if row['name']=='Custom signage')
             text='Model\tOrientation\tLocation\nM1\tVertical\tLobby\nM2\tHorizontal\tLobby'
-            assert page.locator('#equipment-transfer button').first.get_attribute('id')=='equipment-paste'
-            page.locator('#equipment-import').click();page.locator('#paste-inventory-text').fill(text)
+            page.locator('#paste-inventory-text').fill(text)
             page.locator('#continue-paste-inventory').click()
             page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
+            assert page.locator('#paste-layout-head th').all_text_contents()==['Model','Orientation','Location']
             page.locator('#continue-paste-layout').click();page.locator('#paste-field-dialog').wait_for(state='visible')
             assert page.locator('#paste-field-title').inner_text()=='Model'
             assert page.locator('#paste-field-progress').inner_text()=='Heading 1 of 3'
@@ -38,10 +42,11 @@ with tempfile.TemporaryDirectory() as tmp:
             assert page.locator('#paste-field-type').input_value()=='buttons'
             page.locator('#next-paste-field').click();page.locator('#next-paste-field').click()
             page.locator('#spreadsheet-dialog').wait_for(state='visible')
-            assert page.locator('#map-field_model').input_value()=='0'
+            assert page.locator('#map-model').input_value()=='0'
             assert page.locator('#map-field_orientation').input_value()=='1'
             saved=next(row for row in app.equipment_inventories() if row['id']==inventory['id'])
-            assert next(c for c in saved['layout']['columns'] if c['key']=='field_model')['require_confirmation']
+            assert next(c for c in saved['layout']['columns'] if c['key']=='model')['require_confirmation']
+            assert [col['label'] for col in saved['layout']['columns']]==['Model','Orientation','Location']
             assert not app.equipment_inventory(inventory['id'])
             page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
             assert page.locator('#inventory-import-review-rows tr').count()==2

@@ -26,12 +26,18 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#equipment-inventory-name').fill('Spare TVs onboard')
             page.locator('#equipment-template').select_option('tv')
             page.locator('#save-equipment-inventory').click()
-            page.locator('#inventory-columns-dialog').wait_for(state='visible')
-            assert page.locator('#inventory-column-list .inventory-column-editor').count()==7
-            assert page.locator('#inventory-column-preset').input_value()=='tv'
-            # Paste opens first after create; file upload remains available.
-            page.locator('#save-inventory-columns').click()
+            assert page.locator('#inventory-columns-dialog').is_hidden()
+            # Paste comes before column setup; file upload remains available.
             page.locator('#paste-inventory-dialog').wait_for(state='visible')
+            page.locator('#paste-inventory-text').fill('Model\tBrand\tDeck 6\nX\tSony\t2')
+            page.locator('#continue-paste-inventory').click()
+            page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
+            page.locator('#continue-paste-layout').click()
+            assert page.locator('#paste-field-title').inner_text()=='Model'
+            assert page.locator('#paste-field-progress').inner_text()=='Heading 1 of 3'
+            assert not app.equipment_inventory(int(page.locator('#equipment-inventory-select').input_value()))
+            page.locator('#close-paste-field').click();page.locator('#close-paste-layout').click()
+            page.locator('#equipment-import').click()
             with page.expect_file_chooser():page.locator('#upload-paste-inventory').click()
             page.locator('#inventory-columns-dialog').wait_for(state='hidden')
             page.locator('#import-file').set_input_files({'name':'tvs.csv','mimeType':'text/csv','buffer':b'Brand,Model,Deck 6,Deck 2 Port,Deck 2 Stbd,Notes\nSony,X,2,3,0,test\nLG,Y,0,0,0,zero\nLG,Z,1,,0,check\n'})
@@ -70,8 +76,7 @@ with tempfile.TemporaryDirectory() as temporary:
             # Change inventory and ensure static/custom fields still rebuild correctly.
             page.locator('#new-equipment-inventory').click();page.locator('#equipment-inventory-name').fill('Scala screens')
             page.locator('#equipment-template').select_option('scala');page.locator('#save-equipment-inventory').click()
-            assert page.get_by_label('Column 1 name',exact=True).input_value()=='Scala ID'
-            page.locator('#save-inventory-columns').click()
+            assert page.locator('#inventory-columns-dialog').is_hidden()
             page.locator('#paste-inventory-dialog').wait_for(state='visible')
             with page.expect_file_chooser():page.locator('#upload-paste-inventory').click()
             page.locator('#inventory-columns-dialog').wait_for(state='hidden')
@@ -88,7 +93,6 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#equipment-location-buttons button').count()==0
             page.locator('#new-equipment-inventory').click();page.locator('#equipment-inventory-name').fill('Locker spares')
             page.locator('#equipment-template').select_option('spare_parts');page.locator('#save-equipment-inventory').click()
-            page.locator('#save-inventory-columns').click()
             page.locator('#paste-inventory-dialog').wait_for(state='visible')
             with page.expect_file_chooser():page.locator('#upload-paste-inventory').click()
             page.locator('#inventory-columns-dialog').wait_for(state='hidden')

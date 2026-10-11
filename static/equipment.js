@@ -474,12 +474,12 @@
     try{await inventoryTemplatesReady;}catch(error){toast(error.message);return;}
     $('equipment-template-label').hidden=rename;
     $('equipment-template').replaceChildren(...inventoryTemplates.map(item=>new Option(item.name,item.id)),new Option('Custom inventory','custom'));
-    const describe=()=>{$('equipment-template-description').textContent=inventoryTemplates.find(item=>item.id===$('equipment-template').value)?.description || 'Choose your own columns in the next step.';};$('equipment-template').onchange=describe;describe();
+    const describe=()=>{$('equipment-template-description').textContent=inventoryTemplates.find(item=>item.id===$('equipment-template').value)?.description || 'Paste your spreadsheet next. Its first row supplies the headings for column setup.';};$('equipment-template').onchange=describe;describe();
     renamingInventoryId = rename ? inventoryId : null;
     $('equipment-inventory-form').reset();
     $('equipment-inventory-name').value = rename ? currentInventory().name : '';
     $('equipment-inventory-form-title').textContent = rename ? 'Rename inventory' : 'New inventory';
-    $('save-equipment-inventory').textContent = rename ? 'Save name' : 'Create inventory';
+    $('save-equipment-inventory').textContent = rename ? 'Save name' : 'Continue to paste';
     $('equipment-inventory-form-error').hidden = true;
     $('equipment-inventory-dialog').showModal(); $('equipment-inventory-name').focus();
   }
@@ -525,7 +525,13 @@
     event.preventDefault(); $('save-equipment-inventory').disabled = true;
     $('equipment-inventory-form-error').hidden = true;
     try {
-      if (!renamingInventoryId) {const name=$('equipment-inventory-name').value.trim();if(!name)throw new Error('Enter an inventory name.');$('equipment-inventory-dialog').close();openColumns({newName:name,template:$('equipment-template').value});return;}
+      if (!renamingInventoryId) {
+        const name=$('equipment-inventory-name').value.trim();if(!name)throw new Error('Enter an inventory name.');
+        await inventoryTemplatesReady;
+        const profile=structuredClone(inventoryTemplates.find(template=>template.id===$('equipment-template').value)?.layout || defaultInventoryLayout);
+        const inventory=await api('/api/equipment/inventories','POST',{name,layout:profile});
+        $('equipment-inventory-dialog').close();await loadEquipment(inventory.id);await openPastedImport({fromHeaders:$('equipment-template').value==='custom'});return;
+      }
       const inventory = await api(renamingInventoryId ? `/api/equipment/inventories/${renamingInventoryId}` : '/api/equipment/inventories', renamingInventoryId ? 'PUT' : 'POST', {name:$('equipment-inventory-name').value});
       $('equipment-inventory-dialog').close();
       await loadEquipment(inventory.id);

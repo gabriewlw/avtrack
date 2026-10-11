@@ -840,7 +840,7 @@ function orderEquipmentReview(entries) {
 const equipmentImportFields = [
   ['description','Item',['item','description','equipment','item name','item description']],
   ['brand','Brand',['brand','manufacturer','make']],
-  ['model','Model',['model','model number','part number']],
+  ['model','Model',['model','model number','model no','model no.','model #','part number']],
   ['serial_number','Serial number (optional)',['serial number','serial','serial no','s/n','sn']],
   ['quantity','Quantity',['quantity','qty','count','stock','quantity in stock']],
   ['location','Location',['location','venue','room','storage','storage location']],
@@ -1290,6 +1290,14 @@ $('spreadsheet-form').onsubmit = async event => {
   finally { spreadsheetReviewing = false; $('confirm-import').disabled = false; }
 };
 function showPastedLayoutSuggestion() {
+  $('keep-paste-layout').hidden=!!spreadsheetFile.from_headers;
+  if(spreadsheetFile.from_headers){
+    const head=element('tr');spreadsheetData.headers.forEach(header=>{const th=element('th','',header);th.scope='col';head.append(th);});$('paste-layout-head').replaceChildren(head);
+    $('paste-layout-rows').replaceChildren(...spreadsheetData.rows.slice(0,5).map(values=>{const row=element('tr');values.forEach(value=>row.append(element('td',String(value??'').trim()?'':'paste-layout-blank',String(value??'').trim() || 'Needs review')));return row;}));
+    $('paste-layout-summary').textContent=`${spreadsheetInventory.name} · ${spreadsheetData.headers.length} headings from the first row · ${spreadsheetData.rows.length} source rows · Showing ${Math.min(5,spreadsheetData.rows.length)} sample rows`;
+    $('paste-layout-unmatched').hidden=true;$('continue-paste-layout').disabled=false;return;
+  }
+
   const fields=currentTab==='equipment' ? (spreadsheetInventory.layout || defaultInventoryLayout).columns.map(column=>[column.key,column.label,column.type]) : importFields().map(([key,label])=>[key,label,'text']);
   const used=new Set();let matched=0;
   const head=element('tr');
@@ -1388,7 +1396,7 @@ $('paste-field-form').onsubmit=async event=>{
     readPastedHeading();
     if(setup.index<setup.decisions.length-1){setup.index++;showPastedHeading();return;}
     $('next-paste-field').disabled=true;
-    const assignments=new Map(),columns=structuredClone(setup.columns),used=new Set();
+    const assignments=new Map(),columns=setup.file.from_headers?[]:structuredClone(setup.columns),used=new Set();
     for(const decision of setup.decisions){
       if(decision.target==='__skip')continue;
       const column=structuredClone(decision.column);
@@ -1398,12 +1406,16 @@ $('paste-field-form').onsubmit=async event=>{
         if(columns.length>=16)throw new Error('An inventory supports up to 16 columns. Skip a heading or match an existing field.');columns.push(column);
       }else{
         if(used.has(column.key))throw new Error(`Two headings use ${column.label}. Go back and skip or change one.`);
-        columns[columns.findIndex(col=>col.key===column.key)]=column;
+        const index=columns.findIndex(col=>col.key===column.key);
+        if(index>=0)columns[index]=column;else{if(columns.length>=16)throw new Error('Choose up to 16 columns.');columns.push(column);}
       }
       used.add(column.key);assignments.set(column.key,String(decision.source));
     }
     if(setup.tab==='equipment'){
+      if(!columns.length)throw new Error('Use at least one heading for this inventory.');
       const layout={...(setup.inventory.layout || defaultInventoryLayout),columns};
+      if(!columns.some(column=>column.key===layout.primary_search))layout.primary_search=columns[0].key;
+      if(!columns.some(column=>column.key===layout.identifier))layout.identifier='';
       const saved=await api(`/api/equipment/inventories/${setup.inventory.id}`,'PUT',{name:setup.inventory.name,layout});
       await window.equipmentUI.load(saved.id);spreadsheetInventory=saved;
     }
@@ -1433,8 +1445,9 @@ async function startSpreadsheetImport(file,inventory) {
   if(file.pasted && spreadsheetData && $('paste-layout-dialog').open)showPastedLayoutSuggestion();
   else if(file.pasted && $('paste-layout-dialog').open){$('paste-layout-dialog').close();$('spreadsheet-dialog').showModal();}
 }
-let pasteInventory=null,pasteInventorySaving=false,pasteTargetTab=null;
-async function openPastedImport(){
+let pasteInventory=null,pasteInventorySaving=false,pasteTargetTab=null,pasteFromHeaders=false;
+async function openPastedImport(options={}){
+  pasteFromHeaders=options.fromHeaders===true;
   try{
     pasteTargetTab=currentTab;
     pasteInventory=currentTab==='equipment'?await window.equipmentUI.waitUntilReady():null;
@@ -1462,7 +1475,7 @@ $('paste-inventory-form').onsubmit=async event=>{
     if(blob.size>5_000_000)throw new Error('Paste a smaller range, up to 5 MB.');
     const content=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=()=>reject(new Error('Could not read the pasted cells.'));reader.readAsDataURL(blob);});
     const sourceLabel=$('paste-inventory-sheet').value.trim();const location=pasteInventory && (pasteInventory.layout || defaultInventoryLayout).columns.some(col=>col.key==='location')?cleanVenue($('paste-inventory-location').value):'';
-    const file={filename:(sourceLabel || 'Pasted spreadsheet')+'.csv',content,pasted:true,default_location:location,source_label:sourceLabel,...(text.includes('\t')?{delimiter:'\t'}:{})};
+    const file={filename:(sourceLabel || 'Pasted spreadsheet')+'.csv',content,pasted:true,from_headers:pasteFromHeaders,default_location:location,source_label:sourceLabel,...(text.includes('\t')?{delimiter:'\t'}:{})};
     $('paste-inventory-dialog').close();await startSpreadsheetImport(file,pasteInventory);
   }catch(error){$('paste-inventory-error').textContent=error.message;$('paste-inventory-error').hidden=false;}
   finally{pasteInventorySaving=false;$('continue-paste-inventory').disabled=!$('paste-inventory-text').value.trim();}
