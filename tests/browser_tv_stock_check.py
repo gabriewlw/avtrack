@@ -26,6 +26,9 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#equipment-inventory-select').select_option(str(inventory['id']))
             page.wait_for_function("() => document.getElementById('equipment-inventory-title').textContent==='Spare TVs' && !document.getElementById('equipment-inventory-select').disabled")
             assert 'Serial number' not in page.locator('#equipment-table thead').inner_text()
+            assert 'Record check' not in page.locator('#equipment-table thead').inner_text()
+            assert 'Last checked' in page.locator('#equipment-table thead').inner_text()
+            assert page.locator('#equipment-table tbody tr').first.locator('td').count()==page.locator('#equipment-table thead th').count()
             check=page.get_by_role('button',name='Confirm stock check for X',exact=True)
             assert check.inner_text()=='Never checked'
             check.click();page.locator('#equipment-stock-check-dialog').wait_for(state='visible')

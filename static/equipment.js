@@ -177,6 +177,7 @@
         cell.title = String(inventoryValue(item,field));
         cell.dataset.label = column.label; row.append(cell);
         if (index === displayColumns().length-1) {
+          if(!isTVInventory()){
           const review = element('td', 'equipment-review'); review.dataset.label = 'Record check';
           const issues = equipmentIssues(item);
           const button = element('button', item.data_checked ? 'quiet record-checked' : 'quiet', item.data_checked ? 'Record checked' : issues.length ? 'Check flagged record' : 'Check record');
@@ -198,6 +199,7 @@
             $('equipment-record-review-dialog').showModal();
           };
           review.append(button); row.append(review);
+          }
 
           if(isTVInventory()) {
             const cell=element('td','equipment-last-checked');cell.dataset.label='Last checked';
@@ -271,10 +273,10 @@
       }
       return Math.max(baseWidths[col.key] || 120,labelWidth,controlWidth,modelWidth);
     });
-    widths.push(115,...(isTVInventory()?[126]:[]),...(showLocatedStatus()?[110]:[]),96);
+    widths.push(...(isTVInventory()?[126]:[115]),...(showLocatedStatus()?[110]:[]),96);
     const totalWidth=widths.reduce((total,width)=>total+width,0);
     const columns=displayColumns().map((col,index)=>{const th=element('th','',index===0?'':col.label);th.scope='col';if(index===0)th.append(heading);th.style.width=`${widths[index]/totalWidth*100}%`;return th;});
-    ['Record check',...(isTVInventory()?['Last checked']:[]),...(showLocatedStatus()?['Status']:[]),'Actions'].forEach((text,index)=>{const th=element('th','',text);th.scope='col';th.style.width=`${widths[displayColumns().length+index]/totalWidth*100}%`;columns.push(th);});
+    [...(isTVInventory()?['Last checked']:['Record check']),...(showLocatedStatus()?['Status']:[]),'Actions'].forEach((text,index)=>{const th=element('th','',text);th.scope='col';th.style.width=`${widths[displayColumns().length+index]/totalWidth*100}%`;columns.push(th);});
     $('equipment-table').querySelector('thead tr').replaceChildren(...columns);
     $('equipment-table').style.minWidth=`${Math.max(850,totalWidth)}px`;
     $('equipment-search').placeholder='Search all inventory columns…';
