@@ -777,7 +777,12 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Length', str(len(body)))
         self.send_header('Cache-Control', 'no-store')
         self.send_header('X-Content-Type-Options', 'nosniff')
-        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+        # Codespaces' private-port proxy renews browser authentication at this endpoint.
+        # Permit only that connection in Codespaces; ordinary deployments stay same-origin.
+        connect_sources = "'self'"
+        if os.environ.get('CODESPACES', '').lower() == 'true':
+            connect_sources += ' https://github.dev/pf-signin'
+        self.send_header('Content-Security-Policy', f"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src {connect_sources}; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
         if filename:
             self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
         self.end_headers()

@@ -29,6 +29,8 @@ Open the server's actual IP address or hostname and port in Safari, for example 
 
 This first version has no user authentication. Run it on a trusted private network for evaluation. Before Internet deployment, place it behind HTTPS and an authenticated reverse proxy/access gateway. The included Python HTTP server is intended for development or private evaluation, not direct public hosting. Cross-origin writes are rejected, but this does not replace access control.
 
+When running in GitHub Codespaces, open port **8000** through **Ports → Open in Browser** and complete GitHub sign-in if prompted. Keep port visibility Private. The `CODESPACES=true` environment enables a narrowly scoped browser connection to GitHub's `https://github.dev/pf-signin` endpoint for private-port authentication; other deployments retain same-origin connections. If the page stays on Loading while local API checks return 200, inspect the browser Console for blocked sign-in requests and reopen the forwarded address in a standalone browser tab. Terminal checks bypass the forwarding login. Server commands occupy their terminal: use a second terminal for diagnostics, and Ctrl+C before updating and restarting the server.
+
 ## Workflow
 
 Use the **Export** dropdown beside Import data to download JSON, CSV, XLSX, or PDF files. It closes after choosing a format, clicking outside, pressing Escape, or switching tabs.

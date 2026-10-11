@@ -40,6 +40,19 @@ class AppTests(unittest.TestCase):
             content = response.read()
             return response.status, json.loads(content) if response.headers['Content-Type'].startswith('application/json') else content
 
+    def test_codespaces_signin_connection_policy(self):
+        from unittest.mock import patch
+        for codespaces in ('', 'false', 'true'):
+            with self.subTest(codespaces=codespaces), patch.dict(app.os.environ, {'CODESPACES':codespaces}):
+                with urlopen(self.url+'/inventory') as response:
+                    policy=response.headers['Content-Security-Policy']
+                directives=dict(part.strip().split(' ',1) for part in policy.split(';'))
+                self.assertEqual(directives['connect-src'], "'self' https://github.dev/pf-signin" if codespaces=='true' else "'self'")
+                self.assertEqual(directives['script-src'], "'self'")
+                self.assertEqual(directives['frame-ancestors'], "'none'")
+                self.assertEqual(directives['form-action'], "'self'")
+                self.assertEqual(self.request('/api/devices','POST',EXAMPLE,{'Content-Type':'application/json','Origin':'https://github.dev'})[0],403)
+
     def test_full_lifecycle_and_persistence(self):
         status, saved = self.request('/api/devices', 'POST', EXAMPLE)
         self.assertEqual(status, 201)
