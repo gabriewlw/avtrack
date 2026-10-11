@@ -667,3 +667,6 @@ main, dialog {
 .equipment-notes-cell{display:flex;align-items:center;gap:8px}
 #equipment-table .equipment-notes-button{height:28px;min-height:28px;padding:4px 7px;font-size:11px;border:1px solid var(--border);white-space:nowrap}
 #equipment-table .equipment-notes-button.has-notes{color:#e4e7ec;background:#252930}
+
+.equipment-table-footer { align-items: center; }
+.equipment-table-footer .export-links { top: auto; bottom: calc(100% + 7px); }
