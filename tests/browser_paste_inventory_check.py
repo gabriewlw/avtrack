@@ -30,6 +30,12 @@ with tempfile.TemporaryDirectory() as temporary:
                 page.locator('#equipment-paste').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
                 assert page.locator('#continue-paste-inventory').is_disabled()
                 page.locator('#paste-inventory-text').fill(text);page.locator('#continue-paste-inventory').click()
+                page.locator('#paste-layout-dialog').wait_for(state='visible')
+                page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
+                assert page.locator('#spreadsheet-dialog').is_hidden()
+                assert page.locator('#paste-layout-head th').count()>0
+                assert page.locator('#paste-layout-rows tr').count()<=5
+                page.locator('#keep-paste-layout').click()
                 page.locator('#spreadsheet-dialog').wait_for(state='visible')
                 page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             choose(tv)
@@ -85,6 +91,12 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#paste-inventory-location').fill('Locker C')
             page.locator('#paste-inventory-text').fill('Description\tBrand\tModel\tSerial Number\tQuantity\tLocation\tNotes\nCable\tSony\tZ\tS3\t1\t\tnote\nCable\tSony\tZ\tS4\t1\tLocker D\tnote\n\t\t\t\t\t\t\n')
             page.locator('#continue-paste-inventory').click()
+            page.locator('#paste-layout-dialog').wait_for(state='visible')
+            page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
+            assert page.locator('#spreadsheet-dialog').is_hidden()
+            assert page.locator('#paste-layout-head th').count()>0
+            assert page.locator('#paste-layout-rows tr').count()<=5
+            page.locator('#keep-paste-layout').click()
             page.locator('#spreadsheet-dialog').wait_for(state='visible')
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             assert page.locator('#confirm-import').inner_text()=='Import & review 2 rows'

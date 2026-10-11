@@ -34,9 +34,14 @@ def validate_profile(value):
             raise ValueError('Choice columns need distinct nonempty choices.')
         if kind=='location' and key!='location':
             raise ValueError('Location choices must use the Location field.')
-        if key in BASE_FIELDS and kind not in ('text','count','location'):
-            raise ValueError('Built-in fields use text inputs; add a custom column for choices.')
+        if key=='notes' and kind!='text':
+            raise ValueError('Notes uses a text editor.')
+        if key=='quantity' and kind not in ('text','count'):
+            raise ValueError('Quantity uses a number input or count dropdown.')
         column=dict(key=key,label=label.strip(),type=kind,important=col.get('important',False),filter=filtering,options=options)
+        if 'require_confirmation' in col:
+            if type(col['require_confirmation']) is not bool: raise ValueError('Choose whether import confirmation is required.')
+            column['require_confirmation']=col['require_confirmation']
         if kind=='count':
             if key in BASE_FIELDS and key!='quantity':raise ValueError('Only Quantity uses a built-in count dropdown.')
             minimum=col.get('minimum',1)
@@ -128,7 +133,13 @@ def profile_identifier(row,profile):
 def normalize_template_row(row, profile):
     """Derive trusted totals and validate the built-in dropdown values."""
     for col in profile['columns']:
+        if col['key'] in BASE_FIELDS and col['type'] in ('select','buttons','checkbox') and row.get(col['key']):
+            raw=row[col['key']]
+            choices={option.casefold():option for option in col['options']} if col['type']!='checkbox' else {'yes':'Yes','true':'Yes','1':'Yes','no':'No','false':'No','0':'No'}
+            if raw.casefold() not in choices: raise ValueError(f'{col["label"]}: choose a configured option or leave blank.')
+            row[col['key']]=choices[raw.casefold()]
         if col['type']=='count' and col['key'] in BASE_FIELDS:
+
             value=row.get(col['key'])
             if value not in ('',None) and not col.get('minimum',1)<=int(value)<=50:
                 raise ValueError(f'{col["label"]}: choose a whole number from {col.get("minimum",1)} to 50.')

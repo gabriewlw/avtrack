@@ -7,6 +7,7 @@ const inventoryBaseFields = new Set(['description','brand','model','serial_numbe
 const inventoryValue = (row,key) => inventoryBaseFields.has(key) ? row[key] ?? '' : row.custom_values?.[key] ?? '';
 function inventoryInput(column,value = '', {allowClear = true, locations = []} = {}) {
   // Orientation stays easy to set later, including inventories that used a text column.
+  if(column.type==='buttons' && column.label.trim().toLowerCase()==='orientation')allowClear=false;
   if (column.key === 'orientation') {
     column = {...column,type:'buttons',options:column.options.length ? column.options : ['Vertical','Horizontal']};
     allowClear = false;

@@ -670,3 +670,18 @@ main, dialog {
 
 .equipment-table-footer { align-items: center; }
 .equipment-table-footer .export-links { top: auto; bottom: calc(100% + 7px); }
+
+#paste-layout-dialog{width:min(1120px,calc(100vw - 48px));max-width:calc(100vw - 48px)}
+.paste-layout-scroll{max-height:420px;overflow:auto;border:1px solid var(--border);border-radius:8px;margin:20px 0}
+#paste-layout-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}
+#paste-layout-table th,#paste-layout-table td{min-width:120px;max-width:280px;padding:12px 14px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);text-align:left;vertical-align:middle}
+#paste-layout-table th{position:sticky;top:0;background:#1c2027;font-family:var(--mono);font-size:11px;white-space:nowrap}
+#paste-layout-table th small{display:block;margin-top:8px;color:var(--muted);font:11px/1.5 var(--font-ui);white-space:normal}
+#paste-layout-table td{height:47px;overflow-wrap:anywhere}
+#paste-layout-table tr:last-child td{border-bottom:0}
+#paste-layout-table th:last-child,#paste-layout-table td:last-child{border-right:0}
+#paste-layout-table .paste-layout-blank,#paste-layout-table .paste-layout-missing{color:#e7bd72}
+
+#paste-field-dialog{width:min(700px,calc(100vw - 48px));max-width:calc(100vw - 48px)}
+.batch-field-confirmation{display:flex;flex-direction:row;align-items:center;gap:8px;margin-top:10px;font-size:11px;color:#e7bd72}
+.batch-field-confirmation input{width:16px;height:16px;min-height:16px}

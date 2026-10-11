@@ -8,6 +8,11 @@ def pasted(text,**extra):
     return preview(dict(filename='Pasted spreadsheet.csv',content=base64.b64encode(text.encode()).decode(),pasted=True,**extra))
 
 class PastedSpreadsheetTests(unittest.TestCase):
+    def test_pasted_headings_are_all_available_for_setup(self):
+        result=pasted('Device ID\tModel\tO.O\nABC-1\tX\tYes',delimiter='\t')
+        self.assertEqual(result['headers'],['Device ID','Model','O.O'])
+        self.assertEqual(result['ignored_columns'],[])
+
     def test_exact_message_table(self):
         result=pasted('''| Description | Model | Deck 6 Locker | Deck 2 Starboard | Deck 2 Port | Total Count | Notes Reamarks |
 | --- | --- | --- | --- | --- | --- | --- |

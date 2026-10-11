@@ -25,6 +25,18 @@ class InventoryTemplateTests(unittest.TestCase):
     def tv(self,inventory,model='X',counts=('2','3','0')):
         return dict(inventory_id=inventory['id'],brand='Sony',model=model,custom_values=dict(zip(('deck_6','deck_2_port','deck_2_stbd'),counts),total_count='999'))
 
+    def test_confirmation_settings_and_base_choice_controls(self):
+        inventory=self.create('tv');layout=copy.deepcopy(inventory['layout'])
+        model=next(col for col in layout['columns'] if col['key']=='model')
+        model.update(type='select',options=['X','Y'],require_confirmation=True)
+        inventory=app.save_equipment_inventory(dict(name=inventory['name'],layout=layout),inventory['id'])
+        self.assertTrue(next(col for col in inventory['layout']['columns'] if col['key']=='model')['require_confirmation'])
+        saved=app.save_equipment(self.tv(inventory,model='x'))
+        self.assertEqual(saved['model'],'X')
+        with self.assertRaises(ValueError): app.save_equipment(self.tv(inventory,model='Z'))
+        model['require_confirmation']='yes'
+        with self.assertRaises(ValueError): validate_profile(layout)
+
     def test_every_template_roundtrips_and_is_editable(self):
         self.assertEqual(len(TEMPLATES),10)
         for template in TEMPLATES:

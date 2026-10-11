@@ -117,7 +117,7 @@ def preview(payload):
                     continue
                 column_count = len(values)
                 keep = {re.sub(r'[_-]+', ' ', h.lower()).strip() for h in payload.get('keep_headers', []) if isinstance(h,str)}
-                kept_columns = [i for i, value in enumerate(values) if not ignored_header(value) or re.sub(r'[_-]+',' ',value.lower()).strip() in keep]
+                kept_columns = [i for i, value in enumerate(values) if payload.get('pasted') is True or not ignored_header(value) or re.sub(r'[_-]+',' ',value.lower()).strip() in keep]
                 ignored_columns = [value for i,value in enumerate(values) if i not in kept_columns]
                 headers = [values[i] or f'Column {i + 1}' for i in kept_columns]
             else:

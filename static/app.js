@@ -823,6 +823,7 @@ function orderEquipmentReview(entries) {
   const groups = new Map();
   entries.forEach(entry => {
     entry.issues = equipmentIssues(entry.row);
+    profile.columns.filter(col=>col.require_confirmation).forEach(col=>entry.issues.push(`Confirm ${col.label} during review`));
     if(identifierCounts.get(rowIdentifier(entry.row))>1)entry.issues.push('Repeated item identifier in this file');
     if (serialCounts.get((entry.row.serial_number || '').trim().toLowerCase()) > 1) entry.issues.push('Repeated serial number in this file');
     const location = entry.row.location || '';
@@ -1028,6 +1029,7 @@ function showSpreadsheetPreview() {
   }));
 }
 async function loadSpreadsheet() {
+  const loadingFile=spreadsheetFile;
   $('confirm-import').disabled = true; $('reload-sheet').disabled = true;
   $('spreadsheet-error').hidden = true;
   try {
@@ -1046,7 +1048,9 @@ async function loadSpreadsheet() {
       await satelliteCatalogReady;
       if (satelliteCatalogError) throw new Error('Could not load the satellite channel reference. Refresh the page and try again.');
     }
+    if(spreadsheetFile!==loadingFile)return;
     const data = await api('/api/spreadsheet-preview', 'POST', {...spreadsheetFile, sheet: $('sheet-choice').value, header_row: Number($('header-row').value),keep_headers:currentTab==='equipment'?customImportFields().flatMap(([key,label,aliases])=>[label,...aliases]):[]});
+    if(spreadsheetFile!==loadingFile)return;
     spreadsheetData = data;
     venueEdits = new Map(); skippedImportLocations.clear();
     $('sheet-label').hidden = !data.sheets.length;
@@ -1249,7 +1253,7 @@ $('spreadsheet-form').onsubmit = async event => {
         while(end<entries.length&&end<index+8&&entries[end].row.location===location)end++;
         const batch=entries.slice(index,end),remaining=[];
         for(const entry of batch) {
-          const complete=$('import-complete-rows').checked && !entry.issues.length && profile.columns.filter(column=>column.key!=='orientation'&&column.type!=='calculated').every(column=>($('map-'+column.key).value!==''||column.key==='brand'&&profile.stock_mode==='tv_counts'||column.key==='location'&&spreadsheetFile.default_location)&&String(inventoryValue(entry.row,column.key)).trim()!=='');
+          const complete=$('import-complete-rows').checked && !profile.columns.some(column=>column.require_confirmation) && !entry.issues.length && profile.columns.filter(column=>column.key!=='orientation'&&column.type!=='calculated').every(column=>($('map-'+column.key).value!==''||column.key==='brand'&&profile.stock_mode==='tv_counts'||column.key==='location'&&spreadsheetFile.default_location)&&String(inventoryValue(entry.row,column.key)).trim()!=='');
           if(!complete){remaining.push(entry);continue;}
           try {
             collect({entry,result:await api('/api/equipment/import','POST',{version:1,inventory_id:spreadsheetInventory.id,equipment:[entry.row]})});
@@ -1285,13 +1289,149 @@ $('spreadsheet-form').onsubmit = async event => {
   } catch(error) { $('spreadsheet-error').textContent = error.message; $('spreadsheet-error').hidden = false; }
   finally { spreadsheetReviewing = false; $('confirm-import').disabled = false; }
 };
+function showPastedLayoutSuggestion() {
+  const fields=currentTab==='equipment' ? (spreadsheetInventory.layout || defaultInventoryLayout).columns.map(column=>[column.key,column.label,column.type]) : importFields().map(([key,label])=>[key,label,'text']);
+  const used=new Set();let matched=0;
+  const head=element('tr');
+  fields.forEach(([key,label,type])=>{
+    const index=$('map-'+key)?.value ?? '';
+    const th=element('th');th.scope='col';th.append(element('span','',label.replace(' (optional)','')));
+    let source='No matching heading';
+    if(type==='calculated')source='Calculated from counts';
+    else if(index!==''){used.add(Number(index));matched++;source='Excel: '+spreadsheetData.headers[Number(index)];}
+    else if(key==='location'&&spreadsheetFile.default_location)source='Location: '+spreadsheetFile.default_location;
+    else if(key==='brand'&&spreadsheetInventory?.layout?.stock_mode==='tv_counts')source='Suggested from Description';
+    th.append(element('small',index===''&&type!=='calculated'?'paste-layout-missing':'',source));head.append(th);
+  });
+  $('paste-layout-head').replaceChildren(head);
+  const entries=spreadsheetEntries().filter(entry=>!entry.skippedLocation);
+  const preview=currentTab==='equipment'?combineTVEntries(entries):entries;
+  $('paste-layout-rows').replaceChildren(...preview.slice(0,5).map(({row})=>{
+    const tr=element('tr');fields.forEach(([key,label])=>{
+      const value=currentTab==='equipment'?inventoryValue(row,key):row[key];
+      const blank=value==null||String(value).trim()==='';
+      const td=element('td',blank?'paste-layout-blank':'',blank?'Needs review':String(value));td.title=blank?'Blank cell — check during import review':String(value);tr.append(td);
+    });return tr;
+  }));
+  const unmatched=[...spreadsheetData.headers.filter((header,index)=>!used.has(index)),...(spreadsheetData.ignored_columns || [])];
+  $('paste-layout-unmatched').hidden=!unmatched.length;
+  $('paste-layout-unmatched').textContent='Headings without a direct field match: '+unmatched.join(', ')+'. Review these in field matching; some source details may be kept in Notes.';
+  $('paste-layout-summary').textContent=`${spreadsheetInventory?.name || (currentTab==='iptv'?'IPTV Channels':'AV Devices')} · ${spreadsheetData.rows.length} source rows · ${matched} suggested field matches · Showing ${Math.min(5,preview.length)} sample rows`;
+  $('continue-paste-layout').disabled=false;$('keep-paste-layout').disabled=false;
+}
+$('keep-paste-layout').onclick=()=>{$('paste-layout-dialog').close();$('spreadsheet-dialog').showModal();};
+$('continue-paste-layout').onclick=startPastedHeadingSetup;
+$('back-paste-layout').onclick=()=>{$('paste-layout-dialog').close();closeSpreadsheet();$('paste-inventory-dialog').showModal();$('paste-inventory-text').focus();};
+$('close-paste-layout').onclick=()=>{$('paste-layout-dialog').close();closeSpreadsheet();};
+$('paste-layout-dialog').addEventListener('cancel',()=>closeSpreadsheet());
+let pastedFieldSetup=null;
+function startPastedHeadingSetup(){
+  const columns=currentTab==='equipment' ? structuredClone(spreadsheetInventory.layout || defaultInventoryLayout).columns : importFields().map(([key,label])=>({key,label,type:'text',options:[]}));
+  const decisions=spreadsheetData.headers.map((header,index)=>{
+    const matching=columns.find(column=>$('map-'+column.key)?.value===String(index)) || columns.find(column=>column.type==='calculated'&&[column.label,...(column.aliases || [])].some(alias=>normalizedHeader(alias)===normalizedHeader(header)));
+    const serialNotUsed=currentTab==='equipment' && ['tv','scala'].includes(spreadsheetInventory.layout?.template) && /^(serial|serial number|s\/n|sn)$/.test(normalizedHeader(header));
+    return {source:index,target:matching?.key || (currentTab==='equipment'&&!serialNotUsed?'__new':'__skip'),column:matching?structuredClone(matching):{key:'',label:header,type:'text',options:[],important:false,filter:'none',require_confirmation:false}};
+  });
+  pastedFieldSetup={index:0,columns,decisions,file:spreadsheetFile,inventory:spreadsheetInventory,tab:currentTab};
+  $('paste-layout-dialog').close();showPastedHeading();$('paste-field-dialog').showModal();
+}
+function showPastedHeading(){
+  const setup=pastedFieldSetup,decision=setup.decisions[setup.index],header=spreadsheetData.headers[decision.source];
+  $('paste-field-progress').textContent=`Heading ${setup.index+1} of ${setup.decisions.length}`;
+  $('paste-field-title').textContent=header;
+  const samples=[...new Set(spreadsheetData.rows.map(row=>String(row[decision.source] ?? '').trim()).filter(Boolean))];
+  $('paste-field-sample').textContent='Examples: '+(samples.slice(0,4).join(' · ') || 'All cells are blank');
+  $('paste-field-target').replaceChildren(new Option('Skip this heading','__skip'),...(setup.tab==='equipment'?[new Option('Create a new column','__new')]:[]),...setup.columns.map(column=>new Option(column.label,column.key)));
+  $('paste-field-target').value=decision.target;
+  $('paste-field-error').hidden=true;renderPastedHeadingControls();
+  $('back-paste-field').disabled=setup.index===0;
+  $('next-paste-field').textContent=setup.index===setup.decisions.length-1?'Apply fields and match columns':'Next heading';
+}
+function renderPastedHeadingControls(){
+  const setup=pastedFieldSetup,decision=setup.decisions[setup.index],column=decision.column;
+  const skip=decision.target==='__skip',network=setup.tab!=='equipment';
+  $('paste-field-name').value=column.label;$('paste-field-name').disabled=skip||network;
+  const dependent=setup.columns.some(col=>col.type==='calculated'&&col.sources?.includes(column.key));
+  const types=network?[['text','Text box']]:column.type==='calculated'?[['calculated','Calculated total']]:dependent?[['count',column.minimum===0?'Count dropdown (0–50)':'Count dropdown (1–50)']]:column.key==='notes'?[['text','Text box']]:column.key==='quantity'?[['text','Number input'],['count','Count dropdown (1–50)']]:[['text','Text box'],['buttons','Buttons'],['select','Dropdown list'],['checkbox','Checkbox'],...(!inventoryBaseFields.has(column.key)?[['count','Count dropdown (0–50)']]:[]),...(column.key==='location'?[['location','Imported location choices']]:[])];
+  $('paste-field-type').replaceChildren(...types.map(([key,label])=>new Option(label,key)));
+  $('paste-field-type').value=column.type;$('paste-field-type').disabled=skip||network||dependent||column.type==='calculated';
+  const choices=['select','buttons'].includes(column.type)&&!skip;
+  $('paste-field-options-label').hidden=!choices;
+  $('paste-field-options').value=(column.options || []).join('\n');
+  $('paste-field-confirm').checked=network || !!column.require_confirmation;$('paste-field-confirm').disabled=skip||network;
+  $('paste-field-help').textContent=skip?'This source heading will not be mapped to a table column.':network?'AV Devices and IPTV use fixed fields and validation. Every pasted row is confirmed during review.':dependent||column.type==='calculated'?'This field is part of a calculated stock total, so its numeric control is preserved.':'Your choices apply to this inventory. Required fields will have a Checked box during import review; they cannot be added automatically.';
+}
+$('paste-field-target').onchange=()=>{
+  const setup=pastedFieldSetup,decision=setup.decisions[setup.index];decision.target=$('paste-field-target').value;
+  decision.column=decision.target.startsWith('__')?{key:'',label:spreadsheetData.headers[decision.source],type:'text',options:[],important:false,filter:'none'}:structuredClone(setup.columns.find(column=>column.key===decision.target));renderPastedHeadingControls();
+};
+$('paste-field-type').onchange=()=>{
+  const decision=pastedFieldSetup.decisions[pastedFieldSetup.index];decision.column.label=$('paste-field-name').value;decision.column.require_confirmation=$('paste-field-confirm').checked;decision.column.type=$('paste-field-type').value;
+  if(['buttons','select'].includes(decision.column.type)&&!decision.column.options?.length)decision.column.options=[...new Set(spreadsheetData.rows.map(row=>String(row[decision.source]??'').trim()).filter(Boolean))].slice(0,50);
+  if(decision.column.type==='count')decision.column.minimum=decision.column.minimum ?? 0;
+  renderPastedHeadingControls();
+};
+function readPastedHeading(){
+  const setup=pastedFieldSetup,decision=setup.decisions[setup.index];
+  if(decision.target==='__skip')return;
+  decision.column.label=$('paste-field-name').value.trim();decision.column.type=$('paste-field-type').value;decision.column.require_confirmation=$('paste-field-confirm').checked;
+  if(!decision.column.label)throw new Error('Enter a column name.');
+  if(['select','buttons'].includes(decision.column.type)){
+    decision.column.options=$('paste-field-options').value.split('\n').map(value=>value.trim()).filter(Boolean);
+    if(!decision.column.options.length||decision.column.options.length>50||new Set(decision.column.options.map(value=>value.toLowerCase())).size!==decision.column.options.length)throw new Error('Enter between 1 and 50 distinct choices, one per line.');
+  }
+}
+$('back-paste-field').onclick=()=>{try{readPastedHeading();pastedFieldSetup.index--;showPastedHeading();}catch(error){$('paste-field-error').textContent=error.message;$('paste-field-error').hidden=false;}};
+$('paste-field-form').onsubmit=async event=>{
+  event.preventDefault();const setup=pastedFieldSetup;
+  try{
+    readPastedHeading();
+    if(setup.index<setup.decisions.length-1){setup.index++;showPastedHeading();return;}
+    $('next-paste-field').disabled=true;
+    const assignments=new Map(),columns=structuredClone(setup.columns),used=new Set();
+    for(const decision of setup.decisions){
+      if(decision.target==='__skip')continue;
+      const column=structuredClone(decision.column);
+      if(decision.target==='__new'){
+        const root=column.label.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,35) || 'field';
+        column.key='field_'+root;let number=2;while(columns.some(col=>col.key===column.key))column.key='field_'+root+'_'+number++;
+        if(columns.length>=16)throw new Error('An inventory supports up to 16 columns. Skip a heading or match an existing field.');columns.push(column);
+      }else{
+        if(used.has(column.key))throw new Error(`Two headings use ${column.label}. Go back and skip or change one.`);
+        columns[columns.findIndex(col=>col.key===column.key)]=column;
+      }
+      used.add(column.key);assignments.set(column.key,String(decision.source));
+    }
+    if(setup.tab==='equipment'){
+      const layout={...(setup.inventory.layout || defaultInventoryLayout),columns};
+      const saved=await api(`/api/equipment/inventories/${setup.inventory.id}`,'PUT',{name:setup.inventory.name,layout});
+      await window.equipmentUI.load(saved.id);spreadsheetInventory=saved;
+    }
+    await loadSpreadsheet();
+    if(!$('spreadsheet-error').hidden)throw new Error($('spreadsheet-error').textContent);
+    importFields().forEach(([key])=>{$('map-'+key).value=assignments.get(key) ?? '';});
+    showVenueEditors();showSpreadsheetPreview();
+    $('paste-field-dialog').close();$('spreadsheet-dialog').showModal();pastedFieldSetup=null;
+  }catch(error){$('paste-field-error').textContent=error.message;$('paste-field-error').hidden=false;}
+  finally{$('next-paste-field').disabled=false;}
+};
+$('close-paste-field').onclick=()=>{if($('next-paste-field').disabled)return;$('paste-field-dialog').close();pastedFieldSetup=null;$('paste-layout-dialog').showModal();};
+$('paste-field-dialog').addEventListener('cancel',event=>{if($('next-paste-field').disabled){event.preventDefault();return;}pastedFieldSetup=null;$('paste-layout-dialog').showModal();});
 async function startSpreadsheetImport(file,inventory) {
   spreadsheetFile=file;spreadsheetInventory=inventory;
   spreadsheetData=null;venueEdits=new Map();skippedImportLocations.clear();$('import-venue-editor').hidden=true;
   $('import-venue-list').replaceChildren();$('header-row').value='1';$('sheet-choice').replaceChildren();$('sheet-choice').disabled=/\.csv$/i.test(file.filename);
   $('column-mappings').replaceChildren();$('spreadsheet-preview').replaceChildren();
   $('spreadsheet-summary').textContent='Reading '+file.filename+'…';
-  $('spreadsheet-dialog').showModal();await loadSpreadsheet();
+  if(file.pasted){
+    $('paste-layout-summary').textContent='Reading the first row and suggesting columns…';
+    $('paste-layout-head').replaceChildren();$('paste-layout-rows').replaceChildren();$('paste-layout-unmatched').hidden=true;$('continue-paste-layout').disabled=true;$('keep-paste-layout').disabled=true;
+    $('paste-layout-dialog').showModal();
+  }else $('spreadsheet-dialog').showModal();
+  await loadSpreadsheet();
+  if(spreadsheetFile!==file)return;
+  if(file.pasted && spreadsheetData && $('paste-layout-dialog').open)showPastedLayoutSuggestion();
+  else if(file.pasted && $('paste-layout-dialog').open){$('paste-layout-dialog').close();$('spreadsheet-dialog').showModal();}
 }
 let pasteInventory=null,pasteInventorySaving=false,pasteTargetTab=null;
 async function openPastedImport(){

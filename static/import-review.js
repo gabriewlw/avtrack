@@ -19,7 +19,7 @@ function reviewEquipmentBatch(entries, index, total, inventory, fields, filename
       const check=element('input');check.type='checkbox';check.checked=!entry.issues.length;check.setAttribute('aria-label',`Select row ${entry.number}`);
       label.append(check,element('strong','',`Row ${entry.number}`));selection.append(label);
       const flags=element('p','batch-row-flags',entry.issues.join(' · '));flags.hidden=!entry.issues.length;selection.append(flags);row.append(selection);
-      const controls=new Map();
+      const controls=new Map(),confirmations=new Map();
       fields.forEach(([key,label]) => {
         const cell=element('td');
         const column=inventory.layout?.columns.find(column=>column.key===key);
@@ -36,13 +36,18 @@ function reviewEquipmentBatch(entries, index, total, inventory, fields, filename
           cell.append(control);
         }
         control.setAttribute('aria-label',`${label.replace(' (optional)','')}, row ${entry.number}`);
+        if(column?.require_confirmation){
+          const label=element('label','batch-field-confirmation');const confirm=element('input');confirm.type='checkbox';confirm.setAttribute('aria-label',`Confirm ${column.label}, row ${entry.number}`);
+          label.append(confirm,document.createTextNode('Checked'));cell.append(label);confirmations.set(key,confirm);confirm.onchange=updateSelection;
+          control.addEventListener('change',()=>{confirm.checked=false;updateSelection();});
+        }
         controls.set(key,control);row.append(cell);
       });
-      const calculate=()=>{const values={...entry.row,custom_values:{...entry.row.custom_values}};controls.forEach((input,key)=>{if(inventoryBaseFields.has(key))values[key]=input.value;else values.custom_values[key]=input.value;});const calculated=inventoryCalculate(values,inventory.layout || defaultInventoryLayout);(inventory.layout?.columns || []).filter(col=>col.type==='calculated').forEach(col=>{controls.get(col.key).value=inventoryValue(calculated,col.key);});};
-      controls.forEach(control=>control.addEventListener('change',calculate));calculate();
+      const calculate=()=>{const values={...entry.row,custom_values:{...entry.row.custom_values}};controls.forEach((input,key)=>{if(inventoryBaseFields.has(key))values[key]=input.value;else values.custom_values[key]=input.value;});const calculated=inventoryCalculate(values,inventory.layout || defaultInventoryLayout);(inventory.layout?.columns || []).filter(col=>col.type==='calculated').forEach(col=>{const next=inventoryValue(calculated,col.key);if(controls.get(col.key).value!==next&&confirmations.has(col.key))confirmations.get(col.key).checked=false;controls.get(col.key).value=next;});};
+      controls.forEach(control=>control.addEventListener('change',()=>{calculate();updateSelection();}));calculate();
       const status=element('td','batch-row-result','Awaiting review');status.setAttribute('role','status');row.append(status);
       check.onchange=updateSelection;
-      return {entry,row,check,flags,controls,status,done:false};
+      return {entry,row,check,flags,controls,confirmations,status,done:false};
     });
     $('inventory-import-review-rows').replaceChildren(...states.map(state=>state.row));
     function updateSelection() {
@@ -50,10 +55,11 @@ function reviewEquipmentBatch(entries, index, total, inventory, fields, filename
       const all=$('inventory-import-review-all');
       all.checked=!!remaining.length&&selected===remaining.length;all.indeterminate=selected>0&&selected<remaining.length;
       all.disabled=saving||!remaining.length;
-      $('inventory-import-review-save').disabled=saving||!selected;
+      const unconfirmed=remaining.filter(state=>state.check.checked).some(state=>[...state.confirmations.values()].some(control=>!control.checked));
+      $('inventory-import-review-save').disabled=saving||!selected||unconfirmed;
       $('inventory-import-review-skip').disabled=saving||!selected;
       $('inventory-import-review-save').textContent=`Import selected (${selected})`;
-      $('inventory-import-review-count').textContent=`${states.filter(state=>state.done).length} of ${states.length} rows finished · ${selected} selected`;
+      $('inventory-import-review-count').textContent=`${states.filter(state=>state.done).length} of ${states.length} rows finished · ${selected} selected${unconfirmed?' · Check required fields before importing':''}`;
       $('inventory-import-review-stop').disabled=saving;
       $('inventory-import-review-close').disabled=saving;
     }
@@ -67,7 +73,7 @@ function reviewEquipmentBatch(entries, index, total, inventory, fields, filename
       row.location=cleanVenue(row.location);
       const calculated=inventoryCalculate(row,inventory.layout || defaultInventoryLayout);Object.assign(row,calculated);
       state.entry.row=row;
-      state.entry.issues=[...equipmentIssues(row),...state.entry.issues.filter(issue=>issue.startsWith('Repeated '))];
+      state.entry.issues=[...equipmentIssues(row),...state.entry.issues.filter(issue=>issue.startsWith('Repeated ')||issue.startsWith('Confirm '))];
       state.flags.textContent=state.entry.issues.join(' · ');state.flags.hidden=!state.entry.issues.length;
       return row;
     }
@@ -80,7 +86,7 @@ function reviewEquipmentBatch(entries, index, total, inventory, fields, filename
     }
     $('inventory-import-review-all').onchange=event=>{states.filter(state=>!state.done).forEach(state=>{state.check.checked=event.target.checked;});updateSelection();};
     $('inventory-import-review-save').onclick=async()=>{
-      if(saving)return;
+      if(saving||$('inventory-import-review-save').disabled)return;
       const selected=states.filter(state=>!state.done&&state.check.checked);
       saving=true;dialog.querySelectorAll('input,select,textarea,button').forEach(control=>{control.disabled=true;});updateSelection();
       try {
