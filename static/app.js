@@ -524,6 +524,7 @@ async function load() {
     return false;
   } finally { $('loading').hidden = true; $('refresh').disabled = false; }
 }
+const copyIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>';
 function udpCell(device) {
   const cell = element('div', 'udp-cell');
   const field = element('div', 'udp-field');
@@ -537,7 +538,7 @@ function udpCell(device) {
   copy.type = 'button'; copy.disabled = !input.value;
   copy.setAttribute('aria-label', `Copy UDP address for ${deviceLabel(device)}`);
   copy.title = 'Copy UDP address';
-  copy.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>';
+  copy.innerHTML = copyIcon;
   copy.onclick = async () => {
     try {
       await navigator.clipboard.writeText(input.value);
@@ -555,7 +556,7 @@ function ipCopyButton(device, addressText) {
   const button = element('button', 'ip-copy'); button.type = 'button';
   button.title = 'Copy IP address';
   button.setAttribute('aria-label', `Copy IP address for ${deviceLabel(device)}`);
-  button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0 2 2h2"/></svg>';
+  button.innerHTML = copyIcon;
   button.onclick = async () => {
     let copied = false;
     try { await navigator.clipboard.writeText(device.ip); copied = true; } catch {}
