@@ -808,7 +808,7 @@ function equipmentIssues(row) {
   const important=profile.columns.filter(col=>col.important&&col.key!=='orientation');
   const issues=[...(row.source_issues || []),...important.filter(col=>String(inventoryValue(row,col.key)).trim()==='').map(col=>`Missing ${col.label}`)];
 
-  profile.columns.filter(col=>['select','buttons'].includes(col.type)).forEach(col=>{const value=String(inventoryValue(row,col.key));if(value&&!col.options.some(option=>option.toLowerCase()===value.toLowerCase()))issues.push(`Check ${col.label}: ${value}`);});
+  profile.columns.filter(col=>['select','buttons'].includes(col.type)&&!col.allow_custom).forEach(col=>{const value=String(inventoryValue(row,col.key));if(value&&!col.options.some(option=>option.toLowerCase()===value.toLowerCase()))issues.push(`Check ${col.label}: ${value}`);});
   profile.columns.filter(col=>col.type==='count').forEach(col=>{const value=String(inventoryValue(row,col.key)).trim();if(value&&(!/^\d+$/.test(value)||Number(value)<(col.minimum ?? 1)||Number(value)>50))issues.push(`Check ${col.label}: choose ${(col.minimum ?? 1)}–50`);});
   if (/[|;,\n]/.test(row.serial_number || '')) issues.push('Multiple serial numbers in one record');
   if (/separate inventory|not an itemized|reference to/i.test(row.notes || '')) issues.push('Inventory reference: check itemized source');

@@ -20,7 +20,7 @@ function inventoryInput(column,value = '', {allowClear = true, locations = []} =
   control.value = value; control.maxLength = ['notes','description'].includes(column.key) ? 2000 : 120;
   if (column.type === 'select') {
     control.append(new Option('Leave blank',''),...column.options.map(value => new Option(value,value)));
-    if(value&&!column.options.includes(value))control.append(new Option('Review: '+value,value));
+    if(value&&!column.options.includes(value))control.append(new Option(column.allow_custom?value:'Review: '+value,value));
     control.value = value;
   } else if (column.type === 'checkbox') {
     control.type='hidden';
@@ -36,7 +36,19 @@ function inventoryInput(column,value = '', {allowClear = true, locations = []} =
   } else { control.type=column.key==='quantity'?'number':'text';if(column.key==='quantity'){control.min='0';control.max='1000000';} }
   if(column.type==='calculated'){control.readOnly=true;control.setAttribute('aria-description','Calculated from deck counts');wrapper.classList.add('inventory-calculated');}
   if(control.tagName==='TEXTAREA')control.rows=1;
-  wrapper.append(control);return {wrapper,control};
+  wrapper.append(control);
+  if(column.type==='select'&&column.allow_custom){
+    const otherValue='__avtrack_other_choice__';control.append(new Option(column.key==='brand'?'Other brand…':'Other value…',otherValue));
+    const editor=element('div','inventory-other-choice');editor.hidden=true;
+    const input=element('input');input.type='text';input.maxLength=120;input.placeholder=column.key==='brand'?'Enter another brand':'Enter another value';input.setAttribute('aria-label',column.key==='brand'?'Other brand':`Other ${column.label}`);
+    const apply=element('button','secondary',column.key==='brand'?'Use brand':'Use value');apply.type='button';
+    let previous=control.value;
+    control.addEventListener('change',event=>{if(control.value===otherValue){event.stopImmediatePropagation();control.value=previous;editor.hidden=false;input.focus();}else previous=control.value;},true);
+    apply.onclick=()=>{const value=input.value.trim();if(!value){input.focus();return;}const match=[...control.options].find(option=>option.value.toLowerCase()===value.toLowerCase());if(match&&match.value!==otherValue)control.value=match.value;else{const option=new Option(value,value);control.insertBefore(option,control.lastElementChild);control.value=value;}previous=control.value;input.value='';editor.hidden=true;control.dispatchEvent(new Event('change',{bubbles:true}));};
+    input.onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();apply.click();}};
+    editor.append(input,apply);wrapper.append(editor);
+  }
+  return {wrapper,control};
 }
 
 function inventoryCalculate(row,profile) {

@@ -39,6 +39,9 @@ def validate_profile(value):
         if key=='quantity' and kind not in ('text','count'):
             raise ValueError('Quantity uses a number input or count dropdown.')
         column=dict(key=key,label=label.strip(),type=kind,important=col.get('important',False),filter=filtering,options=options)
+        if 'allow_custom' in col:
+            if type(col['allow_custom']) is not bool: raise ValueError('Choose whether other dropdown values are allowed.')
+            column['allow_custom']=col['allow_custom'] if kind=='select' else False
         if 'require_confirmation' in col:
             if type(col['require_confirmation']) is not bool: raise ValueError('Choose whether import confirmation is required.')
             column['require_confirmation']=col['require_confirmation']
@@ -101,7 +104,7 @@ def custom_values(value,profile):
             if raw.casefold() not in choices:
                 raise ValueError(f'{col["label"]}: use Yes or No, or leave blank.')
             raw=choices[raw.casefold()]
-        if col and col['type'] in ('select','buttons') and raw:
+        if col and col['type'] in ('select','buttons') and raw and not col.get('allow_custom'):
             choices={opt.casefold():opt for opt in col['options']}
             if key=='orientation':
                 raw={'portrait':'Vertical','landscape':'Horizontal'}.get(raw.casefold(),raw)
@@ -136,8 +139,8 @@ def normalize_template_row(row, profile):
         if col['key'] in BASE_FIELDS and col['type'] in ('select','buttons','checkbox') and row.get(col['key']):
             raw=row[col['key']]
             choices={option.casefold():option for option in col['options']} if col['type']!='checkbox' else {'yes':'Yes','true':'Yes','1':'Yes','no':'No','false':'No','0':'No'}
-            if raw.casefold() not in choices: raise ValueError(f'{col["label"]}: choose a configured option or leave blank.')
-            row[col['key']]=choices[raw.casefold()]
+            if raw.casefold() not in choices and not col.get('allow_custom'): raise ValueError(f'{col["label"]}: choose a configured option or leave blank.')
+            row[col['key']]=choices.get(raw.casefold(),raw)
         if col['type']=='count' and col['key'] in BASE_FIELDS:
 
             value=row.get(col['key'])

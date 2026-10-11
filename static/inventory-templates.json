@@ -187,10 +187,14 @@
         {
           "key": "brand",
           "label": "Brand",
-          "type": "text",
+          "type": "select",
           "important": true,
           "filter": "none",
-          "options": []
+          "options": [
+            "LG",
+            "Samsung"
+          ],
+          "allow_custom": true
         },
         {
           "key": "model",

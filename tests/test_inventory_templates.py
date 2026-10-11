@@ -37,6 +37,21 @@ class InventoryTemplateTests(unittest.TestCase):
         model['require_confirmation']='yes'
         with self.assertRaises(ValueError): validate_profile(layout)
 
+    def test_tv_brand_dropdown_allows_other_brands(self):
+        inventory=self.create('tv')
+        brand=next(column for column in inventory['layout']['columns'] if column['key']=='brand')
+        self.assertEqual(brand['type'],'select')
+        self.assertEqual(brand['options'][:2],['LG','Samsung'])
+        self.assertTrue(brand['allow_custom'])
+        item=app.save_equipment(dict(self.tv(inventory),brand='Philips'))
+        self.assertEqual(item['brand'],'Philips')
+        item=app.save_equipment(dict(self.tv(inventory,model='Y'),brand='lg'))
+        self.assertEqual(item['brand'],'LG')
+        layout=copy.deepcopy(inventory['layout'])
+        next(column for column in layout['columns'] if column['key']=='brand').update(type='text',options=[])
+        updated=app.save_equipment_inventory(dict(name=inventory['name'],layout=layout),inventory['id'])
+        self.assertEqual(next(column for column in updated['layout']['columns'] if column['key']=='brand')['type'],'select')
+
     def test_every_template_roundtrips_and_is_editable(self):
         self.assertEqual(len(TEMPLATES),10)
         for template in TEMPLATES:

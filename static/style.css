@@ -685,3 +685,5 @@ main, dialog {
 #paste-field-dialog{width:min(700px,calc(100vw - 48px));max-width:calc(100vw - 48px)}
 .batch-field-confirmation{display:flex;flex-direction:row;align-items:center;gap:8px;margin-top:10px;font-size:11px;color:#e7bd72}
 .batch-field-confirmation input{width:16px;height:16px;min-height:16px}
+
+.inventory-other-choice{display:flex;gap:8px;margin-top:8px;align-items:center}.inventory-other-choice[hidden]{display:none}.inventory-other-choice input{min-width:0;flex:1}

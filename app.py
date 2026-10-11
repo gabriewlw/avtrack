@@ -397,7 +397,7 @@ def equipment_inventory_details(con, inventory_id):
     record = dict(record)
     layout = json.loads(record.pop('layout'))
     if layout.get('template')=='tv' or layout.get('stock_mode')=='tv_counts':
-        layout['columns']=[column for column in layout['columns'] if column['key']!='serial_number']
+        layout['columns']=[dict(column,type='select',options=['LG','Samsung']+[option for option in column.get('options',[]) if option.casefold() not in ('lg','samsung')][:48],allow_custom=True) if column['key']=='brand' else column for column in layout['columns'] if column['key']!='serial_number']
         if layout.get('primary_search')=='serial_number': layout['primary_search']='model'
         if layout.get('identifier')=='serial_number': layout['identifier']='model'
         layout['columns']=[dict(column,label='Total') if column['key']=='total_count' and column['label'].casefold()=='total count' else column for column in layout['columns']]

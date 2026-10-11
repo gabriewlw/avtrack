@@ -62,7 +62,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.evaluate("() => [...document.querySelectorAll('#equipment-rows tr')].every(row=>Math.abs(row.getBoundingClientRect().height-47)<1)")
             assert page.locator('#equipment-rows tr').count()==2
             page.locator('#add-device').click()
-            page.locator('#equipment-brand').fill('Samsung');page.locator('#equipment-model').fill('Found TV')
+            page.locator('#equipment-brand').select_option('Samsung');page.locator('#equipment-model').fill('Found TV')
             page.locator('#equipment-form').get_by_label('Deck 6',exact=True).select_option('1')
             assert page.locator('#equipment-form').get_by_label('Total',exact=True).input_value()=='1'
             page.locator('#save-equipment').click();page.locator('#equipment-dialog').wait_for(state='hidden')
