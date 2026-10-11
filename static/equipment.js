@@ -8,6 +8,9 @@
   const layout = () => inventories.find(i => i.id === inventoryId)?.layout || defaultInventoryLayout;
   const displayColumns = () => layout().columns;
   const isTVInventory = () => layout().template === 'tv' || layout().stock_mode === 'tv_counts';
+  const ipConfirmation = () => layout().confirmation_mode === 'ip';
+  const confirmedLabel = () => ipConfirmation() ? 'IP confirmed' : 'Located';
+  const pendingLabel = () => ipConfirmation() ? 'Confirm IP' : 'Not located';
   const showLocatedStatus = () => layout().show_status !== false;
   const importReports = new Map();
   const crossChecks = new Map();
@@ -108,9 +111,9 @@
     $('equipment-review-summary').replaceChildren(
       document.createTextNode(`${items.filter(i => !i.data_checked).length} records not checked · `),
       flaggedCount ? flaggedLink : document.createTextNode('0 flagged'),
-      document.createTextNode(showLocatedStatus() ? ` · ${items.filter(i => !i.item_confirmed).length} locations not confirmed` : ''));
+      document.createTextNode(showLocatedStatus() ? ` · ${items.filter(i => !i.item_confirmed).length} ${ipConfirmation()?'IPs':'locations'} not confirmed` : ''));
     const results = items.filter(item => (layout().stock_mode!=='tv_counts'||$('equipment-show-zero').checked||item.quantity!==0) && [...fields.map(field=>item[field]),...Object.values(item.custom_values || {}),
-      ...(showLocatedStatus() ? [item.item_confirmed ? 'Located' : 'Not located'] : []),
+      ...(showLocatedStatus() ? [item.item_confirmed ? confirmedLabel() : pendingLabel()] : []),
       item.data_checked ? 'Record checked' : equipmentIssues(item).length ? 'Check flagged record' : 'Check record'
     ].some(value => String(value ?? '').toLowerCase().includes(query)) &&
       [...customFilterValues].every(([key,value]) => !value || String(inventoryValue(item,key)) === value) &&
@@ -135,8 +138,9 @@
     $('equipment-units').title = 'Sum of known quantities; blank quantities are not counted.';
     $('equipment-locations').textContent = new Set(items.map(i => i.location).filter(Boolean)).size;
     $('equipment-found').textContent = items.filter(item => item.item_confirmed).length;
+    $('equipment-found').previousElementSibling.textContent=ipConfirmation()?'Confirmed IPs':'Confirmed locations';
     $('equipment-result-count').textContent = results.length;
-    $('equipment-showing').textContent = `${results.length} of ${items.length} items`+(showLocatedStatus() ? ` · ${results.filter(item => item.item_confirmed).length} located in this view` : '');
+    $('equipment-showing').textContent = `${results.length} of ${items.length} items`+(showLocatedStatus() ? ` · ${results.filter(item => item.item_confirmed).length} ${ipConfirmation()?'IPs confirmed':'located'} in this view` : '');
     $('equipment-found').closest('div').hidden=!showLocatedStatus();
     document.querySelector('.equipment-stats').classList.toggle('without-status',!showLocatedStatus());
     $('equipment-empty').hidden = items.length > 0;
@@ -226,18 +230,18 @@
           const control = element('label', `equipment-confirm-label${item.item_confirmed ? ' confirmed' : ''}`);
           const check = element('input', 'equipment-confirm'); check.type = 'checkbox';
           check.checked = Boolean(item.item_confirmed); check.disabled = pendingConfirmations.has(item.id);
-          check.setAttribute('aria-label', `Mark equipment ${displayName(item)} as located`);
-          control.append(check, element('span', '', item.item_confirmed ? 'Located' : 'Not located'));
+          check.setAttribute('aria-label', `${ipConfirmation()?'Confirm IP for':'Mark equipment'} ${displayName(item)}${ipConfirmation()?'':' as located'}`);
+          control.append(check, element('span', '', item.item_confirmed ? confirmedLabel() : pendingLabel()));
           check.onchange = async () => {
             const write = api(`/api/equipment/${item.id}/confirm`, 'POST', {...item, item_confirmed:check.checked});
             pendingConfirmations.set(item.id, write); check.disabled = true;
             try {
               const updated = await write;
               items = items.map(record => record.id === updated.id ? updated : record);
-            } catch(error) { toast('Could not update located status: ' + error.message); }
+            } catch(error) { toast('Could not update confirmation: ' + error.message); }
             finally { pendingConfirmations.delete(item.id); renderEquipment(); }
           };
-          if(layout().template){const button=element('button',`ip-confirm${item.item_confirmed?' confirmed':' pending'}`,item.item_confirmed?'Located':'Not located');button.type='button';button.disabled=check.disabled;button.setAttribute('aria-pressed',String(!!item.item_confirmed));button.setAttribute('aria-label',check.getAttribute('aria-label'));button.onclick=()=>{button.disabled=true;check.checked=!check.checked;check.onchange();};status.append(button);}else status.append(control); row.append(status);
+          if(layout().template || ipConfirmation()){const button=element('button',`ip-confirm${item.item_confirmed?' confirmed':' pending'}`,item.item_confirmed?confirmedLabel():pendingLabel());button.type='button';button.disabled=check.disabled;button.setAttribute('aria-pressed',String(!!item.item_confirmed));button.setAttribute('aria-label',check.getAttribute('aria-label'));button.onclick=()=>{button.disabled=true;check.checked=!check.checked;check.onchange();};status.append(button);}else status.append(control); row.append(status);
           }
         }
       });
@@ -283,6 +287,7 @@
     $('equipment-search').title='Search item, brand, model, serial number, quantity, location, notes, status and custom columns.';
     document.querySelector('.equipment-status-group').hidden=!showLocatedStatus();
     if(!showLocatedStatus())$('equipment-status-filter').value='';
+    $('equipment-status-buttons').querySelectorAll('button').forEach(button=>{button.textContent=button.dataset.value==='found'?confirmedLabel():button.dataset.value==='pending'?pendingLabel():'All items';});
     const location=displayColumns().find(col=>col.key==='location');
     $('equipment-location-filter-label').hidden=!location || location.filter==='none';
     $('equipment-location-buttons').hidden=location?.filter!=='buttons';

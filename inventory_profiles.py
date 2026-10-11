@@ -70,6 +70,9 @@ def validate_profile(value):
     if identifier in ('location','quantity','notes'):
         raise ValueError('Choose an item ID or serial number as the identifier.')
     result = dict(columns=columns,primary_search=primary,identifier=identifier)
+    if 'confirmation_mode' in value:
+        if value['confirmation_mode'] not in ('none','ip','storage'):raise ValueError('Choose no confirmation, IP confirmation, or storage confirmation.')
+        result['confirmation_mode']=value['confirmation_mode']
     if 'show_status' in value:
         if type(value['show_status']) is not bool:
             raise ValueError('Choose whether to show location status.')

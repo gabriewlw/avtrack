@@ -39,7 +39,7 @@ SCHEMA = """CREATE TABLE {table} (
     venue TEXT NOT NULL, discipline TEXT NOT NULL, ip TEXT NOT NULL,
     vlan INTEGER, notes TEXT NOT NULL DEFAULT '',
     record_type TEXT NOT NULL DEFAULT 'device', channel_source TEXT NOT NULL DEFAULT '',
-    port INTEGER, ip_confirmed INTEGER NOT NULL DEFAULT 0,
+    port INTEGER, ip_confirmed INTEGER NOT NULL DEFAULT 0, confirmation_required INTEGER NOT NULL DEFAULT 1,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"""
 EQUIPMENT_SCHEMA = """CREATE TABLE {table} (
     id INTEGER PRIMARY KEY, brand TEXT NOT NULL, model TEXT NOT NULL,
@@ -63,13 +63,17 @@ def connect():
                                ('channel_source', "TEXT NOT NULL DEFAULT ''"), ('port', 'INTEGER')]:
         if column not in columns:
             con.execute(f'ALTER TABLE devices ADD COLUMN {column} {definition}')
+    if 'confirmation_required' not in columns:
+        con.execute('ALTER TABLE devices ADD COLUMN confirmation_required INTEGER NOT NULL DEFAULT 1')
+        con.execute("UPDATE devices SET confirmation_required=0 WHERE record_type='iptv'")
+        con.commit()
     if columns['vlan']['notnull']:
         # Rebuild the old table atomically to make VLAN optional for IPTV.
         # Copy every existing record, ID, timestamp, and confirmation without inventing ports.
         con.execute('BEGIN IMMEDIATE')
         try:
             con.execute(SCHEMA.format(table='devices_upgrade'))
-            names = 'id,' + ','.join(ALL_FIELDS) + ',ip_confirmed,updated_at'
+            names = 'id,' + ','.join(ALL_FIELDS) + ',ip_confirmed,confirmation_required,updated_at'
             con.execute(f'INSERT INTO devices_upgrade ({names}) SELECT {names} FROM devices')
             con.execute('DROP TABLE devices')
             con.execute('ALTER TABLE devices_upgrade RENAME TO devices')
@@ -144,7 +148,8 @@ def connect():
 def serialize(record):
     row = dict(record)
     if row['record_type'] == 'iptv':
-        row.update(venue='', vlan=None, ip_confirmed=0)
+        row.update(venue='', vlan=None)
+        if not row.get('confirmation_required'):row['ip_confirmed']=0
     else:
         row['venue'] = clean_venue(row['venue'])
     return row
@@ -222,10 +227,11 @@ def save_device(value, device_id=None):
     row = validate(value)
     with connect() as con:
         if device_id is None:
-            cursor = con.execute('INSERT INTO devices (' + ','.join(ALL_FIELDS) + ') VALUES (' + ','.join('?' for _ in ALL_FIELDS) + ')', [row[f] for f in ALL_FIELDS])
+            row['confirmation_required']=int(row['record_type']=='device')
+            cursor = con.execute('INSERT INTO devices (' + ','.join(ALL_FIELDS) + ',confirmation_required) VALUES (' + ','.join('?' for _ in (*ALL_FIELDS,'confirmation_required')) + ')', [row[f] for f in (*ALL_FIELDS,'confirmation_required')])
             device_id = cursor.lastrowid
         else:
-            cursor = con.execute('UPDATE devices SET ' + ','.join(f + '=?' for f in ALL_FIELDS) + ', ip_confirmed=CASE WHEN ip=? AND vlan IS ? THEN ip_confirmed ELSE 0 END, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row[f] for f in ALL_FIELDS] + [row['ip'], row['vlan'], device_id])
+            cursor = con.execute('UPDATE devices SET ' + ','.join(f + '=?' for f in ALL_FIELDS) + ', ip_confirmed=CASE WHEN ip=? AND vlan IS ? AND port IS ? THEN ip_confirmed ELSE 0 END, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row[f] for f in ALL_FIELDS] + [row['ip'], row['vlan'], row['port'], device_id])
             if cursor.rowcount == 0:
                 raise LookupError('Device not found.')
         return serialize(con.execute('SELECT * FROM devices WHERE id=?', (device_id,)).fetchone())
@@ -238,15 +244,15 @@ def confirm_ip(device_id, value):
         record = con.execute('SELECT * FROM devices WHERE id=?', (device_id,)).fetchone()
         if record is None:
             raise LookupError('Device not found.')
-        if record['record_type'] == 'iptv':
-            raise ValueError('IPTV channels do not require IP confirmation.')
+        if not record['confirmation_required']:
+            raise ValueError('This record does not require IP confirmation.')
         # Check the stored address and assignment, not just a stale browser value.
         row = validate(dict(record))
         if not row['ip']:
             raise ValueError('Add an IP address before confirming it.')
         if row['ip'] == 'DHCP':
             raise ValueError('DHCP does not have a fixed IP address to confirm.')
-        if value.get('ip') != row['ip'] or value.get('vlan') != row['vlan']:
+        if value.get('ip') != row['ip'] or value.get('vlan') != row['vlan'] or (row['record_type']=='iptv' and value.get('port')!=row['port']):
             raise ValueError('The IP or VLAN has changed. Refresh the inventory before confirming.')
         cursor = con.execute('UPDATE devices SET ip_confirmed=1, updated_at=CURRENT_TIMESTAMP WHERE id=? AND ip=? AND vlan IS ?', (device_id, row['ip'], row['vlan']))
         if not cursor.rowcount:
@@ -324,6 +330,9 @@ def import_devices(payload):
             row = validate(value)
             if row['record_type'] == 'device' and not row['discipline']:
                 row['discipline'] = system_from_name(row['name'])
+            required=value.get('confirmation_required',payload.get('confirmation_required',row['record_type']=='device'))
+            if type(required) not in (bool,int) or required not in (0,1):raise ValueError('Choose whether IP confirmation is required.')
+            row['confirmation_required']=int(required)
             rows.append(row)
             numbers.append(number)
         except ValueError as exc:
@@ -344,7 +353,7 @@ def import_devices(payload):
                     warnings.append(f"Row {number}: {row['name']} · {row['venue']} · duplicate IP {row['ip']} {reason}. Skipped; the first record was kept.")
                 seen.add(identity)
                 continue
-            con.execute('INSERT INTO devices (' + ','.join(ALL_FIELDS) + ') VALUES (' + ','.join('?' for _ in ALL_FIELDS) + ')', [row[f] for f in ALL_FIELDS])
+            con.execute('INSERT INTO devices (' + ','.join(ALL_FIELDS) + ',confirmation_required) VALUES (' + ','.join('?' for _ in (*ALL_FIELDS,'confirmation_required')) + ')', [row[f] for f in (*ALL_FIELDS,'confirmation_required')])
             if identity is not None:
                 existing.add(identity)
                 seen.add(identity)
@@ -414,6 +423,7 @@ def equipment_inventory_details(con, inventory_id):
         if layout.get('identifier') and layout['identifier'] not in keys:
             layout['identifier'] = 'asset_id' if 'asset_id' in keys else ''
         layout['show_status'] = False
+    if layout.get('confirmation_mode'):layout['show_status']=layout['confirmation_mode']!='none'
     if layout: record['layout'] = layout
     return record
 
@@ -455,12 +465,16 @@ def save_equipment_inventory(value, inventory_id=None):
         raise ValueError('Enter an inventory name from 1 to 120 characters.')
     layout = validate_profile(value['layout']) if 'layout' in value else None
     with connect() as con:
+        previous_mode=None
         if inventory_id is None:
             inventory_id = con.execute('INSERT INTO equipment_inventories (name) VALUES (?)', (name.strip(),)).lastrowid
         else:
-            equipment_inventory_details(con, inventory_id)
+            previous=equipment_inventory_details(con, inventory_id).get('layout',DEFAULT_PROFILE)
+            previous_mode=previous.get('confirmation_mode', 'none' if previous.get('show_status') is False else 'storage')
             con.execute('UPDATE equipment_inventories SET name=? WHERE id=?', (name.strip(), inventory_id))
         if layout is not None:
+            if previous_mode is not None and layout.get('confirmation_mode',previous_mode)!=previous_mode:
+                con.execute('UPDATE equipment SET item_confirmed=0 WHERE inventory_id=?',(inventory_id,))
             con.execute('UPDATE equipment_inventories SET layout=? WHERE id=?',(json.dumps(layout),inventory_id))
         return equipment_inventory_details(con, inventory_id)
 
@@ -543,6 +557,12 @@ def set_equipment_confirmation(item_id, value):
         if current is None:
             raise LookupError('Inventory item not found.')
         profile = equipment_inventory_details(con,inventory_id).get('layout',DEFAULT_PROFILE)
+        if profile.get('confirmation_mode')=='ip' and value['item_confirmed']:
+            column=next((col for col in profile['columns'] if col['key'] in ('ip','ip_address','multicast_ip') or re.search(r'\bip\b',col['label'],re.I)),None)
+            address=column_value(equipment_record(current),column['key']) if column else ''
+            if not address:raise ValueError('Add the IP address before confirming this item.')
+            try:ipaddress.IPv4Address(address)
+            except ipaddress.AddressValueError:raise ValueError('Use a valid IPv4 address before confirming.') from None
         if custom_values(value.get('custom_values'),profile) != json.loads(current['custom_values']):
             raise ValueError('This item changed. Refresh before confirming or reviewing it.')
         matches = ' AND '.join(f'{field} IS ?' for field in EQUIPMENT_CONFIRM_FIELDS)
@@ -714,7 +734,7 @@ def equipment_csv(rows=None, layout=None):
         writer=csv.writer(output)
         writer.writerow([label for label,key in columns]+(['Status'] if layout.get('show_status',True) else []))
         for row in equipment_inventory() if rows is None else rows:
-            values=[row.get(key) or '' if key=='last_checked_at' else column_value(row,key) for label,key in columns]+(['Located' if row.get('item_confirmed') else 'Not located'] if layout.get('show_status',True) else [])
+            values=[row.get(key) or '' if key=='last_checked_at' else column_value(row,key) for label,key in columns]+([('IP confirmed' if row.get('item_confirmed') else 'Confirm IP') if layout.get('confirmation_mode')=='ip' else ('Located' if row.get('item_confirmed') else 'Not located')] if layout.get('show_status',True) else [])
             writer.writerow(["'"+str(v) if str(v).startswith(('=', '+', '-', '@', '\t', '\r', '\n')) else v for v in values])
         return output.getvalue().encode('utf-8-sig')
     writer = csv.DictWriter(output, fieldnames=fields, extrasaction='ignore')

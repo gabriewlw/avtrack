@@ -27,6 +27,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#equipment-import').click()
             page.locator('#paste-inventory-text').fill('Brand\tModel\tDeck 6\tDeck 2 Port\tDeck 2 Stbd\tNotes\nLG\tX\t1\t\t0\tSample')
             page.locator('#continue-paste-inventory').click()
+            page.locator('#continue-paste-confirmation').click()
             page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
             page.locator('#keep-paste-layout').click();page.locator('#confirm-import').click()
             page.locator('#inventory-import-review').wait_for(state='visible')

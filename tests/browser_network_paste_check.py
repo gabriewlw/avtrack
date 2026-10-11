@@ -16,11 +16,15 @@ with tempfile.TemporaryDirectory() as tmp:
             page.on('pageerror',lambda error:errors.append(str(error)))
             page.goto(f'http://127.0.0.1:{server.server_port}/')
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
-            def paste(text):
+            def paste(text,mode):
                 assert page.locator('#transfer button').first.get_attribute('id')=='network-paste'
                 page.locator('#import').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
                 assert page.locator('#paste-inventory-location-label').is_hidden()
                 page.locator('#paste-inventory-text').fill(text);page.locator('#continue-paste-inventory').click()
+                page.locator('#paste-confirmation-dialog').wait_for(state='visible')
+                assert page.locator('#paste-confirmation-mode option[value=storage]').count()==0
+                page.locator('#paste-confirmation-mode').select_option(mode)
+                page.locator('#continue-paste-confirmation').click()
                 page.locator('#paste-layout-dialog').wait_for(state='visible')
                 page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
                 assert page.locator('#spreadsheet-dialog').is_hidden()
@@ -29,7 +33,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 page.locator('#keep-paste-layout').click()
                 page.locator('#spreadsheet-dialog').wait_for(state='visible')
                 page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
-            paste('Venue\tDevice Name\tIP Address\tVLAN\tNotes\nSports Bar\tWall TV\t10.20.30.40\t50\tScreen one')
+            paste('Venue\tDevice Name\tIP Address\tVLAN\tNotes\nSports Bar\tWall TV\t10.20.30.40\t50\tScreen one','none')
             assert 'AV Devices' in page.locator('#paste-inventory-target').inner_text()
             assert page.locator('#map-ip').input_value()=='2'
             assert not app.inventory()
@@ -39,8 +43,10 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#accept-review-row').click();page.locator('#row-review-dialog').wait_for(state='hidden')
             page.locator('#spreadsheet-dialog').wait_for(state='hidden')
             assert app.inventory()[0]['notes']=='Checked paste'
+            assert app.inventory()[0]['confirmation_required']==0
+            assert page.locator('.ip-confirm').count()==0
             page.locator('#iptv-tab').click()
-            paste('| Channel Name | Multicast IP | Port | Notes |\n| --- | --- | --- | --- |\n| Crew TV | 239.1.2.3 | 1234 | Onboard |')
+            paste('| Channel Name | Multicast IP | Port | Notes |\n| --- | --- | --- | --- |\n| Crew TV | 239.1.2.3 | 1234 | Onboard |','ip')
             assert 'IPTV Channels' in page.locator('#paste-inventory-target').inner_text()
             assert page.locator('#map-port').input_value()=='2'
             page.locator('#confirm-import').click();page.locator('#row-review-dialog').wait_for(state='visible')
@@ -50,6 +56,14 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#spreadsheet-dialog').wait_for(state='hidden')
             records=app.inventory();assert len(records)==2
             assert next(r for r in records if r['record_type']=='iptv')['ip']=='239.1.2.3'
+            channel=next(r for r in records if r['record_type']=='iptv')
+            assert channel['confirmation_required']==1 and channel['ip_confirmed']==0
+            page.locator('.ip-confirm').click()
+            page.get_by_role('button',name='IP confirmed for Crew TV',exact=True).wait_for(state='visible')
+            assert next(r for r in app.inventory() if r['record_type']=='iptv')['ip_confirmed']==1
+            page.reload();page.wait_for_function("() => !document.getElementById('refresh').disabled")
+            page.locator('#iptv-tab').click()
+            assert page.get_by_role('button',name='IP confirmed for Crew TV',exact=True).is_visible()
             assert not errors,errors
             browser.close()
     finally:server.shutdown();server.server_close()

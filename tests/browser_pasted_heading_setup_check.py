@@ -26,6 +26,7 @@ with tempfile.TemporaryDirectory() as tmp:
             text='Model\tOrientation\tLocation\nM1\tVertical\tLobby\nM2\tHorizontal\tLobby'
             page.locator('#paste-inventory-text').fill(text)
             page.locator('#continue-paste-inventory').click()
+            page.locator('#continue-paste-confirmation').click()
             page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
             assert page.locator('#paste-layout-head th').all_text_contents()==['Model','Orientation','Location']
             page.locator('#continue-paste-layout').click();page.locator('#paste-field-dialog').wait_for(state='visible')

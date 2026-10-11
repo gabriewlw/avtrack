@@ -679,12 +679,12 @@ function render() {
     confirmation.onclick = async () => {
       confirmation.disabled = true;
       try {
-        const updated = await api(`/api/devices/${device.id}/confirm`, 'POST', {ip:device.ip, vlan:device.vlan});
+        const updated = await api(`/api/devices/${device.id}/confirm`, 'POST', {ip:device.ip, vlan:device.vlan,port:device.port});
         devices = devices.map(row => row.id === updated.id ? {...row,ip_confirmed:updated.ip_confirmed} : row);
         render(); toast('IP assignment confirmed.'); await loadOverview();
       } catch(error) { confirmation.disabled = false; toast('Confirmation failed: ' + error.message); }
     };
-    if (!iptv && device.ip && !isDHCP(device.ip)) ipLine.append(confirmation);
+    if (device.confirmation_required !== 0 && device.ip && !isDHCP(device.ip)) ipLine.append(confirmation);
     const venue = element('div', 'venue-cell');
     const venueName = cleanVenue(device.venue);
     const venueLabel = element(venueName ? 'button' : 'div', 'device-venue', venueName);
@@ -1005,7 +1005,7 @@ function showSpreadsheetPreview() {
   if (currentTab === 'equipment') {
     const entries = orderEquipmentReview(combineTVEntries(allEntries.filter(entry=>!entry.skippedLocation)));
     const profile=spreadsheetInventory.layout || defaultInventoryLayout;
-    $('equipment-import-audit').textContent = `${profile.stock_mode==='tv_counts'?entries.filter(entry=>entry.row.quantity===0).length+' zero-stock rows will be skipped':profile.location_role==='geographic'?entries.length+' device locations':new Set(entries.map(entry => entry.row.location)).size+' storage locations'} · ${entries.filter(entry => entry.issues.length).length} flagged rows${profile.stock_mode==='tv_counts'?' · '+entries.filter(entry=>entry.sourceNumbers).length+' duplicate-model groups combined':''} · ${allEntries.filter(entry=>entry.skippedLocation).length} items skipped from deleted locations. For each location, complete rows come first, then flagged rows. Storage position, condition, unit and source details are kept in Notes. This import starts with locations unconfirmed.`;
+    $('equipment-import-audit').textContent = `${profile.stock_mode==='tv_counts'?entries.filter(entry=>entry.row.quantity===0).length+' zero-stock rows will be skipped':profile.location_role==='geographic'?entries.length+' device locations':new Set(entries.map(entry => entry.row.location)).size+' storage locations'} · ${entries.filter(entry => entry.issues.length).length} flagged rows${profile.stock_mode==='tv_counts'?' · '+entries.filter(entry=>entry.sourceNumbers).length+' duplicate-model groups combined':''} · ${allEntries.filter(entry=>entry.skippedLocation).length} items skipped from deleted locations. For each location, complete rows come first, then flagged rows. Storage position, condition, unit and source details are kept in Notes. ${profile.confirmation_mode==='ip'?'Imported IPs start unconfirmed.':profile.show_status===false?'No post-import confirmation is required.':'Imported locations start unconfirmed.'}`;
   }
   const previewEntries=currentTab==='equipment'?combineTVEntries(allEntries.filter(entry=>!entry.skippedLocation)):allEntries.filter(entry=>!entry.skippedLocation);
   const rows = previewEntries.map(entry=>entry.row);
@@ -1209,7 +1209,7 @@ function reviewImportRow(entry, index, total, tab, knownAddresses, inventory = n
       try {
         result = await api(equipment ? '/api/equipment/import' : '/api/import', 'POST', equipment
           ? {version:1,inventory_id:inventory.id,equipment:[row]}
-          : {version:1,devices:[row],source:'spreadsheet',row_numbers:[entry.number]});
+          : {version:1,devices:[row],source:'spreadsheet',row_numbers:[entry.number],...(spreadsheetFile.confirmation_mode?{confirmation_required:spreadsheetFile.confirmation_mode==='ip'}:{})});
         if (result.added && addressKey) knownAddresses.add(addressKey);
       } catch(error) {
         $('row-review-error').textContent = error.message.replace('Nothing was imported.', 'This row was not imported. Previously accepted rows remain saved.');
@@ -1476,9 +1476,37 @@ $('paste-inventory-form').onsubmit=async event=>{
     const content=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=()=>reject(new Error('Could not read the pasted cells.'));reader.readAsDataURL(blob);});
     const sourceLabel=$('paste-inventory-sheet').value.trim();const location=pasteInventory && (pasteInventory.layout || defaultInventoryLayout).columns.some(col=>col.key==='location')?cleanVenue($('paste-inventory-location').value):'';
     const file={filename:(sourceLabel || 'Pasted spreadsheet')+'.csv',content,pasted:true,from_headers:pasteFromHeaders,default_location:location,source_label:sourceLabel,...(text.includes('\t')?{delimiter:'\t'}:{})};
-    $('paste-inventory-dialog').close();await startSpreadsheetImport(file,pasteInventory);
+    $('paste-inventory-dialog').close();openPasteConfirmation(file,pasteInventory);
   }catch(error){$('paste-inventory-error').textContent=error.message;$('paste-inventory-error').hidden=false;}
   finally{pasteInventorySaving=false;$('continue-paste-inventory').disabled=!$('paste-inventory-text').value.trim();}
+};
+let pendingPasteConfirmation=null;
+function openPasteConfirmation(file,inventory){
+  pendingPasteConfirmation={file,inventory,tab:currentTab};
+  const options=[['none','No confirmation needed'],['ip','Confirm IP — check the network address afterward'],...(inventory?[['storage','Storage — Located / Not located afterward']]:[])];
+  $('paste-confirmation-mode').replaceChildren(...options.map(([value,label])=>new Option(label,value)));
+  $('paste-confirmation-mode').value=inventory?(inventory.layout?.confirmation_mode || (inventory.layout?.show_status===false?'none':'storage')):currentTab==='device'?'ip':'none';
+  $('paste-confirmation-target').textContent='Import into: '+(inventory?.name || (currentTab==='iptv'?'IPTV Channels':'AV Devices'));
+  $('paste-confirmation-help').textContent=inventory?'This setting controls confirmation buttons for this inventory. Changing the workflow resets existing confirmation marks, so they can be checked using the new method.':'This choice applies to records added in this paste. Existing records keep their current workflow.';
+  $('paste-confirmation-error').hidden=true;$('paste-confirmation-dialog').showModal();
+}
+$('back-paste-confirmation').onclick=()=>{if($('continue-paste-confirmation').disabled)return;$('paste-confirmation-dialog').close();pendingPasteConfirmation=null;$('paste-inventory-dialog').showModal();};
+$('close-paste-confirmation').onclick=()=>{if(!$('continue-paste-confirmation').disabled){$('paste-confirmation-dialog').close();pendingPasteConfirmation=null;}};
+$('paste-confirmation-dialog').addEventListener('cancel',event=>{if($('continue-paste-confirmation').disabled)event.preventDefault();else pendingPasteConfirmation=null;});
+$('paste-confirmation-form').onsubmit=async event=>{
+  event.preventDefault();const pending=pendingPasteConfirmation;if(!pending||$('continue-paste-confirmation').disabled)return;
+  $('continue-paste-confirmation').disabled=true;$('paste-confirmation-error').hidden=true;
+  try{
+    if(currentTab!==pending.tab)throw new Error('The destination changed. Paste again into the correct list.');
+    const mode=$('paste-confirmation-mode').value;pending.file.confirmation_mode=mode;
+    if(pending.inventory){
+      const layout={...(pending.inventory.layout || defaultInventoryLayout),confirmation_mode:mode,show_status:mode!=='none'};
+      pending.inventory=await api(`/api/equipment/inventories/${pending.inventory.id}`,'PUT',{name:pending.inventory.name,layout});
+      await window.equipmentUI.load(pending.inventory.id);
+    }
+    $('paste-confirmation-dialog').close();pendingPasteConfirmation=null;await startSpreadsheetImport(pending.file,pending.inventory);
+  }catch(error){$('paste-confirmation-error').textContent=error.message;$('paste-confirmation-error').hidden=false;}
+  finally{$('continue-paste-confirmation').disabled=false;}
 };
 $('import').onclick = openPastedImport;
 $('upload-paste-inventory').onclick=()=>{if(pasteInventorySaving)return;$('paste-inventory-dialog').close();$('import-file').click();};
