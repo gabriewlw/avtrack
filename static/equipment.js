@@ -58,7 +58,7 @@
     const version = ++loadVersion, previouslyReady = inventoryReady;
     inventoryReady = false;
     $('equipment-refresh').disabled = true;
-    ['equipment-inventory-select','new-equipment-inventory','rename-equipment-inventory','delete-equipment-inventory','equipment-import'].forEach(id => { $(id).disabled = true; });
+    ['equipment-inventory-select','new-equipment-inventory','rename-equipment-inventory','delete-equipment-inventory','equipment-import','equipment-paste'].forEach(id => { $(id).disabled = true; });
     $('equipment-rows').inert = true;
     try {
       await Promise.all([...pendingConfirmations.values()]);
@@ -88,7 +88,7 @@
     } finally {
       if (version === loadVersion) {
         $('equipment-refresh').disabled = false;
-        ['equipment-inventory-select','new-equipment-inventory','rename-equipment-inventory','delete-equipment-inventory','equipment-import'].forEach(id => { $(id).disabled = !inventoryReady; });
+        ['equipment-inventory-select','new-equipment-inventory','rename-equipment-inventory','delete-equipment-inventory','equipment-import','equipment-paste'].forEach(id => { $(id).disabled = !inventoryReady; });
         $('equipment-rows').inert = !inventoryReady;
       }
     }
@@ -169,6 +169,10 @@
           if(index===0){wrapper.prepend(selectionControl(item.id,`equipment ${displayName(item)}`,selectedItems,updateEquipmentSelection));}
         }
         if(field==='location'&&column.type==='location'&&inventoryValue(item,field)){const button=element('button','choice-button',item.location);button.type='button';colorVenueButton(button,item.location);button.onclick=()=>{$('equipment-location-filter').value=item.location;renderEquipment();};cell.replaceChildren(button);}
+        if(field==='notes'){
+          const button=element('button',`quiet equipment-notes-button${item.notes?' has-notes':''}`,item.notes?'View':'Add');button.type='button';button.disabled=pendingConfirmations.has(item.id);button.setAttribute('aria-label',`${item.notes?'Edit':'Add'} notes for ${displayName(item)}`);button.onclick=()=>openNotes(item);
+          const content=element('div','equipment-notes-cell');if(index===0)content.append(selectionControl(item.id,`equipment ${displayName(item)}`,selectedItems,updateEquipmentSelection));content.append(button);cell.replaceChildren(content);
+        }
         cell.title = String(inventoryValue(item,field));
         cell.dataset.label = column.label; row.append(cell);
         if (index === displayColumns().length-1) {
@@ -235,6 +239,7 @@
     heading.querySelector('span').textContent=displayColumns()[0].label;
     const baseWidths={description:140,brand:80,model:100,serial_number:120,quantity:65,location:110,notes:120};
     const widths=displayColumns().map((col,index)=>{
+      if(col.key==='notes')return 74+(index===0?30:0);
       const labelWidth=Math.min(220,col.label.length*8+20+(index===0?30:0));
       const controlWidth=col.key==='orientation' ? Math.max(164,(col.options || []).reduce((width,value)=>width+value.length*6+24,8)) : col.type==='buttons' ? (col.options || []).reduce((width,value)=>width+value.length*6+24,0) : col.type==='checkbox' ? 100 : 0;
       return Math.max(baseWidths[col.key] || 120,labelWidth,controlWidth);
@@ -382,6 +387,25 @@
       $('equipment-location-dialog').close(); toast(`Updated ${result.updated} equipment records.`); await loadEquipment();
     } catch(error) { $('equipment-location-error').textContent = error.message; $('equipment-location-error').hidden = false; }
     finally { $('save-equipment-locations').disabled = false; }
+  };
+  let notesItem=null,notesSaving=false;
+  function openNotes(item) {
+    notesItem={...item};$('equipment-notes-item').textContent=displayName(item)+(item.location?' · '+item.location:'');
+    $('equipment-notes-text').value=item.notes || '';$('equipment-notes-error').hidden=true;$('equipment-notes-dialog').showModal();$('equipment-notes-text').focus();
+  }
+  for(const id of ['close-equipment-notes','cancel-equipment-notes'])$(id).onclick=()=>{if(!notesSaving)$('equipment-notes-dialog').close();};
+  $('equipment-notes-dialog').addEventListener('cancel',event=>{if(notesSaving)event.preventDefault();});
+  $('equipment-notes-form').onsubmit=async event=>{
+    event.preventDefault();if(notesSaving||!notesItem)return;
+    notesSaving=true;$('equipment-notes-error').hidden=true;
+    $('equipment-notes-form').querySelectorAll('button,textarea').forEach(control=>{control.disabled=true;});
+    const target=notesItem;
+    try{
+      await pendingConfirmations.get(target.id);
+      const write=api(`/api/equipment/${target.id}/notes`,'POST',{inventory_id:target.inventory_id,original_notes:target.notes || '',notes:$('equipment-notes-text').value});pendingConfirmations.set(target.id,write);
+      const updated=await write;items=items.map(item=>item.id===updated.id?updated:item);$('equipment-notes-dialog').close();toast('Notes updated.');
+    }catch(error){$('equipment-notes-error').textContent=error.message;$('equipment-notes-error').hidden=false;pendingConfirmations.delete(target.id);await loadEquipment();}
+    finally{pendingConfirmations.delete(target.id);notesSaving=false;$('equipment-notes-form').querySelectorAll('button,textarea').forEach(control=>{control.disabled=false;});renderEquipment();}
   };
   function openEquipment(item = null) {
     if (!inventoryReady) { toast('Wait for the inventory to finish loading.'); return; }
@@ -558,7 +582,7 @@
     const link = element('a'); link.href=url; link.download='inventory-cross-check.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url),1000);
   };
   $('cancel-equipment-record-review').onclick = () => $('equipment-record-review-dialog').close();
-  window.equipmentUI = {profile:()=>layout(),importReport:(id, report) => { importReports.set(id, report); renderEquipment(); },load:loadEquipment, open:openEquipment,
+  window.equipmentUI = {profile:()=>layout(),locations:()=>locations(),importReport:(id, report) => { importReports.set(id, report); renderEquipment(); },load:loadEquipment, open:openEquipment,
     currentInventory,
     waitUntilReady:async () => { await inventoryLoad; return currentInventory(); },
     flush:() => Promise.all([...pendingConfirmations.values()]),

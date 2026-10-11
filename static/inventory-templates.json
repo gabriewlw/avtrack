@@ -59,7 +59,13 @@
           "type": "text",
           "important": false,
           "filter": "none",
-          "options": []
+          "options": [],
+          "aliases": [
+            "Notes",
+            "Remarks",
+            "Notes Remarks",
+            "Notes Reamarks"
+          ]
         }
       ],
       "primary_search": "serial_number",
@@ -156,7 +162,13 @@
           "type": "text",
           "important": false,
           "filter": "none",
-          "options": []
+          "options": [],
+          "aliases": [
+            "Notes",
+            "Remarks",
+            "Notes Remarks",
+            "Notes Reamarks"
+          ]
         }
       ],
       "primary_search": "asset_id",
@@ -198,7 +210,8 @@
           "minimum": 0,
           "aliases": [
             "Deck 6",
-            "Deck6"
+            "Deck6",
+            "Deck 6 Locker"
           ]
         },
         {
@@ -252,7 +265,13 @@
           "type": "text",
           "important": false,
           "filter": "none",
-          "options": []
+          "options": [],
+          "aliases": [
+            "Notes",
+            "Remarks",
+            "Notes Remarks",
+            "Notes Reamarks"
+          ]
         }
       ],
       "primary_search": "model",
@@ -344,7 +363,13 @@
           "type": "text",
           "important": false,
           "filter": "none",
-          "options": []
+          "options": [],
+          "aliases": [
+            "Notes",
+            "Remarks",
+            "Notes Remarks",
+            "Notes Reamarks"
+          ]
         }
       ],
       "primary_search": "serial_number",
@@ -446,7 +471,13 @@
           "type": "text",
           "important": false,
           "filter": "none",
-          "options": []
+          "options": [],
+          "aliases": [
+            "Notes",
+            "Remarks",
+            "Notes Remarks",
+            "Notes Reamarks"
+          ]
         }
       ],
       "primary_search": "asset_id",
@@ -531,7 +562,13 @@
           "type": "text",
           "important": false,
           "filter": "none",
-          "options": []
+          "options": [],
+          "aliases": [
+            "Notes",
+            "Remarks",
+            "Notes Remarks",
+            "Notes Reamarks"
+          ]
         }
       ],
       "primary_search": "serial_number",
@@ -621,7 +658,13 @@
           "type": "text",
           "important": false,
           "filter": "none",
-          "options": []
+          "options": [],
+          "aliases": [
+            "Notes",
+            "Remarks",
+            "Notes Remarks",
+            "Notes Reamarks"
+          ]
         }
       ],
       "primary_search": "asset_id",
@@ -699,7 +742,13 @@
           "type": "text",
           "important": false,
           "filter": "none",
-          "options": []
+          "options": [],
+          "aliases": [
+            "Notes",
+            "Remarks",
+            "Notes Remarks",
+            "Notes Reamarks"
+          ]
         }
       ],
       "primary_search": "asset_id",
@@ -772,7 +821,13 @@
           "type": "text",
           "important": false,
           "filter": "none",
-          "options": []
+          "options": [],
+          "aliases": [
+            "Notes",
+            "Remarks",
+            "Notes Remarks",
+            "Notes Reamarks"
+          ]
         }
       ],
       "primary_search": "serial_number",
@@ -850,7 +905,13 @@
           "type": "text",
           "important": false,
           "filter": "none",
-          "options": []
+          "options": [],
+          "aliases": [
+            "Notes",
+            "Remarks",
+            "Notes Remarks",
+            "Notes Reamarks"
+          ]
         }
       ],
       "primary_search": "serial_number",

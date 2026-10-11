@@ -17,6 +17,24 @@ def ignored_header(value):
     return normalized in ('device id', 'o.o', 'o.o value')
 
 
+def pasted_markdown_rows(text):
+    """Read a copied Markdown table without treating its separator as an item."""
+    def cells(line):
+        parts=re.split(r'(?<!\\)\|',line.strip().strip('|'))
+        return [re.sub(r'\\([|*`_])',r'\1',part).strip() for part in parts]
+    lines=text.splitlines()
+    for index in range(1,len(lines)):
+        separator=cells(lines[index])
+        if len(separator)>1 and all(re.fullmatch(r':?-{3,}:?',part) for part in separator) and '|' in lines[index-1]:
+            rows=[cells(lines[index-1])]
+            for line in lines[index+1:]:
+                if not line.strip():continue
+                if '|' not in line:break
+                rows.append(cells(line))
+            return rows
+    return None
+
+
 def preview(payload):
     if not isinstance(payload, dict):
         raise ValueError('Provide a spreadsheet file.')
@@ -54,11 +72,15 @@ def preview(payload):
                 text = raw.decode('utf-8-sig')
             except UnicodeDecodeError:
                 raise ValueError('Save your CSV as CSV UTF-8 in Excel, then try again.') from None
+            delimiter=payload.get('delimiter')
+            if delimiter is not None and delimiter not in (',',';','\t','|'):
+                raise ValueError('Choose a supported spreadsheet separator.')
             try:
                 dialect = csv.Sniffer().sniff(text[:8192], delimiters=',;\t|')
             except csv.Error:
                 dialect = csv.excel
-            source = csv.reader(io.StringIO(text), dialect)
+            markdown=pasted_markdown_rows(text) if payload.get('pasted') is True else None
+            source = markdown if markdown is not None else csv.reader(io.StringIO(text), dialect, **({'delimiter':delimiter} if delimiter is not None else {}))
         headers, rows, row_numbers, characters = [], [], [], 0
         kept_columns, ignored_columns, column_count = [], [], None
         for number, raw_row in enumerate(source, 1):

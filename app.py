@@ -508,6 +508,21 @@ def save_equipment(value, item_id=None):
         return equipment_record(con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
 
 
+def set_equipment_notes(item_id, value):
+    if not isinstance(value,dict) or not isinstance(value.get('notes'),str) or len(value['notes'].strip())>2000 or not isinstance(value.get('original_notes'),str):
+        raise ValueError('Provide notes up to 2,000 characters and their original value.')
+    inventory_id=equipment_inventory_id(value.get('inventory_id',1))
+    with connect() as con:
+        con.execute('BEGIN IMMEDIATE')
+        current=con.execute('SELECT * FROM equipment WHERE id=? AND inventory_id=?',(item_id,inventory_id)).fetchone()
+        if current is None:raise LookupError('Inventory item not found.')
+        if current['notes']!=value['original_notes']:
+            raise ValueError('Notes changed since you opened them. Close and reopen Notes to review the latest version.')
+        notes=value['notes'].strip()
+        con.execute('UPDATE equipment SET data_checked=CASE WHEN notes=? THEN data_checked ELSE 0 END, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND inventory_id=?',(notes,notes,item_id,inventory_id))
+        return equipment_record(con.execute('SELECT * FROM equipment WHERE id=?',(item_id,)).fetchone())
+
+
 def set_equipment_confirmation(item_id, value):
     if not isinstance(value, dict) or type(value.get('item_confirmed')) is not bool:
         raise ValueError('Choose whether this item has been located.')
@@ -850,6 +865,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, manage_equipment_location(self.body()))
         elif self.command == 'POST' and path == '/api/equipment/import':
             return self.send(200, import_equipment(self.body()))
+        elif self.command == 'POST' and path.startswith('/api/equipment/') and path.endswith('/notes'):
+            try:
+                item_id=int(path.removeprefix('/api/equipment/').removesuffix('/notes'))
+            except ValueError:
+                raise LookupError('Inventory item not found.') from None
+            return self.send(200,set_equipment_notes(item_id,self.body()))
         elif self.command == 'POST' and path.startswith('/api/equipment/') and path.endswith('/review'):
             try:
                 item_id = int(path.removeprefix('/api/equipment/').removesuffix('/review'))
