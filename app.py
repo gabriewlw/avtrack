@@ -46,7 +46,7 @@ EQUIPMENT_SCHEMA = """CREATE TABLE {table} (
     description TEXT NOT NULL DEFAULT '', serial_number TEXT NOT NULL DEFAULT '',
     quantity INTEGER, location TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '',
     item_confirmed INTEGER NOT NULL DEFAULT 0, data_checked INTEGER NOT NULL DEFAULT 0,
-    custom_values TEXT NOT NULL DEFAULT '{{}}',
+    last_checked_at TEXT, custom_values TEXT NOT NULL DEFAULT '{{}}',
     inventory_id INTEGER NOT NULL DEFAULT 1 REFERENCES equipment_inventories(id),
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"""
 
@@ -112,6 +112,8 @@ def connect():
         con.execute("ALTER TABLE equipment ADD COLUMN custom_values TEXT NOT NULL DEFAULT '{}'")
     if 'data_checked' not in equipment_columns:
         con.execute('ALTER TABLE equipment ADD COLUMN data_checked INTEGER NOT NULL DEFAULT 0')
+    if 'last_checked_at' not in equipment_columns:
+        con.execute('ALTER TABLE equipment ADD COLUMN last_checked_at TEXT')
     if 'inventory_id' not in equipment_columns:
         con.execute('ALTER TABLE equipment ADD COLUMN inventory_id INTEGER NOT NULL DEFAULT 1 REFERENCES equipment_inventories(id)')
     if next(row for row in con.execute('PRAGMA table_info(equipment)') if row['name'] == 'quantity')['notnull']:
@@ -119,7 +121,7 @@ def connect():
         con.execute('BEGIN IMMEDIATE')
         try:
             con.execute(EQUIPMENT_SCHEMA.format(table='equipment_upgrade'))
-            names = 'id,' + ','.join(EQUIPMENT_FIELDS) + ',item_confirmed,data_checked,custom_values,inventory_id,updated_at'
+            names = 'id,' + ','.join(EQUIPMENT_FIELDS) + ',item_confirmed,data_checked,last_checked_at,custom_values,inventory_id,updated_at'
             con.execute(f'INSERT INTO equipment_upgrade ({names}) SELECT {names} FROM equipment')
             con.execute('DROP TABLE equipment')
             con.execute('ALTER TABLE equipment_upgrade RENAME TO equipment')
@@ -395,6 +397,9 @@ def equipment_inventory_details(con, inventory_id):
     record = dict(record)
     layout = json.loads(record.pop('layout'))
     if layout.get('template')=='tv' or layout.get('stock_mode')=='tv_counts':
+        layout['columns']=[column for column in layout['columns'] if column['key']!='serial_number']
+        if layout.get('primary_search')=='serial_number': layout['primary_search']='model'
+        if layout.get('identifier')=='serial_number': layout['identifier']='model'
         layout['columns']=[dict(column,label='Total') if column['key']=='total_count' and column['label'].casefold()=='total count' else column for column in layout['columns']]
     # Apply Scala's display rules to existing inventories as well as new presets.
     keys = {column['key'] for column in layout.get('columns', [])}
@@ -571,6 +576,25 @@ def set_equipment_review(item_id, value):
         return equipment_record(con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
 
 
+def set_equipment_stock_check(item_id, value):
+    if not isinstance(value, dict) or any(field not in value for field in EQUIPMENT_CONFIRM_FIELDS):
+        raise ValueError('Provide the current stock details being checked.')
+    row = validate_equipment(value)
+    inventory_id = equipment_inventory_id(value.get('inventory_id', 1))
+    with connect() as con:
+        con.execute('BEGIN IMMEDIATE')
+        profile = equipment_inventory_details(con, inventory_id).get('layout', {})
+        if profile.get('template') != 'tv' and profile.get('stock_mode') != 'tv_counts':
+            raise ValueError('Stock check dates are available for TV inventories.')
+        current = con.execute('SELECT * FROM equipment WHERE id=? AND inventory_id=?', (item_id, inventory_id)).fetchone()
+        if current is None:
+            raise LookupError('Inventory item not found.')
+        if any(row[field] != current[field] for field in EQUIPMENT_CONFIRM_FIELDS) or custom_values(value.get('custom_values'), profile) != json.loads(current['custom_values']):
+            raise ValueError('Stock changed. Refresh and check the current counts before confirming.')
+        con.execute("UPDATE equipment SET last_checked_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'), updated_at=CURRENT_TIMESTAMP WHERE id=? AND inventory_id=?", (item_id, inventory_id))
+        return equipment_record(con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
+
+
 def equipment_import_confirmation(value):
     status = value.get('item_confirmed', 0)
     if status is None or status == '':
@@ -686,10 +710,11 @@ def equipment_csv(rows=None, layout=None):
     fields = ('description', 'brand', 'model', 'serial_number', 'quantity', 'location', 'item_confirmed', 'notes')
     if layout:
         columns = [(col['label'],col['key']) for col in layout['columns']]
+        if layout.get('template')=='tv' or layout.get('stock_mode')=='tv_counts': columns.append(('Last checked (UTC)','last_checked_at'))
         writer=csv.writer(output)
         writer.writerow([label for label,key in columns]+(['Status'] if layout.get('show_status',True) else []))
         for row in equipment_inventory() if rows is None else rows:
-            values=[column_value(row,key) for label,key in columns]+(['Located' if row.get('item_confirmed') else 'Not located'] if layout.get('show_status',True) else [])
+            values=[row.get(key) or '' if key=='last_checked_at' else column_value(row,key) for label,key in columns]+(['Located' if row.get('item_confirmed') else 'Not located'] if layout.get('show_status',True) else [])
             writer.writerow(["'"+str(v) if str(v).startswith(('=', '+', '-', '@', '\t', '\r', '\n')) else v for v in values])
         return output.getvalue().encode('utf-8-sig')
     writer = csv.DictWriter(output, fieldnames=fields, extrasaction='ignore')
@@ -873,6 +898,12 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError:
                 raise LookupError('Inventory item not found.') from None
             return self.send(200,set_equipment_notes(item_id,self.body()))
+        elif self.command == 'POST' and path.startswith('/api/equipment/') and path.endswith('/stock-check'):
+            try:
+                item_id = int(path.removeprefix('/api/equipment/').removesuffix('/stock-check'))
+            except ValueError:
+                raise LookupError('Inventory item not found.') from None
+            return self.send(200, set_equipment_stock_check(item_id, self.body()))
         elif self.command == 'POST' and path.startswith('/api/equipment/') and path.endswith('/review'):
             try:
                 item_id = int(path.removeprefix('/api/equipment/').removesuffix('/review'))

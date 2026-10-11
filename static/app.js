@@ -1293,11 +1293,21 @@ async function startSpreadsheetImport(file,inventory) {
   $('spreadsheet-summary').textContent='Reading '+file.filename+'…';
   $('spreadsheet-dialog').showModal();await loadSpreadsheet();
 }
-let pasteInventory=null,pasteInventorySaving=false;
-$('equipment-paste').onclick=async()=>{
-  try{pasteInventory=await window.equipmentUI.waitUntilReady();$('paste-inventory-form').reset();$('paste-inventory-location-label').hidden=!(pasteInventory.layout || defaultInventoryLayout).columns.some(col=>col.key==='location');$('paste-inventory-location-options').replaceChildren(...window.equipmentUI.locations().map(location=>new Option(location,location)));$('paste-inventory-error').hidden=true;$('continue-paste-inventory').disabled=true;$('paste-inventory-target').textContent='Import into: '+pasteInventory.name;$('paste-inventory-dialog').showModal();$('paste-inventory-text').focus();}
-  catch(error){toast('Could not open pasted import: '+error.message);}
-};
+let pasteInventory=null,pasteInventorySaving=false,pasteTargetTab=null;
+async function openPastedImport(){
+  try{
+    pasteTargetTab=currentTab;
+    pasteInventory=currentTab==='equipment'?await window.equipmentUI.waitUntilReady():null;
+    $('paste-inventory-form').reset();
+    $('paste-inventory-location-label').hidden=!pasteInventory || !(pasteInventory.layout || defaultInventoryLayout).columns.some(col=>col.key==='location');
+    $('paste-inventory-location-options').replaceChildren(...(pasteInventory?window.equipmentUI.locations():[]).map(location=>new Option(location,location)));
+    $('paste-inventory-error').hidden=true;$('continue-paste-inventory').disabled=true;
+    $('paste-inventory-target').textContent='Import into: '+(pasteInventory?.name || (currentTab==='iptv'?'IPTV Channels':'AV Devices'));
+    $('paste-inventory-dialog').showModal();$('paste-inventory-text').focus();
+  }catch(error){toast('Could not open pasted import: '+error.message);}
+}
+$('equipment-paste').onclick=openPastedImport;
+$('network-paste').onclick=openPastedImport;
 $('paste-inventory-text').oninput=()=>{$('continue-paste-inventory').disabled=!$('paste-inventory-text').value.trim();};
 for(const id of ['close-paste-inventory','cancel-paste-inventory'])$(id).onclick=()=>{if(!pasteInventorySaving)$('paste-inventory-dialog').close();};
 $('paste-inventory-dialog').addEventListener('cancel',event=>{if(pasteInventorySaving)event.preventDefault();});
@@ -1305,12 +1315,13 @@ $('paste-inventory-form').onsubmit=async event=>{
   event.preventDefault();if(pasteInventorySaving)return;
   $('paste-inventory-error').hidden=true;pasteInventorySaving=true;$('continue-paste-inventory').disabled=true;
   try{
+    if(currentTab!==pasteTargetTab)throw new Error('The destination changed. Close this dialog and paste again.');
     const text=$('paste-inventory-text').value;
     if(!text.trim())throw new Error('Paste your spreadsheet cells, including the header row.');
     const blob=new Blob([text],{type:'text/csv;charset=utf-8'});
     if(blob.size>5_000_000)throw new Error('Paste a smaller range, up to 5 MB.');
     const content=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=()=>reject(new Error('Could not read the pasted cells.'));reader.readAsDataURL(blob);});
-    const sourceLabel=$('paste-inventory-sheet').value.trim();const location=(pasteInventory.layout || defaultInventoryLayout).columns.some(col=>col.key==='location')?cleanVenue($('paste-inventory-location').value):'';
+    const sourceLabel=$('paste-inventory-sheet').value.trim();const location=pasteInventory && (pasteInventory.layout || defaultInventoryLayout).columns.some(col=>col.key==='location')?cleanVenue($('paste-inventory-location').value):'';
     const file={filename:(sourceLabel || 'Pasted spreadsheet')+'.csv',content,pasted:true,default_location:location,source_label:sourceLabel,...(text.includes('\t')?{delimiter:'\t'}:{})};
     $('paste-inventory-dialog').close();await startSpreadsheetImport(file,pasteInventory);
   }catch(error){$('paste-inventory-error').textContent=error.message;$('paste-inventory-error').hidden=false;}

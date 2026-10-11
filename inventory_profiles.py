@@ -20,7 +20,7 @@ def validate_profile(value):
         if not isinstance(col,dict):
             raise ValueError('Each column needs a name and settings.')
         key,label = col.get('key'),col.get('label')
-        if not isinstance(key,str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,47}',key) or key in ('id','inventory_id','custom_values','item_confirmed','data_checked','updated_at') or key in keys:
+        if not isinstance(key,str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,47}',key) or key in ('id','inventory_id','custom_values','item_confirmed','data_checked','last_checked_at','updated_at') or key in keys:
             raise ValueError('Column keys must be distinct, valid names.')
         if not isinstance(label,str) or not label.strip() or len(label.strip())>120 or label.strip().casefold() in labels:
             raise ValueError('Give each column a different name, from 1 to 120 characters.')
@@ -85,7 +85,7 @@ def custom_values(value,profile):
     # Retain values for columns hidden/removed from the layout, preventing data loss.
     result={}
     for key,raw in value.items():
-        if not isinstance(key,str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,47}',key) or key in BASE_FIELDS or key in ('id','inventory_id','custom_values','item_confirmed','data_checked','updated_at'):
+        if not isinstance(key,str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,47}',key) or key in BASE_FIELDS or key in ('id','inventory_id','custom_values','item_confirmed','data_checked','last_checked_at','updated_at'):
             raise ValueError('Invalid custom column key.')
         if raw is None:raw=''
         if not isinstance(raw,str) or len(raw.strip())>2000:
