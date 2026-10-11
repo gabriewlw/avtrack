@@ -1083,6 +1083,7 @@ function showSpreadsheetPreview() {
     if (row.notes) card.append(element('p', '', row.notes));
     return card;
   }));
+  if(spreadsheetFile?.pasted && $('paste-layout-dialog').open)showPastedLayoutSuggestion();
 }
 async function loadSpreadsheet(options={}) {
   const loadingFile=spreadsheetFile;
@@ -1105,10 +1106,11 @@ async function loadSpreadsheet(options={}) {
       if (satelliteCatalogError) throw new Error('Could not load the satellite channel reference. Refresh the page and try again.');
     }
     if(spreadsheetFile!==loadingFile)return;
-    const data = await api('/api/spreadsheet-preview', 'POST', {...spreadsheetFile, sheet: $('sheet-choice').value, header_row: Number($('header-row').value),detect_header:!options.manualHeader && !$('header-row').dataset.manual,header_aliases:importFields().flatMap(([key,label,aliases])=>[label,...aliases]),keep_headers:currentTab==='equipment'?customImportFields().flatMap(([key,label,aliases])=>[label,...aliases]):[]});
+    const data = await api('/api/spreadsheet-preview', 'POST', {...spreadsheetFile, sheet: $('sheet-choice').value, header_row: Number($('header-row').value),detect_header:!spreadsheetFile.pasted && !options.manualHeader && !$('header-row').dataset.manual,header_aliases:importFields().flatMap(([key,label,aliases])=>[label,...aliases]),keep_headers:currentTab==='equipment'?customImportFields().flatMap(([key,label,aliases])=>[label,...aliases]):[]});
     if(spreadsheetFile!==loadingFile)return;
     spreadsheetData = data;
     $('header-row').value=data.header_row;
+    $('header-row').disabled=!!spreadsheetFile.pasted;
     $('import-confirmation-choice').replaceChildren(new Option('No confirmation','none'),new Option('Confirm IP','ip'),...(currentTab==='equipment'?[new Option('Located / Not located','storage')]:[]));
     $('import-confirmation-choice').value=spreadsheetFile.confirmation_mode || 'none';
     $('import-header-list').replaceChildren(...(data.header_candidates || []).slice(0,12).map(candidate=>{
@@ -1116,7 +1118,7 @@ async function loadSpreadsheet(options={}) {
       row.append(element('span','',candidate.values.filter(Boolean).join(' · ').slice(0,360)),button);return row;
     }));
     $('import-header-candidates').hidden=!data.header_candidates?.length;
-    $('header-row-help').textContent=`Column headings found on row ${data.header_row}${data.header_confidence==='low'?' — check the sample headings below':''}. Change the number and reload if needed.`;
+    $('header-row-help').textContent=spreadsheetFile.pasted?'The first pasted row is always the header row. Multiword titles stay within their original Excel cells.':`Column headings found on row ${data.header_row}${data.header_confidence==='low'?' — check the sample headings below':''}. Change the number and reload if needed.`;
     $('sheet-label').hidden = !data.sheets.length;
     $('sheet-choice').replaceChildren(...data.sheets.map(sheet => new Option(sheet, sheet)));
     $('sheet-choice').value = data.sheet;
@@ -1350,12 +1352,12 @@ $('spreadsheet-form').onsubmit = async event => {
   finally{spreadsheetReviewing=false;$('confirm-import').disabled=false;}
 };
 function showPastedLayoutSuggestion() {
-  $('keep-paste-layout').hidden=!!spreadsheetFile.from_headers;
-  if(spreadsheetFile.from_headers){
+  $('keep-paste-layout').hidden=!!spreadsheetFile.from_headers && !spreadsheetFile.fields_configured;
+  if(spreadsheetFile.from_headers && !spreadsheetFile.fields_configured){
     const head=element('tr');spreadsheetData.headers.forEach(header=>{const th=element('th','',header);th.scope='col';head.append(th);});$('paste-layout-head').replaceChildren(head);
     $('paste-layout-rows').replaceChildren(...spreadsheetData.rows.slice(0,5).map(values=>{const row=element('tr');values.forEach(value=>row.append(element('td',String(value??'').trim()?'':'paste-layout-blank',String(value??'').trim() || 'Needs review')));return row;}));
     $('paste-layout-summary').textContent=`${spreadsheetInventory.name} · ${spreadsheetData.headers.length} headings on row ${spreadsheetData.header_row} · ${spreadsheetData.rows.length} source rows · Showing ${Math.min(5,spreadsheetData.rows.length)} sample rows`;
-    $('paste-layout-unmatched').hidden=true;$('continue-paste-layout').disabled=false;return;
+    $('paste-layout-unmatched').hidden=true;$('continue-paste-layout').disabled=false;window.pasteWorkflow.render();return;
   }
 
   const fields=currentTab==='equipment' ? (spreadsheetInventory.layout || defaultInventoryLayout).columns.map(column=>[column.key,column.label,column.type]) : importFields().map(([key,label])=>[key,label,'text']);
@@ -1363,7 +1365,7 @@ function showPastedLayoutSuggestion() {
   const head=element('tr');
   fields.forEach(([key,label,type])=>{
     const index=$('map-'+key)?.value ?? '';
-    const th=element('th');th.scope='col';th.append(element('span','',label.replace(' (optional)','')));
+    const th=element('th');th.scope='col';th.dataset.fieldKey=key;th.append(element('span','',label.replace(' (optional)','')));
     let source='No matching heading';
     if(type==='calculated')source='Calculated from counts';
     else if(index!==''){used.add(Number(index));matched++;source='Excel: '+spreadsheetData.headers[Number(index)];}
@@ -1386,6 +1388,7 @@ function showPastedLayoutSuggestion() {
   $('paste-layout-unmatched').textContent='Headings without a direct field match: '+unmatched.join(', ')+'. Review these in field matching; some source details may be kept in Notes.';
   $('paste-layout-summary').textContent=`${spreadsheetInventory?.name || (currentTab==='iptv'?'IPTV Channels':'AV Devices')} · Heading row ${spreadsheetData.header_row} · ${spreadsheetData.rows.length} source rows · ${matched} suggested field matches · Showing ${Math.min(5,preview.length)} sample rows`;
   $('continue-paste-layout').disabled=false;$('keep-paste-layout').disabled=false;
+  window.pasteWorkflow.render();
 }
 $('back-spreadsheet-layout').onclick=()=>{if(spreadsheetReviewing)return;$('spreadsheet-dialog').close();showPastedLayoutSuggestion();$('paste-layout-dialog').showModal();};
 $('keep-paste-layout').onclick=()=>{$('paste-layout-dialog').close();$('spreadsheet-dialog').showModal();};
@@ -1461,7 +1464,7 @@ $('paste-field-form').onsubmit=async event=>{
     readPastedHeading();
     if(setup.index<setup.decisions.length-1){setup.index++;showPastedHeading();await window.importWorkflow.checkpoint();return;}
     $('next-paste-field').disabled=true;
-    const assignments=new Map(window.importWorkflow.preferences.mappings?importFields().map(([key])=>[key,$('map-'+key)?.value || '']):[]),columns=setup.file.from_headers?[]:structuredClone(setup.columns),used=new Set();
+    const assignments=new Map(window.importWorkflow.preferences.mappings?importFields().map(([key])=>[key,$('map-'+key)?.value || '']):[]),columns=setup.file.from_headers && !setup.file.fields_configured?[]:structuredClone(setup.columns),used=new Set();
     for(const decision of setup.decisions){
       if(decision.target==='__skip')continue;
       const column=structuredClone(decision.column);
@@ -1488,7 +1491,9 @@ $('paste-field-form').onsubmit=async event=>{
     importFields().forEach(([key])=>{$('map-'+key).value=assignments.get(key) ?? '';});
     showVenueEditors();showSpreadsheetPreview();
     await window.importWorkflow.checkpoint();
-    $('paste-field-dialog').close();$('spreadsheet-dialog').showModal();pastedFieldSetup=null;await window.importWorkflow.checkpoint();
+    $('paste-field-dialog').close();
+    if(spreadsheetFile.pasted){spreadsheetFile.fields_configured=true;showPastedLayoutSuggestion();$('paste-layout-dialog').showModal();}else $('spreadsheet-dialog').showModal();
+    pastedFieldSetup=null;await window.importWorkflow.checkpoint();
   }catch(error){$('paste-field-error').textContent=error.message;$('paste-field-error').hidden=false;}
   finally{$('next-paste-field').disabled=false;}
 };
@@ -1504,6 +1509,7 @@ async function startSpreadsheetImport(file,inventory) {
   $('column-mappings').replaceChildren();$('spreadsheet-preview').replaceChildren();
   $('spreadsheet-summary').textContent='Reading '+file.filename+'…';
   if(file.pasted || file.from_headers){
+    $('paste-preview-settings').hidden=true;$('paste-start-review').hidden=true;$('paste-start-review').disabled=true;$('paste-preview-error').hidden=true;$('paste-preview-help').textContent='';
     $('paste-layout-summary').textContent='Reading the first row and suggesting columns…';
     $('paste-layout-head').replaceChildren();$('paste-layout-rows').replaceChildren();$('paste-layout-unmatched').hidden=true;$('continue-paste-layout').disabled=true;$('keep-paste-layout').disabled=true;
     $('paste-layout-dialog').showModal();
@@ -1547,11 +1553,9 @@ $('paste-inventory-form').onsubmit=async event=>{
     const sourceLabel=$('paste-inventory-sheet').value.trim();const location=pasteInventory && (pasteInventory.layout || defaultInventoryLayout).columns.some(col=>col.key==='location')?cleanVenue($('paste-inventory-location').value):'';
     const file={filename:(sourceLabel || 'Pasted spreadsheet')+'.csv',content,pasted:true,from_headers:pasteFromHeaders,default_location:location,source_label:sourceLabel,...(text.includes('\t')?{delimiter:'\t'}:{})};
     $('paste-inventory-dialog').close();
-    if(pasteSavedPreferences.confirmation_mode && !pasteFromHeaders){
-      file.confirmation_mode=pasteSavedPreferences.confirmation_mode;
-      const inventory=pasteInventory?{...pasteInventory,layout:{...(pasteInventory.layout || defaultInventoryLayout),confirmation_mode:file.confirmation_mode,show_status:file.confirmation_mode!=='none'}}:null;
-      await startSpreadsheetImport(file,inventory);
-    }else openPasteConfirmation(file,pasteInventory);
+    file.confirmation_mode=pasteInventory?.layout?.confirmation_mode || pasteSavedPreferences.confirmation_mode || (pasteInventory?(pasteInventory.layout?.show_status===false?'none':'storage'):currentTab==='device'?'ip':'none');
+    const inventory=pasteInventory?{...pasteInventory,layout:{...(pasteInventory.layout || defaultInventoryLayout),confirmation_mode:file.confirmation_mode,show_status:file.confirmation_mode!=='none'}}:null;
+    await startSpreadsheetImport(file,inventory);
   }catch(error){$('paste-inventory-error').textContent=error.message;$('paste-inventory-error').hidden=false;}
   finally{pasteInventorySaving=false;$('continue-paste-inventory').disabled=!$('paste-inventory-text').value.trim();}
 };

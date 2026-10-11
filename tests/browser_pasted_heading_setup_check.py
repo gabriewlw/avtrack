@@ -26,7 +26,6 @@ with tempfile.TemporaryDirectory() as tmp:
             text='Model\tOrientation\tLocation\nM1\tVertical\tLobby\nM2\tHorizontal\tLobby'
             page.locator('#paste-inventory-text').fill(text)
             page.locator('#continue-paste-inventory').click()
-            page.locator('#continue-paste-confirmation').click()
             page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
             assert page.locator('#paste-layout-head th').all_text_contents()==['Model','Orientation','Location']
             page.locator('#continue-paste-layout').click();page.locator('#paste-field-dialog').wait_for(state='visible')
@@ -42,14 +41,16 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#back-paste-field').click()
             assert page.locator('#paste-field-type').input_value()=='buttons'
             page.locator('#next-paste-field').click();page.locator('#next-paste-field').click()
-            page.locator('#spreadsheet-dialog').wait_for(state='visible')
+            page.locator('#paste-layout-dialog').wait_for(state='visible')
+            page.wait_for_function("() => !document.getElementById('paste-start-review').disabled")
+            assert page.locator('#spreadsheet-dialog').is_hidden()
             assert page.locator('#map-model').input_value()=='0'
             assert page.locator('#map-field_orientation').input_value()=='1'
             saved=next(row for row in app.equipment_inventories() if row['id']==inventory['id'])
             assert not next(c for c in saved['layout']['columns'] if c['key']=='model').get('require_confirmation',False)
             assert saved['layout']==inventory['layout']
             assert not app.equipment_inventory(inventory['id'])
-            page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
+            page.locator('#paste-start-review').click();page.locator('#inventory-import-review').wait_for(state='visible')
             saved=next(row for row in app.equipment_inventories() if row['id']==inventory['id'])
             assert next(c for c in saved['layout']['columns'] if c['key']=='model')['require_confirmation']
             assert [col['label'] for col in saved['layout']['columns']]==['Model','Orientation','Location']

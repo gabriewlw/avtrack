@@ -31,7 +31,6 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#paste-inventory-dialog').wait_for(state='visible')
             page.locator('#paste-inventory-text').fill('Model\tBrand\tDeck 6\nX\tSony\t2')
             page.locator('#continue-paste-inventory').click()
-            page.locator('#continue-paste-confirmation').click()
             page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
             page.locator('#continue-paste-layout').click()
             assert page.locator('#paste-field-title').inner_text()=='Model'

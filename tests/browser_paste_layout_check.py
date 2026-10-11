@@ -19,7 +19,6 @@ with tempfile.TemporaryDirectory() as tmp:
             text='Venue\tDevice Name\tIP Address\tVLAN\tNotes\tOdd heading\nSports Bar\tWall TV\t10.20.30.40\t50\t\t<test>'
             page.locator('#network-paste').click();page.locator('#paste-inventory-text').fill(text)
             page.locator('#continue-paste-inventory').click()
-            page.locator('#continue-paste-confirmation').click()
             page.locator('#paste-layout-dialog').wait_for(state='visible')
             page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
             assert page.locator('#spreadsheet-dialog').is_hidden()
@@ -30,7 +29,6 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#back-paste-layout').click()
             assert page.locator('#paste-inventory-text').input_value()==text
             page.locator('#continue-paste-inventory').click()
-            page.locator('#continue-paste-confirmation').click()
             page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
             page.locator('#keep-paste-layout').click()
             assert page.locator('#map-ip').input_value()=='2'

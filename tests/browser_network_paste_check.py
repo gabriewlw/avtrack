@@ -21,10 +21,10 @@ with tempfile.TemporaryDirectory() as tmp:
                 page.locator('#import').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
                 assert page.locator('#paste-inventory-location-label').is_hidden()
                 page.locator('#paste-inventory-text').fill(text);page.locator('#continue-paste-inventory').click()
-                page.locator('#paste-confirmation-dialog').wait_for(state='visible')
-                assert page.locator('#paste-confirmation-mode option[value=storage]').count()==0
-                page.locator('#paste-confirmation-mode').select_option(mode)
-                page.locator('#continue-paste-confirmation').click()
+                page.locator('#paste-layout-dialog').wait_for(state='visible')
+                page.wait_for_function("() => !document.getElementById('paste-start-review').disabled")
+                assert page.locator('#paste-preview-confirmation option[value=storage]').count()==0
+                page.locator('#paste-preview-confirmation').select_option(mode)
                 page.locator('#paste-layout-dialog').wait_for(state='visible')
                 page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
                 assert page.locator('#spreadsheet-dialog').is_hidden()

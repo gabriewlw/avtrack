@@ -26,9 +26,9 @@ with tempfile.TemporaryDirectory() as tmp:
             def paste(text,mode=None):
                 page.locator('#network-paste' if page.locator('#equipment-panel').is_hidden() else '#equipment-paste').click()
                 page.locator('#paste-inventory-text').fill(text);page.locator('#continue-paste-inventory').click()
-                page.locator('#paste-confirmation-dialog').wait_for(state='visible')
-                if mode:page.locator('#paste-confirmation-mode').select_option(mode)
-                page.locator('#continue-paste-confirmation').click()
+                page.locator('#paste-layout-dialog').wait_for(state='visible')
+                page.wait_for_function("() => !document.getElementById('paste-start-review').disabled")
+                if mode:page.locator('#paste-preview-confirmation').select_option(mode)
                 page.locator('#paste-layout-dialog').wait_for(state='visible')
                 page.wait_for_function("() => !document.getElementById('keep-paste-layout').disabled")
                 assert not errors,errors

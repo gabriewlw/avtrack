@@ -13,6 +13,17 @@ class PastedSpreadsheetTests(unittest.TestCase):
         self.assertEqual(result['headers'],['Device ID','Model','O.O'])
         self.assertEqual(result['ignored_columns'],[])
 
+    def test_first_pasted_row_is_always_headings_and_multiword_titles_stay_together(self):
+        result=pasted('Asset Reference\tMonitor Model\tSerial Number\tDeck 6 Locker\nModel\tSerial Number\tLocation\tNotes\nA001\tLG 24LV760M-UA\t000123\t8',delimiter='\t',detect_header=True,header_row=2)
+        self.assertEqual(result['header_row'],1)
+        self.assertEqual(result['headers'],['Asset Reference','Monitor Model','Serial Number','Deck 6 Locker'])
+        self.assertEqual(result['rows'][0],['Model','Serial Number','Location','Notes'])
+        self.assertEqual(result['rows'][1][2],'000123')
+
+    def test_blank_first_pasted_row_requires_headings(self):
+        with self.assertRaisesRegex(ValueError,'first pasted row'):
+            pasted('\nModel\tNotes\nX\tTest',delimiter='\t')
+
     def test_exact_message_table(self):
         result=pasted('''| Description | Model | Deck 6 Locker | Deck 2 Starboard | Deck 2 Port | Total Count | Notes Reamarks |
 | --- | --- | --- | --- | --- | --- | --- |

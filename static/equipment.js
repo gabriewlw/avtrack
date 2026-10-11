@@ -8,6 +8,8 @@
   const layout = () => inventories.find(i => i.id === inventoryId)?.layout || defaultInventoryLayout;
   const displayColumns = () => layout().columns;
   const isTVInventory = () => layout().template === 'tv' || layout().stock_mode === 'tv_counts';
+  const stockChecksEnabled = () => layout().stock_check_history ?? isTVInventory();
+  const recordChecksEnabled = () => layout().show_record_check ?? !isTVInventory();
   const ipConfirmation = () => layout().confirmation_mode === 'ip';
   const confirmedLabel = () => ipConfirmation() ? 'IP confirmed' : 'Located';
   const pendingLabel = () => ipConfirmation() ? 'Confirm IP' : 'Not located';
@@ -181,7 +183,7 @@
         cell.title = String(inventoryValue(item,field));
         cell.dataset.label = column.label; row.append(cell);
         if (index === displayColumns().length-1) {
-          if(!isTVInventory()){
+          if(recordChecksEnabled()){
           const review = element('td', 'equipment-review'); review.dataset.label = 'Record check';
           const issues = equipmentIssues(item);
           const button = element('button', item.data_checked ? 'quiet record-checked' : 'quiet', item.data_checked ? 'Record checked' : issues.length ? 'Check flagged record' : 'Check record');
@@ -205,14 +207,14 @@
           review.append(button); row.append(review);
           }
 
-          if(isTVInventory()) {
+          if(stockChecksEnabled()) {
             const cell=element('td','equipment-last-checked');cell.dataset.label='Last checked';
             const date=item.last_checked_at ? new Date(item.last_checked_at) : null;
             const button=element('button','quiet',date ? date.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}) : 'Never checked');
             button.type='button';button.title=date ? `Last stock check: ${date.toLocaleString()}. Click to confirm a new check.` : 'Click after checking this model’s stock counts';
             button.setAttribute('aria-label',`Confirm stock check for ${displayName(item)}`);button.disabled=pendingConfirmations.has(item.id);
-            button.onclick=()=>{
-              $('equipment-stock-check-details').textContent=displayColumns().filter(column=>column.type==='count'||column.key==='model'||column.key==='brand'||column.key==='total_count').map(column=>`${column.label}: ${inventoryValue(item,column.key)||'unknown'}`).join(' · ');
+            button.onclick=async()=>{
+              $('equipment-stock-check-details').textContent=displayColumns().filter(column=>column.type==='count'||column.key==='model'||column.key==='brand'||column.key==='quantity'||column.key==='location'||column.key==='total_count').map(column=>`${column.label}: ${String(inventoryValue(item,column.key) ?? '') || 'unknown'}`).join(' · ');
               $('equipment-stock-check-error').hidden=true;
               $('save-equipment-stock-check').onclick=async()=>{
                 const control=$('save-equipment-stock-check');control.disabled=true;
@@ -221,7 +223,21 @@
                 catch(error){$('equipment-stock-check-error').textContent=error.message;$('equipment-stock-check-error').hidden=false;}
                 finally{pendingConfirmations.delete(item.id);control.disabled=false;renderEquipment();}
               };
+              const history=$('equipment-stock-check-history');history.dataset.itemId=String(item.id);history.replaceChildren(element('p','dialog-intro','Loading previous checks…'));
               $('equipment-stock-check-dialog').showModal();
+              try{
+                const {checks}=await api(`/api/equipment/${item.id}/stock-checks`);
+                if(history.dataset.itemId!==String(item.id))return;
+                if(!checks.length)history.replaceChildren(element('p','dialog-intro','No previous stock checks.'));
+                else{
+                  const details=element('details'),summary=element('summary','',`Stock-check history (${checks.length})`),list=element('ul');
+                  for(const check of checks){
+                    const counts=displayColumns().filter(column=>column.type==='count'||column.key==='total_count'||column.key==='quantity').map(column=>`${column.label}: ${inventoryValue(check.snapshot,column.key) ?? 'unknown'}`).join(' · ');
+                    list.append(element('li','',`${new Date(check.checked_at).toLocaleString()}${counts?' · '+counts:''}`));
+                  }
+                  details.append(summary,list);history.replaceChildren(details);
+                }
+              }catch(error){if(history.dataset.itemId===String(item.id))history.replaceChildren(element('p','error',`Could not load stock-check history: ${error.message}`));}
             };
             cell.append(button);row.append(cell);
           }
@@ -277,10 +293,10 @@
       }
       return Math.max(baseWidths[col.key] || 120,labelWidth,controlWidth,modelWidth);
     });
-    widths.push(...(isTVInventory()?[126]:[115]),...(showLocatedStatus()?[110]:[]),96);
+    widths.push(...(recordChecksEnabled()?[115]:[]),...(stockChecksEnabled()?[126]:[]),...(showLocatedStatus()?[110]:[]),96);
     const totalWidth=widths.reduce((total,width)=>total+width,0);
     const columns=displayColumns().map((col,index)=>{const th=element('th','',index===0?'':col.label);th.scope='col';if(index===0)th.append(heading);th.style.width=`${widths[index]/totalWidth*100}%`;return th;});
-    [...(isTVInventory()?['Last checked']:['Record check']),...(showLocatedStatus()?['Status']:[]),'Actions'].forEach((text,index)=>{const th=element('th','',text);th.scope='col';th.style.width=`${widths[displayColumns().length+index]/totalWidth*100}%`;columns.push(th);});
+    [...(recordChecksEnabled()?['Record check']:[]),...(stockChecksEnabled()?['Last checked']:[]),...(showLocatedStatus()?['Status']:[]),'Actions'].forEach((text,index)=>{const th=element('th','',text);th.scope='col';th.style.width=`${widths[displayColumns().length+index]/totalWidth*100}%`;columns.push(th);});
     $('equipment-table').querySelector('thead tr').replaceChildren(...columns);
     $('equipment-table').style.minWidth=`${Math.max(850,totalWidth)}px`;
     $('equipment-search').placeholder='Search all inventory columns…';

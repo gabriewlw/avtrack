@@ -49,3 +49,30 @@ class TVStockCheckTests(unittest.TestCase):
         updated=app.save_equipment_inventory(dict(name=inventory['name'],layout=profile),inventory['id'])
         self.assertNotIn('serial_number',[col['key'] for col in updated['layout']['columns']])
         self.assertEqual(updated['layout']['primary_search'],'model')
+
+    def test_enabled_non_tv_history_preserves_snapshots_and_rejects_stale_checks(self):
+        inventory=app.save_equipment_inventory(dict(name='Parts with stock history',layout=dict(app.DEFAULT_PROFILE,stock_check_history=True,show_record_check=False)))
+        item=app.save_equipment(dict(inventory_id=inventory['id'],model='Cable',quantity=2,location='Shelf'))
+        first=app.set_equipment_stock_check(item['id'],item)
+        updated=app.save_equipment(dict(first,quantity=3),item['id'])
+        with self.assertRaisesRegex(ValueError,'Stock changed'):
+            app.set_equipment_stock_check(item['id'],first)
+        self.assertEqual(len(app.equipment_stock_history(item['id'])),1)
+        second=app.set_equipment_stock_check(item['id'],updated)
+        checks=self.request(f"/api/equipment/{item['id']}/stock-checks")[1]['checks']
+        self.assertEqual([c['snapshot']['quantity'] for c in checks],[3,2])
+        self.assertEqual(checks[0]['checked_at'],second['last_checked_at'])
+        self.assertIn(second['last_checked_at'],app.equipment_csv([second],inventory['layout']).decode('utf-8-sig'))
+        profile=dict(inventory['layout'],stock_check_history=False)
+        app.save_equipment_inventory(dict(name=inventory['name'],layout=profile),inventory['id'])
+        with self.assertRaisesRegex(ValueError,'Enable stock-check history'):
+            app.set_equipment_stock_check(item['id'],second)
+        self.assertEqual(len(app.equipment_stock_history(item['id'])),2)
+        self.assertEqual(self.request(f"/api/equipment/{item['id']}",'DELETE',dict(inventory_id=inventory['id']))[0],200)
+        with app.connect() as con:
+            self.assertEqual(con.execute('SELECT COUNT(*) FROM equipment_stock_checks').fetchone()[0],0)
+
+    def test_table_check_flags_require_booleans(self):
+        for key in ['stock_check_history','show_record_check']:
+            with self.subTest(key=key),self.assertRaises(ValueError):
+                app.save_equipment_inventory(dict(name='Invalid setup',layout=dict(app.DEFAULT_PROFILE,**{key:'yes'})))

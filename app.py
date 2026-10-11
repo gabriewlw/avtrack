@@ -144,6 +144,12 @@ def connect():
     if stock_index and 'custom_values' not in stock_index['sql']:
         con.execute('DROP INDEX equipment_inventory_stock')
     con.execute("CREATE UNIQUE INDEX IF NOT EXISTS equipment_inventory_stock ON equipment(inventory_id, brand COLLATE NOCASE, model COLLATE NOCASE, description, location COLLATE NOCASE) WHERE serial_number='' AND brand!='' AND model!='' AND location!='' AND custom_values='{}'")
+    con.execute("""CREATE TABLE IF NOT EXISTS equipment_stock_checks (
+        id INTEGER PRIMARY KEY, equipment_id INTEGER NOT NULL,
+        checked_at TEXT NOT NULL, snapshot TEXT NOT NULL)""")
+    con.execute('CREATE INDEX IF NOT EXISTS equipment_stock_check_item ON equipment_stock_checks(equipment_id,id)')
+    con.execute("""CREATE TRIGGER IF NOT EXISTS equipment_delete_stock_history AFTER DELETE ON equipment
+        BEGIN DELETE FROM equipment_stock_checks WHERE equipment_id=OLD.id; END""")
     import_sessions.initialize(con)
     return con
 
@@ -609,15 +615,26 @@ def set_equipment_stock_check(item_id, value):
     with connect() as con:
         con.execute('BEGIN IMMEDIATE')
         profile = equipment_inventory_details(con, inventory_id).get('layout', {})
-        if profile.get('template') != 'tv' and profile.get('stock_mode') != 'tv_counts':
-            raise ValueError('Stock check dates are available for TV inventories.')
+        if not profile.get('stock_check_history',profile.get('template')=='tv' or profile.get('stock_mode')=='tv_counts'):
+            raise ValueError('Enable stock-check history in this inventory setup first.')
         current = con.execute('SELECT * FROM equipment WHERE id=? AND inventory_id=?', (item_id, inventory_id)).fetchone()
         if current is None:
             raise LookupError('Inventory item not found.')
         if any(row[field] != current[field] for field in EQUIPMENT_CONFIRM_FIELDS) or custom_values(value.get('custom_values'), profile) != json.loads(current['custom_values']):
             raise ValueError('Stock changed. Refresh and check the current counts before confirming.')
         con.execute("UPDATE equipment SET last_checked_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'), updated_at=CURRENT_TIMESTAMP WHERE id=? AND inventory_id=?", (item_id, inventory_id))
-        return equipment_record(con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
+        checked=equipment_record(con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
+        con.execute('INSERT INTO equipment_stock_checks (equipment_id,checked_at,snapshot) VALUES (?,?,?)',
+            (item_id,checked['last_checked_at'],json.dumps(checked)))
+        return checked
+
+
+def equipment_stock_history(item_id):
+    with connect() as con:
+        if not con.execute('SELECT 1 FROM equipment WHERE id=?',(item_id,)).fetchone():
+            raise LookupError('Inventory item not found.')
+        return [dict(id=row['id'],checked_at=row['checked_at'],snapshot=json.loads(row['snapshot']))
+            for row in con.execute('SELECT * FROM equipment_stock_checks WHERE equipment_id=? ORDER BY id DESC',(item_id,))]
 
 
 def equipment_import_confirmation(value):
@@ -735,7 +752,7 @@ def equipment_csv(rows=None, layout=None):
     fields = ('description', 'brand', 'model', 'serial_number', 'quantity', 'location', 'item_confirmed', 'notes')
     if layout:
         columns = [(col['label'],col['key']) for col in layout['columns']]
-        if layout.get('template')=='tv' or layout.get('stock_mode')=='tv_counts': columns.append(('Last checked (UTC)','last_checked_at'))
+        if layout.get('stock_check_history',layout.get('template')=='tv' or layout.get('stock_mode')=='tv_counts'): columns.append(('Last checked (UTC)','last_checked_at'))
         writer=csv.writer(output)
         writer.writerow([label for label,key in columns]+(['Status'] if layout.get('show_status',True) else []))
         for row in equipment_inventory() if rows is None else rows:
@@ -933,6 +950,8 @@ class Handler(BaseHTTPRequestHandler):
                 logo = ROOT / 'static' / 'channel-logos' / path.rsplit('/', 1)[1]
                 if logo.is_file():
                     return self.send(200, logo.read_bytes(), 'image/png')
+            if re.fullmatch(r'/api/equipment/[0-9]+/stock-checks',path):
+                return self.send(200,{'checks':equipment_stock_history(int(path.split('/')[3]))})
             if path == '/api/equipment':
                 return self.send(200, {'equipment': equipment_inventory(equipment_inventory_id(query.get('inventory_id', [1])[0]))})
             if path == '/api/equipment/inventories':
@@ -947,6 +966,7 @@ class Handler(BaseHTTPRequestHandler):
             assets['/demo/'] = ('demo.html', 'text/html')
             assets['/recover'] = ('recovery.html', 'text/html')
             assets['/recovery.js'] = ('recovery.js', 'text/javascript')
+            assets['/paste-workflow.js'] = ('paste-workflow.js', 'text/javascript')
             assets['/import-workflow.js'] = ('import-workflow.js', 'text/javascript')
             assets['/demo.js'] = ('demo.js', 'text/javascript')
             assets['/demo.css'] = ('demo.css', 'text/css')

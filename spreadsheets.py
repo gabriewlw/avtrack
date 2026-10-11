@@ -24,7 +24,7 @@ def pasted_markdown_rows(text):
         parts=re.split(r'(?<!\\)\|',line.strip().strip('|'))
         return [re.sub(r'\\([|*`_])',r'\1',part).strip() for part in parts]
     lines=text.splitlines()
-    for index in range(1,len(lines)):
+    for index in range(1,min(2,len(lines))):
         separator=cells(lines[index])
         if len(separator)>1 and all(re.fullmatch(r':?-{3,}:?',part) for part in separator) and '|' in lines[index-1]:
             rows=[cells(lines[index-1])]
@@ -83,7 +83,8 @@ def preview(payload):
         raise ValueError('Invalid file content.') from None
     if len(raw) > 5_000_000 or (not raw and filename.lower().endswith('.xlsx')):
         raise ValueError('Choose a spreadsheet between 1 byte and 5 MB.')
-    header_row = payload.get('header_row', 1)
+    pasted=payload.get('pasted') is True
+    header_row = 1 if pasted else payload.get('header_row', 1)
     if isinstance(header_row, bool) or not isinstance(header_row, int) or not 1 <= header_row <= 50:
         raise ValueError('Header row must be a number from 1 to 50.')
     book = None
@@ -119,7 +120,7 @@ def preview(payload):
             source = markdown if markdown is not None else csv.reader(io.StringIO(text), dialect, **({'delimiter':delimiter} if delimiter is not None else {}))
         confidence=None
         header_candidates=[]
-        if payload.get('detect_header'):
+        if payload.get('detect_header') and not pasted:
             source=iter(source)
             first=list(islice(source,53))
             header_row,confidence=detect_header(first,payload.get('header_aliases',[]) + payload.get('keep_headers',[]))
@@ -148,8 +149,10 @@ def preview(payload):
             characters += sum(map(len, values))
             if characters > 2_000_000:
                 raise ValueError('Spreadsheet text is too large. Split the file into smaller imports.')
+            if pasted and number==1 and not values:
+                raise ValueError('The first pasted row must contain column headings. Copy the headings with your Excel cells.')
             if column_count is None:
-                if payload.get('auto_header'):
+                if payload.get('auto_header') and not pasted:
                     recognized = {'brand','manufacturer','make','model','model number','description','item','serial number','serial','s/n','quantity','qty','quantity in stock','location','notes'}
                     recognized.update(payload.get('header_aliases', []))
                     count = sum(re.sub(r'[_-]+', ' ', v.lower()).strip() in recognized for v in values)

@@ -714,3 +714,16 @@ main, dialog {
 
 .workspace-recovery { margin: 24px auto; max-width: 1260px; padding: 0 24px; font-size: 12px; color: var(--muted); }
 .workspace-recovery a { color: #eeeee9; text-decoration: underline; text-underline-offset: 3px; }
+
+.paste-preview-settings { border:1px solid var(--border); border-radius:10px; padding:16px 18px; background:var(--panel); margin-top:18px; }
+.paste-preview-settings .form-grid { margin-bottom:12px; }
+.paste-preview-settings .dialog-intro { margin-bottom:8px; font-size:12px; }
+.paste-preview-counts { font-size:13px; margin:12px 0 0; color:var(--accent-text); }
+#paste-layout-table .paste-source-match { display:block; width:100%; min-width:150px; max-width:230px; margin-top:10px; height:36px; font:12px var(--font-ui); }
+
+.stock-check-history { max-height:220px; overflow:auto; margin:16px 0; font-size:12px; }
+.stock-check-history li { padding:4px 0; }
+
+#paste-layout-dialog .dialog-intro { margin:10px 0; }
+#paste-layout-dialog .paste-layout-scroll { margin:14px 0; }
+#paste-layout-dialog .paste-preview-settings { margin-top:14px; }

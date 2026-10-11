@@ -77,6 +77,10 @@ def validate_profile(value):
         if type(value['show_status']) is not bool:
             raise ValueError('Choose whether to show location status.')
         result['show_status'] = value['show_status']
+    for key in ('stock_check_history','show_record_check'):
+        if key in value:
+            if type(value[key]) is not bool:raise ValueError('Table check settings must be true or false.')
+            result[key]=value[key]
     for key,allowed in {'location_role':('storage','geographic','none'),'stock_mode':('tv_counts',)}.items():
         if key in value:
             if value[key] not in allowed:raise ValueError('Invalid inventory template settings.')
