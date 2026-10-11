@@ -1467,7 +1467,8 @@ $('paste-inventory-form').onsubmit=async event=>{
   }catch(error){$('paste-inventory-error').textContent=error.message;$('paste-inventory-error').hidden=false;}
   finally{pasteInventorySaving=false;$('continue-paste-inventory').disabled=!$('paste-inventory-text').value.trim();}
 };
-$('import').onclick = () => $('import-file').click();
+$('import').onclick = openPastedImport;
+$('upload-paste-inventory').onclick=()=>{if(pasteInventorySaving)return;$('paste-inventory-dialog').close();$('import-file').click();};
 $('import-file').onchange = async event => {
   const file = event.target.files[0]; if (!file) return;
   $('import').disabled = true;

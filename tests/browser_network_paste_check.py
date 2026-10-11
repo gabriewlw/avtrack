@@ -17,7 +17,8 @@ with tempfile.TemporaryDirectory() as tmp:
             page.goto(f'http://127.0.0.1:{server.server_port}/')
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
             def paste(text):
-                page.locator('#network-paste').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
+                assert page.locator('#transfer button').first.get_attribute('id')=='network-paste'
+                page.locator('#import').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
                 assert page.locator('#paste-inventory-location-label').is_hidden()
                 page.locator('#paste-inventory-text').fill(text);page.locator('#continue-paste-inventory').click()
                 page.locator('#paste-layout-dialog').wait_for(state='visible')

@@ -29,8 +29,10 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#inventory-columns-dialog').wait_for(state='visible')
             assert page.locator('#inventory-column-list .inventory-column-editor').count()==7
             assert page.locator('#inventory-column-preset').input_value()=='tv'
-            # File picker triggered after create; cancel and use an in-memory CSV.
-            with page.expect_file_chooser():page.locator('#save-inventory-columns').click()
+            # Paste opens first after create; file upload remains available.
+            page.locator('#save-inventory-columns').click()
+            page.locator('#paste-inventory-dialog').wait_for(state='visible')
+            with page.expect_file_chooser():page.locator('#upload-paste-inventory').click()
             page.locator('#inventory-columns-dialog').wait_for(state='hidden')
             page.locator('#import-file').set_input_files({'name':'tvs.csv','mimeType':'text/csv','buffer':b'Brand,Model,Deck 6,Deck 2 Port,Deck 2 Stbd,Notes\nSony,X,2,3,0,test\nLG,Y,0,0,0,zero\nLG,Z,1,,0,check\n'})
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
@@ -69,7 +71,9 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#new-equipment-inventory').click();page.locator('#equipment-inventory-name').fill('Scala screens')
             page.locator('#equipment-template').select_option('scala');page.locator('#save-equipment-inventory').click()
             assert page.get_by_label('Column 1 name',exact=True).input_value()=='Scala ID'
-            with page.expect_file_chooser():page.locator('#save-inventory-columns').click()
+            page.locator('#save-inventory-columns').click()
+            page.locator('#paste-inventory-dialog').wait_for(state='visible')
+            with page.expect_file_chooser():page.locator('#upload-paste-inventory').click()
             page.locator('#inventory-columns-dialog').wait_for(state='hidden')
             page.locator('#add-device').click()
             assert not page.locator('#equipment-serial_number').is_visible()
@@ -84,7 +88,9 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#equipment-location-buttons button').count()==0
             page.locator('#new-equipment-inventory').click();page.locator('#equipment-inventory-name').fill('Locker spares')
             page.locator('#equipment-template').select_option('spare_parts');page.locator('#save-equipment-inventory').click()
-            with page.expect_file_chooser():page.locator('#save-inventory-columns').click()
+            page.locator('#save-inventory-columns').click()
+            page.locator('#paste-inventory-dialog').wait_for(state='visible')
+            with page.expect_file_chooser():page.locator('#upload-paste-inventory').click()
             page.locator('#inventory-columns-dialog').wait_for(state='hidden')
             page.locator('#import-file').set_input_files({'name':'parts.csv','mimeType':'text/csv','buffer':b'Description,Brand,Model,Serial Number,Quantity,Location,Notes\nCable,Sony,X,S1,1,Locker A,note\nCable,,X,S2,2,Locker A,note\nCable,Sony,X,S3,1,Locker B,note\n'})
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")

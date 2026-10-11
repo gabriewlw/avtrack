@@ -323,7 +323,7 @@
     }));
   }
   function openColumns({newName=null, importing=false, template='custom'}={}) {
-    layoutTarget=newName?{name:newName}:currentInventory();layoutAfterSave=(importing||newName)?()=> $('import-file').click():null;
+    layoutTarget=newName?{name:newName}:currentInventory();layoutAfterSave=(importing||newName)?()=>openPastedImport():null;
     layoutDraft=structuredClone(newName?(inventoryTemplates.find(item=>item.id===template)?.layout || {columns:[],primary_search:'',identifier:''}):layout());
     $('inventory-column-preset').replaceChildren(new Option('Custom columns','custom'),...inventoryTemplates.map(item=>new Option(item.name,item.id)));
     const help=$('inventory-template-help')||element('p','dialog-intro');help.id='inventory-template-help';help.textContent=inventoryTemplates.find(item=>item.id===template)?.description || '';if(!help.isConnected)$('inventory-column-preset').closest('label').after(help);
@@ -533,7 +533,7 @@
     } catch(error) { $('equipment-inventory-form-error').textContent = error.message; $('equipment-inventory-form-error').hidden = false; }
     finally { $('save-equipment-inventory').disabled = false; }
   };
-  $('equipment-import').onclick = async () => {try{await inventoryTemplatesReady;openColumns({importing:true});}catch(error){toast(error.message);}};
+  $('equipment-import').onclick = openPastedImport;
   $('equipment-show-zero').onchange=renderEquipment;
   for (const id of ['equipment-search','equipment-location-filter','equipment-review-filter']) $(id).addEventListener(id.endsWith('search') ? 'input' : 'change', renderEquipment);
   for (const [value, text] of [['','All items'], ['found','Located'], ['pending','Not located']]) {

@@ -20,7 +20,8 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#equipment-inventory-select').select_option(str(inventory['id']))
             page.wait_for_function("() => document.getElementById('equipment-inventory-title').textContent==='Custom signage' && !document.getElementById('equipment-inventory-select').disabled")
             text='Model\tOrientation\tLocation\nM1\tVertical\tLobby\nM2\tHorizontal\tLobby'
-            page.locator('#equipment-paste').click();page.locator('#paste-inventory-text').fill(text)
+            assert page.locator('#equipment-transfer button').first.get_attribute('id')=='equipment-paste'
+            page.locator('#equipment-import').click();page.locator('#paste-inventory-text').fill(text)
             page.locator('#continue-paste-inventory').click()
             page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
             page.locator('#continue-paste-layout').click();page.locator('#paste-field-dialog').wait_for(state='visible')
