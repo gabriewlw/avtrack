@@ -1,5 +1,7 @@
 """broadcasthub server. Python 3.12+; install requirements.txt for Excel import."""
 import csv
+from contextlib import nullcontext
+import import_sessions
 import io
 import ipaddress
 import json
@@ -142,6 +144,7 @@ def connect():
     if stock_index and 'custom_values' not in stock_index['sql']:
         con.execute('DROP INDEX equipment_inventory_stock')
     con.execute("CREATE UNIQUE INDEX IF NOT EXISTS equipment_inventory_stock ON equipment(inventory_id, brand COLLATE NOCASE, model COLLATE NOCASE, description, location COLLATE NOCASE) WHERE serial_number='' AND brand!='' AND model!='' AND location!='' AND custom_values='{}'")
+    import_sessions.initialize(con)
     return con
 
 
@@ -305,7 +308,7 @@ def system_from_name(name):
     return next((system for keyword, system in SYSTEM_NAME_RULES if keyword in name), '')
 
 
-def import_devices(payload):
+def import_devices(payload, connection=None):
     if not isinstance(payload, dict) or payload.get('version') != 1 or not isinstance(payload.get('devices'), list):
         raise ValueError('Choose an avtrack network JSON export (version 1).')
     if len(payload['devices']) > 10000:
@@ -338,8 +341,8 @@ def import_devices(payload):
         except ValueError as exc:
             raise ValueError(f'Device row {number}: {exc} Nothing was imported.') from None
     # A single transaction makes imports atomic. Existing records are never overwritten.
-    with connect() as con:
-        con.execute('BEGIN IMMEDIATE')
+    with (nullcontext(connection) if connection is not None else connect()) as con:
+        if connection is None:con.execute('BEGIN IMMEDIATE')
         existing = {identity for row in con.execute('SELECT record_type, ip, port FROM devices') if (identity := device_identity(row)) is not None}
         added = 0
         warnings = []
@@ -490,6 +493,8 @@ def delete_equipment_inventory(inventory_id, value):
         next_id = con.execute('SELECT MAX(id)+1 FROM equipment_inventories').fetchone()[0]
         count = con.execute('DELETE FROM equipment WHERE inventory_id=?', (inventory_id,)).rowcount
         con.execute('DELETE FROM equipment_inventories WHERE id=?', (inventory_id,))
+        con.execute('UPDATE import_sessions SET retired=1 WHERE target=?',(f'equipment:{inventory_id}',))
+        con.execute('DELETE FROM import_preferences WHERE target=?',(f'equipment:{inventory_id}',))
         # Keep the application ready for a new import after deleting the final inventory.
         if not con.execute('SELECT 1 FROM equipment_inventories').fetchone():
             con.execute('INSERT INTO equipment_inventories (id,name) VALUES (?,?)', (next_id, 'Equipment inventory'))
@@ -675,13 +680,13 @@ def equipment_identity(row):
     return None
 
 
-def import_equipment(payload):
+def import_equipment(payload, connection=None):
     if not isinstance(payload, dict) or payload.get('version') != 1 or not isinstance(payload.get('equipment'), list):
         raise ValueError('Choose an avtrack equipment JSON export.')
     if len(payload['equipment']) > 10000:
         raise ValueError('Import supports up to 10,000 inventory items.')
     inventory_id = equipment_inventory_id(payload.get('inventory_id', 1))
-    with connect() as con:
+    with (nullcontext(connection) if connection is not None else connect()) as con:
         profile = equipment_inventory_details(con,inventory_id).get('layout',DEFAULT_PROFILE)
     rows = []
     for index, value in enumerate(payload['equipment'], 1):
@@ -699,8 +704,8 @@ def import_equipment(payload):
     identities = [identity for row in rows if not profile_identifier(row,profile) and (identity := equipment_identity(row)) is not None]
     if len(set(identities)) != len(identities):
         raise ValueError('Duplicate serial numbers or stock records in this file. Nothing was imported.')
-    with connect() as con:
-        con.execute('BEGIN IMMEDIATE')
+    with (nullcontext(connection) if connection is not None else connect()) as con:
+        if connection is None:con.execute('BEGIN IMMEDIATE')
         if equipment_inventory_details(con, inventory_id).get('layout',DEFAULT_PROFILE) != profile:
             raise ValueError('Inventory columns changed. Refresh and try importing again.')
         existing = {identity for row in con.execute('SELECT * FROM equipment WHERE inventory_id=?', (inventory_id,)) if (identity := equipment_identity(dict(row))) is not None}
@@ -796,6 +801,61 @@ class Handler(BaseHTTPRequestHandler):
     def dispatch(self):
         path = urlsplit(self.path).path
         query = parse_qs(urlsplit(self.path).query, keep_blank_values=True)
+        if path.startswith('/api/import-sessions'):
+            with connect() as con:
+                if path=='/api/import-sessions' and self.command=='GET':
+                    target=query.get('target',[None])[0]
+                    where,parameters=[],[]
+                    if target:where.append('target=?');parameters.append(import_sessions.target_name(target))
+                    before=query.get('before',[''])[0]
+                    if before:
+                        if not before.isascii() or not before.isdigit() or int(before)<1:raise ValueError('Choose a valid import history page.')
+                        where.append('id<?');parameters.append(int(before))
+                    rows=con.execute("SELECT id,target,name,status,retired,updated_at,COALESCE(json_extract(state,'$.inventory.name'),CASE target WHEN 'device' THEN 'AV Devices' WHEN 'iptv' THEN 'IPTV Channels' ELSE 'Inventory' END) AS destination FROM import_sessions "+('WHERE '+' AND '.join(where)+' ' if where else '')+'ORDER BY id DESC LIMIT 50',parameters).fetchall()
+                    return self.send(200,{'sessions':[dict(r) for r in rows]})
+                if path=='/api/import-sessions' and self.command=='POST':
+                    value=self.body()
+                    if isinstance(value,dict) and str(value.get('target','')).startswith('equipment:'):
+                        equipment_inventory_details(con,int(value['target'].split(':')[1]))
+                    saved=import_sessions.save(con,value);con.commit()
+                    return self.send(201,saved)
+                match=re.fullmatch(r'/api/import-sessions/([1-9][0-9]*)(/rows|/reconciliation)?',path)
+                if match:
+                    session_id=int(match[1])
+                    if self.command=='GET' and not match[2]:return self.send(200,import_sessions.get(con,session_id))
+                    if self.command=='PUT' and not match[2]:
+                        saved=import_sessions.save(con,self.body(),session_id);con.commit()
+                        return self.send(200,saved)
+                    if self.command=='POST' and match[2]=='/rows':
+                        value=self.body()
+                        if not isinstance(value,dict):raise ValueError('Provide a source row.')
+                        con.execute('BEGIN IMMEDIATE')
+                        def apply(session,row):
+                            if session['target'].startswith('equipment:'):
+                                return import_equipment(dict(version=1,inventory_id=int(session['target'].split(':')[1]),equipment=[dict(row,item_confirmed=False)]),con)
+                            return import_devices(dict(version=1,devices=[dict(row,record_type=session['target'])],source='spreadsheet',confirmation_required=session['state'].get('confirmation_mode',session['target']=='device') in (True,'ip')),con)
+                        result=import_sessions.save_receipt(con,session_id,value,apply);con.commit()
+                        return self.send(200,result)
+                    if self.command=='PUT' and match[2]=='/reconciliation':
+                        value=self.body()
+                        if import_sessions.get(con,session_id)['retired']:raise ValueError('This inventory was deleted. Its import report is read-only.')
+                        con.execute('UPDATE import_sessions SET reconciliation=? WHERE id=?',(json.dumps(value),session_id))
+                        con.commit()
+                        return self.send(200,{'saved':True})
+            raise LookupError('Import session endpoint not found.')
+        if path=='/api/import-preferences' and self.command in ('GET','PUT'):
+            with connect() as con:
+                if self.command=='GET':
+                    target=import_sessions.target_name(query.get('target',[''])[0]);row=con.execute('SELECT settings FROM import_preferences WHERE target=?',(target,)).fetchone()
+                    return self.send(200,json.loads(row['settings']) if row else {})
+                value=self.body()
+                if not isinstance(value,dict):raise ValueError('Provide valid import preferences.')
+                target=import_sessions.target_name(value.get('target'))
+                settings=value.get('settings')
+                if not isinstance(settings,dict) or len(json.dumps(settings))>100000:raise ValueError('Provide valid import preferences.')
+                con.execute('INSERT INTO import_preferences (target,settings) VALUES (?,?) ON CONFLICT(target) DO UPDATE SET settings=excluded.settings',(target,json.dumps(settings)))
+                con.commit()
+                return self.send(200,{'saved':True})
         if self.command == 'GET' and path in ('/equipment', '/inventory/'):
             self.send_response(308)
             self.send_header('Location', '/inventory')
@@ -879,6 +939,7 @@ class Handler(BaseHTTPRequestHandler):
             assets['/import-review.js'] = ('import-review.js', 'text/javascript')
             assets['/demo'] = ('demo.html', 'text/html')
             assets['/demo/'] = ('demo.html', 'text/html')
+            assets['/import-workflow.js'] = ('import-workflow.js', 'text/javascript')
             assets['/demo.js'] = ('demo.js', 'text/javascript')
             assets['/demo.css'] = ('demo.css', 'text/css')
             assets['/inventory'] = ('index.html', 'text/html')

@@ -28,15 +28,15 @@ with tempfile.TemporaryDirectory() as temporary:
             def upload(content=data):
                 page.locator('#import-file').set_input_files({'name':'locations.csv','mimeType':'text/csv','buffer':content})
                 page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
-            def delete(name):page.get_by_role('button',name=f'Delete location {name} and skip its items',exact=True).first.click()
+            def delete(name):page.get_by_role('button',name=f'Exclude location {name} and skip its items',exact=True).first.click()
             upload()
             delete('Locker A')
             assert '2 items skipped from deleted locations' in page.locator('#equipment-import-audit').inner_text()
-            assert page.locator('#confirm-import').inner_text()=='Import & review 3 rows'
+            assert page.locator('#confirm-import').inner_text()=='Apply setup & review 3 rows'
             assert page.locator('#spreadsheet-preview strong').all_text_contents()==['Row 4','Row 5','Row 6']
             assert page.locator('#import-venue-list .choice-button').count()==2
             page.get_by_role('button',name='Restore location Locker A',exact=True).click()
-            assert page.locator('#confirm-import').inner_text()=='Import & review 5 rows'
+            assert page.locator('#confirm-import').inner_text()=='Apply setup & review 5 rows'
             delete('Locker A')
             page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
             assert page.locator('#inventory-import-review-rows tr').count()==1
@@ -50,25 +50,25 @@ with tempfile.TemporaryDirectory() as temporary:
             assert next(row for row in saved if row['id']==existing['id'])['location']=='Locker A'
             assert {row['serial_number'] for row in saved}=={'OLD','DUP','B2','C1'}
             assert next(row for row in saved if row['serial_number']=='DUP')['location']=='Locker B'
-            page.locator('#equipment-import-report summary').click()
-            report=page.locator('#equipment-import-report').inner_text()
-            assert 'Row 2 · Locker A' in report and 'Row 3 · Locker A' in report
-            assert report.count('Location deleted from import; item skipped.')==2
-            assert 'Skipped 2 rows' in page.locator('#toast').inner_text()
+            page.locator('#import-summary-panel').wait_for(state='visible')
+            report=page.locator('#import-summary-groups').inner_text()
+            assert 'Locker A' in report and '2 excluded' in report
+            page.locator('#close-import-summary').click()
             # Renamed aliases are removed together; all-deleted imports finish without review.
             upload(b'Item,Brand,Model,Serial number,Quantity,Location,Notes\nNew,Sony,X,N1,1,Locker A,note\nNew,Sony,X,N2,1,Locker B,note\n')
             assert page.get_by_role('button',name='Restore location Locker A',exact=True).count()==0
             page.locator('[data-source-location="Locker B"] input').fill('Locker A')
             delete('Locker A')
-            assert page.locator('#confirm-import').inner_text()=='Import & review 0 rows'
+            assert page.locator('#confirm-import').inner_text()=='Apply setup & review 0 rows'
             page.get_by_role('button',name='Restore location Locker A',exact=True).first.click()
-            assert page.locator('#confirm-import').inner_text()=='Import & review 2 rows'
+            assert page.locator('#confirm-import').inner_text()=='Apply setup & review 2 rows'
             delete('Locker A')
             page.locator('#confirm-import').click();page.locator('#spreadsheet-dialog').wait_for(state='hidden')
+            page.locator('#import-summary-panel').wait_for(state='visible');page.locator('#close-import-summary').click()
             assert len(app.equipment_inventory(inventory['id']))==4
             # A fresh file restores the locations and their items automatically.
             upload(b'Item,Brand,Model,Serial number,Quantity,Location,Notes\nNew,Sony,X,N1,1,Locker A,note\n')
-            assert page.locator('#confirm-import').inner_text()=='Import & review 1 rows'
+            assert page.locator('#confirm-import').inner_text()=='Apply setup & review 1 rows'
             page.locator('#confirm-import').click();page.locator('#spreadsheet-dialog').wait_for(state='hidden')
             page.wait_for_function("() => document.getElementById('equipment-records').textContent==='5'")
             assert 'N1' in {row['serial_number'] for row in app.equipment_inventory(inventory['id'])}

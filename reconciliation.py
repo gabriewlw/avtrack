@@ -128,12 +128,23 @@ def reconcile(payload, inventory):
 def reconcile_profile(payload, inventory, profile):
     """Compare user-defined columns using their names and selected identifier."""
     from inventory_profiles import column_value, custom_values, BASE_FIELDS, normalize_template_row, profile_identifier
+    source_mappings=payload.get('source_mappings',{})
+    if not isinstance(source_mappings,dict) or any(not isinstance(value,dict) or not isinstance(value.get('mappings',{}),dict) for value in source_mappings.values()):raise ValueError('Provide valid source column mappings.')
+    for setting in source_mappings.values():
+        for match in setting.get('mappings',{}).values():
+            if not isinstance(match,dict) or not isinstance(match.get('name'),str) or type(match.get('occurrence',0)) is not int or not 0<=match.get('occurrence',0)<50:raise ValueError('Provide valid source column mappings.')
+        if not isinstance(setting.get('default_location',''),str):raise ValueError('Provide a valid source location.')
+        if not isinstance(setting.get('excluded',[]),list) or any(not isinstance(value,str) for value in setting.get('excluded',[])):raise ValueError('Provide valid excluded locations.')
+        if not isinstance(setting.get('venueEdits',[]),list) or any(not isinstance(pair,list) or len(pair)!=2 or any(not isinstance(value,str) for value in pair) for pair in setting.get('venueEdits',[])):raise ValueError('Provide valid location edits.')
     known=[norm(alias) for col in profile['columns'] if col['type']!='calculated' for alias in [col['label'],*(col.get('aliases',[]))]]
     sheets=preview(dict(payload,sheets_only=True))['sheets'] if payload['filename'].lower().endswith('.xlsx') else ['']
     entries,errors=[],[]
     for sheet in sheets:
         try:
-            data=preview(dict(payload,sheet=sheet,auto_header=True,header_aliases=known,keep_headers=known,minimum_headers=min(3,len(known))))
+            saved_mapping=source_mappings.get(sheet,source_mappings.get('_default',{}))
+            extra=[value.get('name','') for value in saved_mapping.get('mappings',{}).values() if isinstance(value,dict)]
+            manual=saved_mapping.get('header_row')
+            data=preview(dict(payload,sheet=sheet,header_row=manual or 1,auto_header=manual is None,header_aliases=known+extra,keep_headers=known,minimum_headers=min(3,len(known))))
         except ValueError as exc:
             errors.append({'sheet':sheet,'error':str(exc)});continue
         headers=[re.sub(r'[_-]+',' ',h.lower()).strip() for h in data['headers']]
@@ -142,12 +153,22 @@ def reconcile_profile(payload, inventory, profile):
             aliases=[norm(col['label']),col['key'].replace('_',' '),*ALIASES.get(col['key'],()),*[norm(alias) for alias in col.get('aliases',[])]]
             index=next((headers.index(alias) for alias in aliases if alias in headers),None)
             if col['key']=='location' and headers.count('location')>1:index=len(headers)-1-headers[::-1].index('location')
+            saved_mapping=source_mappings.get(sheet,source_mappings.get('_default',{}))
+            selected=saved_mapping.get('mappings',{}).get(col['key'])
+            if isinstance(selected,dict):
+                candidates=[i for i,header in enumerate(headers) if norm(header)==norm(selected.get('name',''))]
+                occurrence=selected.get('occurrence',0)
+                if type(occurrence) is int and 0<=occurrence<len(candidates):index=candidates[occurrence]
             mapping[col['key']]=index
         for raw,number in zip(data['rows'],data['row_numbers']):
             values={key:raw[index] if index is not None else '' for key,index in mapping.items()}
             if not any(meaningful(value) for value in values.values()):continue
+            saved_mapping=source_mappings.get(sheet,source_mappings.get('_default',{}))
+            if not values.get('location') and saved_mapping.get('default_location'):values['location']=saved_mapping['default_location']
+            original_location=values.get('location','')
+            values['location']=dict(saved_mapping.get('venueEdits',[])).get(original_location,original_location)
             row={field:'' for field in BASE_FIELDS};row['quantity']=None;row['custom_values']={}
-            issues=[]
+            issues=['Location excluded from this import; check whether it should be present'] if original_location in saved_mapping.get('excluded',[]) else []
             for col in profile['columns']:
                 value=values[col['key']]
                 if col['important'] and col['type']!='calculated' and not meaningful(value):issues.append('Missing '+col['label'])

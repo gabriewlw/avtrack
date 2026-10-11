@@ -37,27 +37,29 @@ with tempfile.TemporaryDirectory() as tmp:
             assert 'AV Devices' in page.locator('#paste-inventory-target').inner_text()
             assert page.locator('#map-ip').input_value()=='2'
             assert not app.inventory()
-            page.locator('#confirm-import').click();page.locator('#row-review-dialog').wait_for(state='visible')
-            assert page.locator('#review-name').input_value()=='Wall TV'
-            page.locator('#review-notes').fill('Checked paste')
-            page.locator('#accept-review-row').click();page.locator('#row-review-dialog').wait_for(state='hidden')
+            page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
+            assert page.get_by_label('Device name, row 2',exact=True).input_value()=='Wall TV'
+            page.get_by_role('button',name='Edit notes for row 2',exact=True).click();page.locator('#import-cell-notes-text').fill('Checked paste');page.locator('#apply-import-cell-notes').click()
+            page.locator('#inventory-import-review-save').click();page.locator('#inventory-import-review').wait_for(state='hidden')
             page.locator('#spreadsheet-dialog').wait_for(state='hidden')
             assert app.inventory()[0]['notes']=='Checked paste'
             assert app.inventory()[0]['confirmation_required']==0
             assert page.locator('.ip-confirm').count()==0
+            page.locator('#import-summary-panel').wait_for(state='visible');page.locator('#close-import-summary').click()
             page.locator('#iptv-tab').click()
             paste('| Channel Name | Multicast IP | Port | Notes |\n| --- | --- | --- | --- |\n| Crew TV | 239.1.2.3 | 1234 | Onboard |','ip')
             assert 'IPTV Channels' in page.locator('#paste-inventory-target').inner_text()
             assert page.locator('#map-port').input_value()=='2'
-            page.locator('#confirm-import').click();page.locator('#row-review-dialog').wait_for(state='visible')
-            assert page.locator('#review-ip').input_value()=='239.1.2.3'
-            assert page.locator('#review-port').input_value()=='1234'
-            page.locator('#accept-review-row').click();page.locator('#row-review-dialog').wait_for(state='hidden')
+            page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
+            assert page.get_by_label('Multicast IP, row 2',exact=True).input_value()=='239.1.2.3'
+            assert page.get_by_label('Port, row 2',exact=True).input_value()=='1234'
+            page.locator('#inventory-import-review-save').click();page.locator('#inventory-import-review').wait_for(state='hidden')
             page.locator('#spreadsheet-dialog').wait_for(state='hidden')
             records=app.inventory();assert len(records)==2
             assert next(r for r in records if r['record_type']=='iptv')['ip']=='239.1.2.3'
             channel=next(r for r in records if r['record_type']=='iptv')
             assert channel['confirmation_required']==1 and channel['ip_confirmed']==0
+            page.locator('#import-summary-panel').wait_for(state='visible');page.locator('#close-import-summary').click()
             page.locator('.ip-confirm').click()
             page.get_by_role('button',name='IP confirmed for Crew TV',exact=True).wait_for(state='visible')
             assert next(r for r in app.inventory() if r['record_type']=='iptv')['ip_confirmed']==1

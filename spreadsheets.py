@@ -4,6 +4,7 @@ import binascii
 import csv
 import io
 import re
+from itertools import chain, islice
 from pathlib import Path
 from zipfile import ZipFile, BadZipFile
 from xml.etree.ElementTree import ParseError
@@ -33,6 +34,41 @@ def pasted_markdown_rows(text):
                 rows.append(cells(line))
             return rows
     return None
+
+
+def header_name(value):
+    return re.sub(r'\s+', ' ', re.sub(r'[_-]+', ' ', str(value or '').lower())).strip()
+
+
+def detect_header(rows, aliases=()):
+    """Score candidates against familiar headings and following data, including custom sheets."""
+    known={header_name(v) for v in ('brand','manufacturer','make','model','model number','description','item','serial number','serial','s/n','quantity','qty','quantity in stock','location','notes','venue','device name','channel name','ip','ip address','multicast ip','vlan','port','id','scala id','orientation','size','monitor model','monitor brand','total','total count','deck 6','deck 2 port','deck 2 stbd')}
+    known.update(header_name(v) for v in aliases if isinstance(v,str))
+    candidates=[]
+    for index,row in enumerate(rows[:50]):
+        values=[header_name(v) for v in row if str(v or '').strip()]
+        if not values:continue
+        matched=sum(value in known for value in values)
+        placeholders=sum(bool(re.fullmatch(r'column\s*\d+',value)) for value in values)
+        text=sum(not re.fullmatch(r'[\d.]+',value) for value in values)
+        following=rows[index+1:index+4]
+        populated=sum(bool(any(str(v or '').strip() for v in data)) for data in following)
+        score=matched*6+min(len(values),12)+text/len(values)+populated-placeholders*5
+        if len(values)==1:score-=8
+        candidates.append((score,-index,matched,index+1))
+    if not candidates:return 1,'low'
+    best=max(candidates)
+    return best[3], 'high' if best[2]>=2 else 'low'
+
+
+def excel_cell_text(cell):
+    value=cell.value
+    # Excel identifiers often use a numeric cell with a zero-padding display format.
+    if isinstance(value,(int,float)) and not isinstance(value,bool) and float(value).is_integer():
+        number=int(value)
+        if re.fullmatch(r'0{2,}',cell.number_format or '') and number>=0:return str(number).zfill(len(cell.number_format))
+        return number
+    return value
 
 
 def preview(payload):
@@ -66,7 +102,7 @@ def preview(payload):
                 raise ValueError('Choose a worksheet from this workbook.')
             worksheet = book[sheet]
             worksheet.reset_dimensions()
-            source = worksheet.iter_rows(values_only=True)
+            source = ([excel_cell_text(cell) for cell in row] for row in worksheet.iter_rows(values_only=False))
         else:
             try:
                 text = raw.decode('utf-8-sig')
@@ -81,6 +117,14 @@ def preview(payload):
                 dialect = csv.excel
             markdown=pasted_markdown_rows(text) if payload.get('pasted') is True else None
             source = markdown if markdown is not None else csv.reader(io.StringIO(text), dialect, **({'delimiter':delimiter} if delimiter is not None else {}))
+        confidence=None
+        header_candidates=[]
+        if payload.get('detect_header'):
+            source=iter(source)
+            first=list(islice(source,53))
+            header_row,confidence=detect_header(first,payload.get('header_aliases',[]) + payload.get('keep_headers',[]))
+            header_candidates=[{'number':i+1,'values':[str(v or '') for v in row]} for i,row in enumerate(first[:50]) if any(str(v or '').strip() for v in row)]
+            source=chain(first,source)
         headers, rows, row_numbers, characters = [], [], [], 0
         kept_columns, ignored_columns, column_count = [], [], None
         for number, raw_row in enumerate(source, 1):
@@ -115,6 +159,7 @@ def preview(payload):
                         continue
                 if not values:
                     continue
+                header_row=number
                 column_count = len(values)
                 keep = {re.sub(r'[_-]+', ' ', h.lower()).strip() for h in payload.get('keep_headers', []) if isinstance(h,str)}
                 kept_columns = [i for i, value in enumerate(values) if payload.get('pasted') is True or not ignored_header(value) or re.sub(r'[_-]+',' ',value.lower()).strip() in keep]
@@ -134,7 +179,7 @@ def preview(payload):
                 row_numbers.append(number)
         if payload.get('auto_header') and not headers:
             raise ValueError('Could not identify an inventory header within the first 50 rows.')
-        return {'headers': headers, 'rows': rows, 'row_numbers': row_numbers, 'sheets': sheets, 'sheet': sheet, 'ignored_columns': ignored_columns}
+        return {'headers': headers, 'rows': rows, 'row_numbers': row_numbers, 'sheets': sheets, 'sheet': sheet, 'ignored_columns': ignored_columns, 'header_row':header_row,'header_confidence':confidence, 'header_candidates':header_candidates, 'column_samples':[[row[i] for row in rows[:4]] for i in range(len(headers))]}
     except (BadZipFile, InvalidFileException, ParseError, DefusedXmlException, KeyError, csv.Error, OSError):
         raise ValueError('Could not read this spreadsheet. Save a fresh .xlsx or CSV UTF-8 copy in Excel.') from None
     finally:

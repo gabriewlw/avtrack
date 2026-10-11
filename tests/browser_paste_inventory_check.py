@@ -30,7 +30,8 @@ with tempfile.TemporaryDirectory() as temporary:
                 page.locator('#equipment-paste').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
                 assert page.locator('#continue-paste-inventory').is_disabled()
                 page.locator('#paste-inventory-text').fill(text);page.locator('#continue-paste-inventory').click()
-                page.locator('#continue-paste-confirmation').click()
+                page.wait_for_function("() => document.getElementById('paste-confirmation-dialog').open || document.getElementById('paste-layout-dialog').open")
+                if page.locator('#paste-confirmation-dialog').is_visible():page.locator('#continue-paste-confirmation').click()
                 page.locator('#paste-layout-dialog').wait_for(state='visible')
                 page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
                 assert page.locator('#spreadsheet-dialog').is_hidden()
@@ -58,7 +59,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#map-deck_2_port').input_value()=='4'
             assert page.locator('#map-notes').input_value()=='7'
             assert '1 duplicate-model groups combined' in page.locator('#equipment-import-audit').inner_text()
-            assert page.locator('#confirm-import').inner_text()=='Import & review 7 rows'
+            assert page.locator('#confirm-import').inner_text()=='Apply setup & review 7 rows'
             assert 'Brand: LG' in page.locator('#spreadsheet-preview').inner_text()
             assert 'Deck 6: 8' in page.locator('#spreadsheet-preview').inner_text()
             page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
@@ -79,20 +80,23 @@ with tempfile.TemporaryDirectory() as temporary:
             assert next(row for row in saved if row['model']=='HU8000F')['brand']=='Samsung'
             assert next(row for row in saved if row['model']=='75UN75MU6300')['quantity']==1
             assert next(row for row in saved if row['model']=='HJ69oF')['quantity']==7
+            page.locator('#close-import-summary').click()
             # Excel tabs feed the same stages, including location deletion.
             choose(parts)
             paste('Description\tBrand\tModel\tSerial Number\tQuantity\tLocation\tNotes\nCable\tSony\tX\tS1\t1\tLocker A\tnote\nCable\tSony\tY\tS2\t2\tLocker B\tnote\n')
-            page.get_by_role('button',name='Delete location Locker A and skip its items',exact=True).click()
+            page.get_by_role('button',name='Exclude location Locker A and skip its items',exact=True).click()
             page.locator('#confirm-import').click();page.locator('#spreadsheet-dialog').wait_for(state='hidden')
             page.wait_for_function("() => document.getElementById('equipment-records').textContent==='1'")
             assert app.equipment_inventory(parts['id'])[0]['serial_number']=='S2'
+            page.locator('#import-summary-panel').wait_for(state='visible');page.locator('#close-import-summary').click()
             # Another worksheet appends in the same inventory; its location fills blanks only.
             page.locator('#equipment-paste').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
             page.locator('#paste-inventory-sheet').fill('Locker C worksheet')
             page.locator('#paste-inventory-location').fill('Locker C')
             page.locator('#paste-inventory-text').fill('Description\tBrand\tModel\tSerial Number\tQuantity\tLocation\tNotes\nCable\tSony\tZ\tS3\t1\t\tnote\nCable\tSony\tZ\tS4\t1\tLocker D\tnote\n\t\t\t\t\t\t\n')
             page.locator('#continue-paste-inventory').click()
-            page.locator('#continue-paste-confirmation').click()
+            page.wait_for_function("() => document.getElementById('paste-confirmation-dialog').open || document.getElementById('paste-layout-dialog').open")
+            if page.locator('#paste-confirmation-dialog').is_visible():page.locator('#continue-paste-confirmation').click()
             page.locator('#paste-layout-dialog').wait_for(state='visible')
             page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
             assert page.locator('#spreadsheet-dialog').is_hidden()
@@ -101,7 +105,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#keep-paste-layout').click()
             page.locator('#spreadsheet-dialog').wait_for(state='visible')
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
-            assert page.locator('#confirm-import').inner_text()=='Import & review 2 rows'
+            assert page.locator('#confirm-import').inner_text()=='Apply setup & review 2 rows'
             assert 'Locker C' in page.locator('#spreadsheet-preview').inner_text()
             assert 'Locker D' in page.locator('#spreadsheet-preview').inner_text()
             page.locator('#confirm-import').click();page.locator('#spreadsheet-dialog').wait_for(state='hidden')

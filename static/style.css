@@ -687,3 +687,27 @@ main, dialog {
 .batch-field-confirmation input{width:16px;height:16px;min-height:16px}
 
 .inventory-other-choice{display:flex;gap:8px;margin-top:8px;align-items:center}.inventory-other-choice[hidden]{display:none}.inventory-other-choice input{min-width:0;flex:1}
+
+/* The import stays in one workspace as its steps change. */
+#import-workspace{width:min(1260px,calc(100vw - 48px));max-width:1260px;max-height:94vh;padding:28px;overflow:auto}
+#import-workspace .import-step{width:100%;max-width:none;margin:0}
+#import-workspace [hidden]{display:none!important}
+.import-workspace-top{display:flex;justify-content:space-between;gap:24px;align-items:center;border-bottom:1px solid var(--border);padding-bottom:16px}
+.import-workspace-top h2{font-size:20px;margin:6px 0}.import-workspace-top p,.import-workspace-top span{font-size:12px;color:var(--muted)}
+.import-steps{display:grid;grid-template-columns:repeat(4,1fr);list-style:none;gap:12px;padding:0;margin:20px 0 28px;counter-reset:step}
+.import-steps li{counter-increment:step;display:flex;align-items:center;gap:8px;border-bottom:2px solid var(--border);padding:12px 0;color:var(--muted);font-size:12px}
+.import-steps li:before{content:counter(step);border:1px solid var(--border);border-radius:50%;width:24px;height:24px;display:grid;place-items:center}
+.import-steps li.current{color:var(--accent-text);border-color:var(--accent-text)}.import-steps li.finished{color:#9bd3ad;border-color:#609874}
+#import-workspace #column-mappings{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 20px}
+#import-workspace .dialog-actions{position:sticky;bottom:-28px;background:var(--panel);padding:18px 0;border-top:1px solid var(--border);z-index:5}
+.import-history{padding:24px;margin:24px 0}.import-history h2{font-size:20px}.import-history p{font-size:13px;color:var(--muted)}
+.import-history-row{display:flex;justify-content:space-between;gap:16px;align-items:center;border-top:1px solid var(--border);padding:12px 0;font-size:13px}
+#import-draft-summary{margin:18px 0}#import-sheet-selection{margin:18px 0}#import-duplicate-list,#import-excluded-list{font-size:12px;line-height:1.7}
+#import-workspace .batch-review-table{table-layout:auto}.batch-review-table .batch-sticky{position:sticky;left:0;z-index:2;background:#171b21;min-width:150px}
+.batch-review-table th.batch-sticky{z-index:4}.batch-review-table .batch-identity{position:sticky;left:150px;z-index:2;background:#171b21;min-width:150px}
+.batch-review-table th.batch-identity{z-index:4}.batch-review-table .batch-row-result{position:sticky;right:0;z-index:2;background:#171b21;min-width:150px}
+#import-workspace .batch-review-table th,#import-workspace .batch-review-table td{width:auto;min-width:120px;max-width:210px;padding:8px}
+#import-workspace .batch-review-table .batch-sticky{min-width:150px;width:150px;max-width:150px}#import-workspace .batch-review-table .batch-row-result{max-width:180px}
+#import-workspace .batch-review-table .choice-buttons{flex-wrap:wrap}.batch-notes-button{max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.batch-review-table .batch-field-confirmation{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;color:#e7bd72}
+@media(max-width:700px){#import-workspace{width:calc(100vw - 20px);padding:18px}.import-steps{gap:6px}.import-steps li{font-size:10px;display:block}.import-steps li:before{margin-bottom:6px}#import-workspace #column-mappings{grid-template-columns:1fr}.import-workspace-top{display:block}}

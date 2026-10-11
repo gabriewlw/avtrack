@@ -46,10 +46,13 @@ with tempfile.TemporaryDirectory() as tmp:
             assert page.locator('#map-model').input_value()=='0'
             assert page.locator('#map-field_orientation').input_value()=='1'
             saved=next(row for row in app.equipment_inventories() if row['id']==inventory['id'])
-            assert next(c for c in saved['layout']['columns'] if c['key']=='model')['require_confirmation']
-            assert [col['label'] for col in saved['layout']['columns']]==['Model','Orientation','Location']
+            assert not next(c for c in saved['layout']['columns'] if c['key']=='model').get('require_confirmation',False)
+            assert saved['layout']==inventory['layout']
             assert not app.equipment_inventory(inventory['id'])
             page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
+            saved=next(row for row in app.equipment_inventories() if row['id']==inventory['id'])
+            assert next(c for c in saved['layout']['columns'] if c['key']=='model')['require_confirmation']
+            assert [col['label'] for col in saved['layout']['columns']]==['Model','Orientation','Location']
             assert page.locator('#inventory-import-review-rows tr').count()==2
             page.locator('#inventory-import-review-all').check()
             assert page.locator('#inventory-import-review-save').is_disabled()

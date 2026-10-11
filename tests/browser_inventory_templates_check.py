@@ -56,6 +56,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.get_by_role('checkbox',name='Select row 4',exact=True).check()
             page.locator('#inventory-import-review-save').click()
             page.locator('#inventory-import-review').wait_for(state='hidden')
+            page.locator('#import-summary-panel').wait_for(state='visible');page.locator('#close-import-summary').click()
             page.wait_for_function("() => document.getElementById('equipment-records').textContent==='2'")
             assert page.locator('#equipment-units').inner_text()=='8'
             assert not page.locator('#equipment-locations').is_visible()
@@ -104,6 +105,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.get_by_label('Quantity, row 3',exact=True).locator('option').count()==51
             page.get_by_label('Brand, row 3',exact=True).fill('Sony');page.get_by_role('checkbox',name='Select row 3',exact=True).check()
             page.locator('#inventory-import-review-save').click();page.locator('#inventory-import-review').wait_for(state='hidden')
+            page.locator('#import-summary-panel').wait_for(state='visible');page.locator('#close-import-summary').click()
             page.wait_for_function("() => document.getElementById('equipment-records').textContent==='3'")
             assert page.locator('#equipment-location-buttons button').count()==2
             located=page.locator('#equipment-rows .ip-confirm').first

@@ -803,8 +803,7 @@ const networkImportFields = [
   ['port', 'Port (IPTV)', ['port','udp port','stream port','port number']]
 ];
 const equipmentCheckFields = ['description','brand','model','serial_number','quantity','location'];
-function equipmentIssues(row) {
-  const profile=window.equipmentUI?.profile() || defaultInventoryLayout;
+function equipmentIssues(row,profile=window.equipmentUI?.profile() || defaultInventoryLayout) {
   const important=profile.columns.filter(col=>col.important&&col.key!=='orientation');
   const issues=[...(row.source_issues || []),...important.filter(col=>String(inventoryValue(row,col.key)).trim()==='').map(col=>`Missing ${col.label}`)];
 
@@ -816,13 +815,13 @@ function equipmentIssues(row) {
 }
 function orderEquipmentReview(entries) {
   const serialCounts = new Map();
-  const profile=window.equipmentUI?.profile()||defaultInventoryLayout;const identifierCounts=new Map();
+  const profile=spreadsheetInventory?.layout || window.equipmentUI?.profile()||defaultInventoryLayout;const identifierCounts=new Map();
   const rowIdentifier=row=>profile.stock_mode==='tv_counts'&&row.brand&&row.model?JSON.stringify([row.brand.trim().toLowerCase(),row.model.trim().toLowerCase()]):profile.identifier?String(inventoryValue(row,profile.identifier)).trim().toLowerCase():'';
   entries.forEach(({row}) => { const key = (row.serial_number || '').trim().toLowerCase(); if (key) serialCounts.set(key, (serialCounts.get(key) || 0) + 1); });
   entries.forEach(({row})=>{const value=rowIdentifier(row);if(value)identifierCounts.set(value,(identifierCounts.get(value)||0)+1);});
   const groups = new Map();
   entries.forEach(entry => {
-    entry.issues = equipmentIssues(entry.row);
+    entry.issues = equipmentIssues(entry.row,profile);
     profile.columns.filter(col=>col.require_confirmation).forEach(col=>entry.issues.push(`Confirm ${col.label} during review`));
     if(identifierCounts.get(rowIdentifier(entry.row))>1)entry.issues.push('Repeated item identifier in this file');
     if (serialCounts.get((entry.row.serial_number || '').trim().toLowerCase()) > 1) entry.issues.push('Repeated serial number in this file');
@@ -922,9 +921,10 @@ function mappedRows(applyVenueEdits = true) {
       }
       const hasMapped=Object.entries(mapped).some(([key,value])=>key==='custom_values'?Object.values(value).some(v=>String(v).trim()):String(value??'').trim());
       const details = extras.filter(name => hasMapped && name !== 'name' && read(name)).map(name => `${name.replaceAll('_',' ')}: ${read(name)}`);
+      if(hasMapped && spreadsheetData.headers.filter(header=>normalizedHeader(header)==='location').length>1){spreadsheetData.headers.forEach((header,index)=>{if(normalizedHeader(header)==='location' && String(index)!==$('map-location')?.value && row[index])details.push(`Source Location (column ${index+1}): ${row[index]}`);});}
       if(hasMapped && spreadsheetFile?.source_label)details.push('Source sheet: '+spreadsheetFile.source_label);
       mapped.notes = [mapped.notes, ...details].filter(Boolean).join(' · ');
-      if(hasMapped && !mapped.location && spreadsheetFile?.default_location)mapped.location=spreadsheetFile.default_location;
+      if(hasMapped && !mapped.location && (spreadsheetFile?.default_location || spreadsheetFile?.sheet_location))mapped.location=spreadsheetFile.default_location || spreadsheetFile.sheet_location;
       mapped.item_confirmed = ''; // Old files do not establish a new physical location check.
     }
     if (currentTab !== 'equipment') mapped.record_type = currentTab;
@@ -959,7 +959,7 @@ function showVenueEditors() {
   const venues = [...new Set(sourceRows.filter(row => equipment || row.record_type !== 'iptv').map(row => row[field]).filter(Boolean))];
   $('import-venue-editor').hidden = !venues.length;
   $('import-venue-title').textContent = equipment ? 'Location buttons' : 'Venue buttons';
-  $('import-venue-help').textContent=equipment?'Rename locations here, or delete a location button to skip every item at that location in this import. Restore it before importing if needed.':'Click a colored button to edit its name in the field beside it. Changes apply to every row using that venue when you import.';
+  $('import-venue-help').textContent=equipment?'Rename locations, or exclude a location to skip its items in this import. Restore exclusions below before importing.':'Click a colored button to edit its name in the field beside it. Changes apply to every row using that venue when you import.';
   $('import-venue-list').replaceChildren(...venues.map((original, index) => {
     const row = element('div', 'venue-editor-row');
     row.classList.toggle('inventory-location-editor',equipment);
@@ -991,25 +991,66 @@ function showVenueEditors() {
     button.onclick = () => { input.focus(); input.select(); };
     label.append(input); row.append(button, label);
     if(equipment){
-      const remove=element('button','quiet delete-import-location','Delete location');remove.type='button';
-      remove.setAttribute('aria-label',`Delete location ${button.textContent} and skip its items`);
-      input.addEventListener('input',()=>remove.setAttribute('aria-label',`Delete location ${button.textContent} and skip its items`));
-      remove.onclick=()=>{const name=venueEdits.has(original)?venueEdits.get(original):original;venues.forEach(location=>{if((venueEdits.has(location)?venueEdits.get(location):location)===name)skippedImportLocations.add(location);});showVenueEditors();showSpreadsheetPreview();};row.append(remove);
+      const remove=element('button','quiet delete-import-location','Exclude location');remove.type='button';
+      remove.setAttribute('aria-label',`Exclude location ${button.textContent} and skip its items`);
+      input.addEventListener('input',()=>remove.setAttribute('aria-label',`Exclude location ${button.textContent} and skip its items`));
+      remove.onclick=()=>{const name=venueEdits.has(original)?venueEdits.get(original):original;venues.forEach(location=>{if((venueEdits.has(location)?venueEdits.get(location):location)===name)skippedImportLocations.add(location);});showVenueEditors();showSpreadsheetPreview();window.importWorkflow.checkpoint().catch(error=>toast(error.message));};row.append(remove);
     }
     return row;
   }));
 }
+function networkIssues(row){
+  const issues=[];
+  if(!row.name)issues.push('Missing name');
+  if(row.ip && !isDHCP(row.ip)){
+    if(!/^(?:0|[1-9]\d{0,2})(?:\.(?:0|[1-9]\d{0,2})){3}$/.test(row.ip) || row.ip.split('.').some(part=>Number(part)>255))issues.push('Invalid IP address');
+    else if(currentTab==='device' && (Number(row.ip.split('.')[0])>=224 || row.ip==='0.0.0.0' || row.ip.startsWith('127.')))issues.push('Use a device address');
+    else if(currentTab==='iptv' && (Number(row.ip.split('.')[0])<224 || Number(row.ip.split('.')[0])>239))issues.push('Use a multicast address');
+  }
+  if(currentTab==='iptv' && row.port && (!/^\d+$/.test(String(row.port)) || Number(row.port)<1 || Number(row.port)>65535))issues.push('Port must be 1–65535');
+  if(currentTab==='device' && row.vlan && (Number(row.vlan)<1 || Number(row.vlan)>4094))issues.push('VLAN must be 1–4094');
+  return issues;
+}
+function renderImportDraftDetails(){
+  const seen=window.importWorkflow.preferences.seen_headers || [],headings=spreadsheetData.headers.map(normalizedHeader);
+  const added=headings.filter(header=>!seen.includes(header)),missing=seen.filter(header=>!headings.includes(header));
+  $('import-source-changes').textContent=`Read ${headings.length} columns from this source. ${seen.length?`${added.length} new headings · ${missing.length} previous headings absent. Saved choices are suggestions for matching names; column positions are read again.`:'Every new table is read independently. Check the headings, sample values and suggested matches below.'}`;
+  const draft=spreadsheetInventory?.layout;
+  $('import-draft-summary').textContent=`Setup is a draft until you start importing. ${draft?draft.columns.map(column=>column.label+' ('+column.type+')').join(' · '):'Fixed network fields'} · Confirmation: ${spreadsheetFile.confirmation_mode || 'default'}. ${draft && draft.confirmation_mode!==window.importWorkflow.originalLayout?.confirmation_mode?'Changing the confirmation workflow clears prior confirmation marks when applied.':''}`;
+  const entries=spreadsheetEntries(),combined=currentTab==='equipment'?combineTVEntries(entries.filter(entry=>!entry.skippedLocation)):entries;
+  const existing=window.importWorkflow.knownRecords;
+  const match=row=>existing.find(saved=>{
+    if(currentTab!=='equipment')return importAddressKey(row) && importAddressKey(row)===importAddressKey(saved);
+    if(draft?.stock_mode==='tv_counts')return row.brand && row.model && row.brand.toLowerCase()===saved.brand.toLowerCase() && row.model.toLowerCase()===saved.model.toLowerCase();
+    if(draft?.identifier){const id=String(inventoryValue(row,draft.identifier)).trim();return id && id.toLowerCase()===String(inventoryValue(saved,draft.identifier)).trim().toLowerCase();}
+    if(row.serial_number)return row.serial_number.toLowerCase()===saved.serial_number.toLowerCase();
+    return row.brand && row.model && row.location && ['brand','model','location','description'].every(key=>String(row[key] || '').toLowerCase()===String(saved[key] || '').toLowerCase());
+  });
+  const comparisons=combined.flatMap(entry=>{
+    const saved=match(entry.row),lines=[];
+    if(entry.sourceNumbers)lines.push(`Source rows ${entry.sourceNumbers.join(', ')} combine as ${entry.row.brand} ${entry.row.model}: ${draft.columns.filter(column=>column.type==='count'||column.type==='calculated').map(column=>column.label+' '+inventoryValue(entry.row,column.key)).join(' · ')}`);
+    if(saved)lines.push(`Row ${entry.number}: source ${entry.row.model || entry.row.name || entry.row.serial_number} matches saved record #${saved.id}. It will be skipped; the saved record is kept.${currentTab==='equipment'?` Source quantity: ${entry.row.quantity ?? 'unknown'}; saved quantity: ${saved.quantity ?? 'unknown'}.`:''}`);
+    return lines;
+  });
+  $('import-duplicate-list').replaceChildren(...(comparisons.length?comparisons:['No matching saved assignments or combined rows.']).map(text=>element('p','',text)));
+  $('import-excluded-locations').hidden=!skippedImportLocations.size;
+  $('import-excluded-list').replaceChildren(...[...skippedImportLocations].map(location=>{
+    const row=element('div','import-history-row'),restore=element('button','secondary','Restore');restore.type='button';restore.setAttribute('aria-label',`Restore excluded location ${location}`);restore.onclick=()=>{skippedImportLocations.delete(location);showVenueEditors();showSpreadsheetPreview();window.importWorkflow.checkpoint().catch(error=>toast(error.message));};
+    row.append(element('span','',`${location} · ${entries.filter(entry=>entry.skippedLocation && entry.row.location===location).length} source rows excluded`),restore);return row;
+  }));
+}
 function showSpreadsheetPreview() {
+  renderImportDraftDetails();
   const allEntries=spreadsheetEntries();
   $('equipment-import-audit').hidden = currentTab !== 'equipment';
   if (currentTab === 'equipment') {
     const entries = orderEquipmentReview(combineTVEntries(allEntries.filter(entry=>!entry.skippedLocation)));
     const profile=spreadsheetInventory.layout || defaultInventoryLayout;
-    $('equipment-import-audit').textContent = `${profile.stock_mode==='tv_counts'?entries.filter(entry=>entry.row.quantity===0).length+' zero-stock rows will be skipped':profile.location_role==='geographic'?entries.length+' device locations':new Set(entries.map(entry => entry.row.location)).size+' storage locations'} · ${entries.filter(entry => entry.issues.length).length} flagged rows${profile.stock_mode==='tv_counts'?' · '+entries.filter(entry=>entry.sourceNumbers).length+' duplicate-model groups combined':''} · ${allEntries.filter(entry=>entry.skippedLocation).length} items skipped from deleted locations. For each location, complete rows come first, then flagged rows. Storage position, condition, unit and source details are kept in Notes. ${profile.confirmation_mode==='ip'?'Imported IPs start unconfirmed.':profile.show_status===false?'No post-import confirmation is required.':'Imported locations start unconfirmed.'}`;
+    $('equipment-import-audit').textContent = `${profile.stock_mode==='tv_counts'?entries.filter(entry=>entry.row.quantity===0).length+' zero-stock rows will be skipped':profile.location_role==='geographic'?entries.length+' device locations':new Set(entries.map(entry => entry.row.location)).size+' storage locations'} · ${entries.filter(entry => entry.issues.length).length} flagged rows${profile.stock_mode==='tv_counts'?' · '+entries.filter(entry=>entry.sourceNumbers).length+' duplicate-model groups combined':''} · ${allEntries.filter(entry=>entry.skippedLocation).length} items skipped from excluded locations. For each location, complete rows come first, then flagged rows. Storage position, condition, unit and source details are kept in Notes. ${profile.confirmation_mode==='ip'?'Imported IPs start unconfirmed.':profile.show_status===false?'No post-import confirmation is required.':'Imported locations start unconfirmed.'}`;
   }
   const previewEntries=currentTab==='equipment'?combineTVEntries(allEntries.filter(entry=>!entry.skippedLocation)):allEntries.filter(entry=>!entry.skippedLocation);
   const rows = previewEntries.map(entry=>entry.row);
-  if(currentTab==='equipment')$('confirm-import').textContent=`Import & review ${rows.length} rows`;
+  if(currentTab==='equipment')$('confirm-import').textContent=`Apply setup & review ${rows.length} rows`;
   if (currentTab === 'iptv') {
     const codecIPs = channelCodecIPs([...devices, ...rows]);
     rows.forEach(row => { row.notes = channelNotesWithCodec(row, codecIPs); });
@@ -1028,7 +1069,7 @@ function showSpreadsheetPreview() {
     return card;
   }));
 }
-async function loadSpreadsheet() {
+async function loadSpreadsheet(options={}) {
   const loadingFile=spreadsheetFile;
   $('confirm-import').disabled = true; $('reload-sheet').disabled = true;
   $('spreadsheet-error').hidden = true;
@@ -1049,16 +1090,24 @@ async function loadSpreadsheet() {
       if (satelliteCatalogError) throw new Error('Could not load the satellite channel reference. Refresh the page and try again.');
     }
     if(spreadsheetFile!==loadingFile)return;
-    const data = await api('/api/spreadsheet-preview', 'POST', {...spreadsheetFile, sheet: $('sheet-choice').value, header_row: Number($('header-row').value),keep_headers:currentTab==='equipment'?customImportFields().flatMap(([key,label,aliases])=>[label,...aliases]):[]});
+    const data = await api('/api/spreadsheet-preview', 'POST', {...spreadsheetFile, sheet: $('sheet-choice').value, header_row: Number($('header-row').value),detect_header:!options.manualHeader && !$('header-row').dataset.manual,header_aliases:importFields().flatMap(([key,label,aliases])=>[label,...aliases]),keep_headers:currentTab==='equipment'?customImportFields().flatMap(([key,label,aliases])=>[label,...aliases]):[]});
     if(spreadsheetFile!==loadingFile)return;
     spreadsheetData = data;
-    venueEdits = new Map(); skippedImportLocations.clear();
+    $('header-row').value=data.header_row;
+    $('import-confirmation-choice').replaceChildren(new Option('No confirmation','none'),new Option('Confirm IP','ip'),...(currentTab==='equipment'?[new Option('Located / Not located','storage')]:[]));
+    $('import-confirmation-choice').value=spreadsheetFile.confirmation_mode || 'none';
+    $('import-header-list').replaceChildren(...(data.header_candidates || []).slice(0,12).map(candidate=>{
+      const row=element('div','import-history-row'),button=element('button','secondary',`Use row ${candidate.number}`);button.type='button';button.onclick=()=>{$('header-row').value=candidate.number;$('header-row').dataset.manual='true';loadSpreadsheet({manualHeader:true});};
+      row.append(element('span','',candidate.values.filter(Boolean).join(' · ').slice(0,360)),button);return row;
+    }));
+    $('import-header-candidates').hidden=!data.header_candidates?.length;
+    $('header-row-help').textContent=`Column headings found on row ${data.header_row}${data.header_confidence==='low'?' — check the sample headings below':''}. Change the number and reload if needed.`;
     $('sheet-label').hidden = !data.sheets.length;
     $('sheet-choice').replaceChildren(...data.sheets.map(sheet => new Option(sheet, sheet)));
     $('sheet-choice').value = data.sheet;
     if(currentTab==='equipment')$('spreadsheet-title').textContent='Step 2: match file columns to your inventory';else $('spreadsheet-title').textContent='Match your columns';
     $('import-complete-options').hidden=currentTab!=='equipment';
-    $('spreadsheet-review-help').textContent=currentTab==='equipment' ? 'Match each inventory field to a file column. Complete matched rows can be added automatically. Review remaining rows together, grouped by location; edit their cells and import or skip selected rows. Calculated totals need no file column. Zero-stock TV rows are skipped. Orientation is optional.' : 'Match each field to a column, or choose Leave blank. Missing columns and empty cells stay blank. Click Review rows, then choose Yes or Skip for each row.';
+    $('spreadsheet-review-help').textContent=currentTab==='equipment' ? 'Match each inventory field to a file column. Complete matched rows can be added automatically. Review remaining rows together, grouped by location; edit their cells and import or skip selected rows. Calculated totals need no file column. Zero-stock TV rows are skipped. Orientation is optional.' : 'Match each field to a column, or choose Leave blank. Missing columns and empty cells stay blank. Click Review rows, then select valid rows and import them together.';
     $('spreadsheet-summary').textContent = `${spreadsheetFile.filename} · ${data.rows.length} records${spreadsheetInventory ? ' · Inventory: ' + spreadsheetInventory.name : ''}`;
     if (data.ignored_columns?.length) $('spreadsheet-summary').textContent += ` · Ignored columns: ${data.ignored_columns.join(', ')}`;
     $('column-mappings').replaceChildren(...importFields().map(([field, label, aliases]) => {
@@ -1066,16 +1115,20 @@ async function loadSpreadsheet() {
       const columnLabel = element('label', '', label);
       const select = element('select'); select.id = 'map-' + field;
       select.add(new Option('Leave blank', ''));
-      data.headers.forEach((header, index) => select.add(new Option(`${index+1}. ${header}`, String(index))));
+      data.headers.forEach((header, index) => select.add(new Option(`${index+1}. ${header} — ${(data.column_samples[index] || []).filter(Boolean).slice(0,2).join(' / ').slice(0,70) || 'blank samples'}`, String(index))));
       // Prefer the requested header before falling back to broader aliases.
       const matched = aliases.map(alias => data.headers.findIndex(header => normalizedHeader(header) === alias)).find(index => index >= 0) ?? -1;
       if (matched >= 0) select.value = String(matched);
+      if(field==='location' && data.headers.filter(header=>normalizedHeader(header)==='location').length>1)select.value=String(data.headers.map(normalizedHeader).lastIndexOf('location'));
       columnLabel.append(select); group.append(columnLabel);
-      select.onchange = () => { if(field==='location')skippedImportLocations.clear();showVenueEditors(); showSpreadsheetPreview(); };
+      select.onchange = () => { showVenueEditors(); showSpreadsheetPreview(); window.importWorkflow.checkpoint().catch(error=>toast(error.message)); };
       return group;
     }));
+    await window.importWorkflow.configureSheets(data.sheets);
+    window.importWorkflow.restoreMappings(data);
     showVenueEditors(); showSpreadsheetPreview();
-    if(currentTab!=='equipment')$('confirm-import').textContent=`Review ${data.rows.length} rows`;
+    await window.importWorkflow.checkpoint();
+    if(currentTab!=='equipment')$('confirm-import').textContent=`Review ${data.rows.length} rows together`;
     $('confirm-import').disabled = false;
   } catch (error) {
     if(![...$('sheet-choice').options].some(option=>option.value) && /\.xlsx$/i.test(spreadsheetFile.filename)) {
@@ -1088,16 +1141,28 @@ async function loadSpreadsheet() {
 }
 function closeSpreadsheet() {
   if (spreadsheetReviewing) { stopSpreadsheetReview = true; return; }
+  window.importWorkflow.checkpoint('paused').catch(error=>toast(error.message));
   $('spreadsheet-dialog').close(); spreadsheetData = null; spreadsheetFile = null; venueEdits = new Map(); skippedImportLocations.clear();
 }
 $('close-spreadsheet').onclick = $('cancel-spreadsheet').onclick = closeSpreadsheet;
 $('spreadsheet-dialog').addEventListener('cancel', event => {
   if (spreadsheetReviewing) { event.preventDefault(); stopSpreadsheetReview = true; }
-  else { spreadsheetData = null; spreadsheetFile = null; venueEdits = new Map(); skippedImportLocations.clear(); }
+  else { event.preventDefault();closeSpreadsheet(); }
 });
-$('reload-sheet').onclick = loadSpreadsheet;
+$('reset-import-suggestions').onclick=()=>{
+  window.importWorkflow.resetSuggestions();
+  importFields().forEach(([key,label,aliases])=>{
+    const input=$('map-'+key),index=aliases.map(alias=>spreadsheetData.headers.findIndex(header=>normalizedHeader(header)===alias)).find(value=>value>=0);
+    input.value=index==null?'':String(index);
+    if(key==='location' && spreadsheetData.headers.filter(header=>normalizedHeader(header)==='location').length>1)input.value=String(spreadsheetData.headers.map(normalizedHeader).lastIndexOf('location'));
+  });
+  showVenueEditors();showSpreadsheetPreview();window.importWorkflow.checkpoint().catch(error=>toast(error.message));
+};
+$('import-confirmation-choice').onchange=()=>{const mode=$('import-confirmation-choice').value;spreadsheetFile.confirmation_mode=mode;if(spreadsheetInventory)spreadsheetInventory={...spreadsheetInventory,layout:{...(spreadsheetInventory.layout || defaultInventoryLayout),confirmation_mode:mode,show_status:mode!=='none'}};showSpreadsheetPreview();window.importWorkflow.checkpoint().catch(error=>toast(error.message));};
+$('reload-sheet').onclick = () => loadSpreadsheet({manualHeader:!!$('header-row').dataset.manual});
 // Sheet/header changes must be loaded before an import can be confirmed.
-$('sheet-choice').onchange = $('header-row').oninput = () => { $('confirm-import').disabled = true; };
+$('sheet-choice').onchange = () => { $('confirm-import').disabled=true;delete $('header-row').dataset.manual; };
+$('header-row').oninput=()=>{$('header-row').dataset.manual='true';$('confirm-import').disabled=true;};
 const meaningfulImportRow = row => Object.entries(row).some(([field,value]) => field==='custom_values'?Object.values(value).some(value=>String(value??'').trim()!==''):field !== 'record_type' && field !== 'source_issues' && value !== '' && value!=null);
 function importAddressKey(row) {
   const ip = (row.ip || '').trim();
@@ -1226,75 +1291,55 @@ function reviewImportRow(entry, index, total, tab, knownAddresses, inventory = n
 $('spreadsheet-form').onsubmit = async event => {
   event.preventDefault();
   if (!spreadsheetData || $('confirm-import').disabled) return;
-  $('confirm-import').disabled = true; $('spreadsheet-error').hidden = true;
-  spreadsheetReviewing = true; stopSpreadsheetReview = false;
-  try {
-    const tab = currentTab;
+  $('confirm-import').disabled=true;$('spreadsheet-error').hidden=true;
+  spreadsheetReviewing=true;stopSpreadsheetReview=false;
+  try{
+    const tab=currentTab;
+    if(window.importWorkflow.queue.length){const selected=$('sheet-choice').value;if(selected!==window.importWorkflow.queue[window.importWorkflow.queueIndex])throw new Error('Choose the first selected worksheet before starting.');}
+    await window.importWorkflow.applySetup();
     const allEntries=spreadsheetEntries();
-    const removedLocationEntries=allEntries.filter(entry=>entry.skippedLocation);
-    let entries = tab==='equipment'?combineTVEntries(allEntries.filter(entry=>!entry.skippedLocation)):allEntries.filter(entry=>!entry.skippedLocation);
-    if (tab === 'equipment') entries = orderEquipmentReview(entries);
-    const saved = tab === 'equipment' ? [] : (await api('/api/devices')).devices;
-    const knownAddresses = new Set(saved.map(importAddressKey).filter(Boolean));
-    let added = 0, existing = 0, skipped = removedLocationEntries.length, stopped = false;
-    const equipmentImportReport = removedLocationEntries.map(entry=>`Row ${entry.number} · ${entry.row.location || 'Unassigned'} · ${entry.row.serial_number || entry.row.model || entry.row.description || 'Item'}: Location deleted from import; item skipped.`);
-    if(tab==='equipment'&&spreadsheetInventory.layout?.stock_mode==='tv_counts'){const zeroRows=entries.filter(entry=>entry.row.quantity===0&&!entry.row.source_issues?.length);zeroRows.forEach(entry=>equipmentImportReport.push(`Row ${entry.number} · ${entry.row.brand} ${entry.row.model}: Zero total count; skipped. Use Add equipment to add this model later.`));skipped+=zeroRows.length;entries=entries.filter(entry=>entry.row.quantity!==0||entry.row.source_issues?.length);}
-    if (tab === 'device') importWarnings = [];
-    if (tab === 'equipment') {
-      const profile=spreadsheetInventory.layout || defaultInventoryLayout;
-      const collect=({entry,result})=>{
-        if(entry.issues.length||result.skipped||result.skippedRow) equipmentImportReport.push(`Row ${entry.number} · ${entry.row.location || 'Unassigned'} · ${inventoryValue(entry.row,profile.primary_search) || entry.row.serial_number || entry.row.model || entry.row.description || 'Unnamed item'}: ${result.skipped_zero ? 'Zero total count; not imported. ' : result.skipped ? 'Already exists; not imported. ' : result.skippedRow ? 'Skipped by user. ' : 'Imported for follow-up. '}${entry.issues.join(' · ')}`);
-        if(result.skippedRow)skipped++;else {added+=result.added;skipped+=result.skipped_zero || 0;existing+=result.skipped-(result.skipped_zero || 0);}
-      };
-      for(let index=0;index<entries.length;) {
-        if(stopSpreadsheetReview){stopped=true;break;}
-        const location=entries[index].row.location;
-        let end=index;
-        while(end<entries.length&&end<index+8&&entries[end].row.location===location)end++;
-        const batch=entries.slice(index,end),remaining=[];
-        for(const entry of batch) {
-          const complete=$('import-complete-rows').checked && !profile.columns.some(column=>column.require_confirmation) && !entry.issues.length && profile.columns.filter(column=>column.key!=='orientation'&&column.type!=='calculated').every(column=>($('map-'+column.key).value!==''||column.key==='brand'&&profile.stock_mode==='tv_counts'||column.key==='location'&&spreadsheetFile.default_location)&&String(inventoryValue(entry.row,column.key)).trim()!=='');
-          if(!complete){remaining.push(entry);continue;}
-          try {
-            collect({entry,result:await api('/api/equipment/import','POST',{version:1,inventory_id:spreadsheetInventory.id,equipment:[entry.row]})});
-          } catch(error) {entry.issues.push(error.message);remaining.push(entry);}
-        }
-        if(remaining.length) {
-          const review=await reviewEquipmentBatch(remaining,index,entries.length,spreadsheetInventory,profile.columns.map(col=>[col.key,col.label]),spreadsheetFile.filename,[...new Set(entries.map(entry=>entry.row.location).filter(Boolean))]);
-          review.outcomes.forEach(collect);
-          if(review.stopped){stopped=true;break;}
-        }
-        await load();index=end;
-      }
-    } else {
-      for (let index = 0; index < entries.length; index++) {
-        if (stopSpreadsheetReview) { stopped = true; break; }
-        const addressKey = tab === 'equipment' ? null : importAddressKey(entries[index].row);
-        const result = addressKey && knownAddresses.has(addressKey)
-          ? skippedDuplicateImport(entries[index])
-          : await reviewImportRow(entries[index], index, entries.length, tab, knownAddresses, spreadsheetInventory);
-        if (result === null) { stopped = true; break; }
-        if (result.skippedRow) skipped++;
-        else {
-          added += result.added; existing += result.skipped;
-          if (tab === 'device') importWarnings.push(...(result.warnings || []));
-          if (result.added) await load();
-        }
-      }
+    for(const entry of window.importWorkflow.remaining(allEntries.filter(entry=>entry.skippedLocation)))await window.importWorkflow.write(entry,entry.row,'exclude');
+    let entries=tab==='equipment'?combineTVEntries(allEntries.filter(entry=>!entry.skippedLocation)):allEntries.filter(entry=>!entry.skippedLocation);
+    entries=window.importWorkflow.remaining(entries);
+    if(tab==='equipment')entries=orderEquipmentReview(entries);
+    else entries=entries.map(entry=>({...entry,issues:networkIssues(entry.row)}));
+    const profile=tab==='equipment'?spreadsheetInventory.layout || defaultInventoryLayout:null;
+    if(profile?.stock_mode==='tv_counts'){
+      const zero=entries.filter(entry=>entry.row.quantity===0&&!entry.row.source_issues?.length);
+      for(const entry of zero)await window.importWorkflow.write(entry,entry.row,'zero');
+      entries=entries.filter(entry=>entry.row.quantity!==0||entry.row.source_issues?.length);
     }
-    if (tab === 'equipment') window.equipmentUI.importReport(spreadsheetInventory.id, equipmentImportReport);
-    spreadsheetReviewing = false; closeSpreadsheet();
-    toast(`${stopped ? 'Review stopped. ' : ''}Imported ${added} records. Skipped ${skipped} rows and ${existing} existing assignments.`);
+    let stopped=false;
+    for(let index=0;index<entries.length;){
+      if(stopSpreadsheetReview){stopped=true;break;}
+      const location=tab==='equipment'?entries[index].row.location:entries[index].row.venue || '';
+      let end=index;
+      while(end<entries.length && end<index+8 && (tab==='equipment'?entries[end].row.location:entries[end].row.venue || '')===location)end++;
+      const batch=entries.slice(index,end),remaining=[];
+      for(const entry of batch){
+        const complete=profile && $('import-complete-rows').checked && !profile.columns.some(column=>column.require_confirmation) && !entry.issues.length && profile.columns.filter(column=>column.key!=='orientation'&&column.type!=='calculated').every(column=>($('map-'+column.key).value!=='' || column.key==='brand'&&profile.stock_mode==='tv_counts' || column.key==='location'&&(spreadsheetFile.default_location || spreadsheetFile.sheet_location)) && String(inventoryValue(entry.row,column.key)).trim()!=='');
+        if(!complete){remaining.push(entry);continue;}
+        try{await window.importWorkflow.write(entry,entry.row);}catch(error){entry.issues.push(error.message);remaining.push(entry);}
+      }
+      if(remaining.length){
+        const review=await reviewEquipmentBatch(remaining,index,entries.length,spreadsheetInventory || {name:tab==='iptv'?'IPTV Channels':'AV Devices',layout:{columns:[]}},profile?profile.columns.map(column=>[column.key,column.label]):importFields().map(([key,label])=>[key,label]),spreadsheetFile.filename,[...new Set(entries.map(entry=>entry.row.location).filter(Boolean))],tab!=='equipment');
+        if(review.stopped){stopped=true;break;}
+      }
+      await load();index=end;
+    }
+    spreadsheetReviewing=false;
+    $('spreadsheet-dialog').close();
+    await window.importWorkflow.finish(stopped);
     await load();
-  } catch(error) { $('spreadsheet-error').textContent = error.message; $('spreadsheet-error').hidden = false; }
-  finally { spreadsheetReviewing = false; $('confirm-import').disabled = false; }
+  }catch(error){$('spreadsheet-error').textContent=error.message;$('spreadsheet-error').hidden=false;$('spreadsheet-dialog').showModal();}
+  finally{spreadsheetReviewing=false;$('confirm-import').disabled=false;}
 };
 function showPastedLayoutSuggestion() {
   $('keep-paste-layout').hidden=!!spreadsheetFile.from_headers;
   if(spreadsheetFile.from_headers){
     const head=element('tr');spreadsheetData.headers.forEach(header=>{const th=element('th','',header);th.scope='col';head.append(th);});$('paste-layout-head').replaceChildren(head);
     $('paste-layout-rows').replaceChildren(...spreadsheetData.rows.slice(0,5).map(values=>{const row=element('tr');values.forEach(value=>row.append(element('td',String(value??'').trim()?'':'paste-layout-blank',String(value??'').trim() || 'Needs review')));return row;}));
-    $('paste-layout-summary').textContent=`${spreadsheetInventory.name} · ${spreadsheetData.headers.length} headings from the first row · ${spreadsheetData.rows.length} source rows · Showing ${Math.min(5,spreadsheetData.rows.length)} sample rows`;
+    $('paste-layout-summary').textContent=`${spreadsheetInventory.name} · ${spreadsheetData.headers.length} headings on row ${spreadsheetData.header_row} · ${spreadsheetData.rows.length} source rows · Showing ${Math.min(5,spreadsheetData.rows.length)} sample rows`;
     $('paste-layout-unmatched').hidden=true;$('continue-paste-layout').disabled=false;return;
   }
 
@@ -1324,9 +1369,10 @@ function showPastedLayoutSuggestion() {
   const unmatched=[...spreadsheetData.headers.filter((header,index)=>!used.has(index)),...(spreadsheetData.ignored_columns || [])];
   $('paste-layout-unmatched').hidden=!unmatched.length;
   $('paste-layout-unmatched').textContent='Headings without a direct field match: '+unmatched.join(', ')+'. Review these in field matching; some source details may be kept in Notes.';
-  $('paste-layout-summary').textContent=`${spreadsheetInventory?.name || (currentTab==='iptv'?'IPTV Channels':'AV Devices')} · ${spreadsheetData.rows.length} source rows · ${matched} suggested field matches · Showing ${Math.min(5,preview.length)} sample rows`;
+  $('paste-layout-summary').textContent=`${spreadsheetInventory?.name || (currentTab==='iptv'?'IPTV Channels':'AV Devices')} · Heading row ${spreadsheetData.header_row} · ${spreadsheetData.rows.length} source rows · ${matched} suggested field matches · Showing ${Math.min(5,preview.length)} sample rows`;
   $('continue-paste-layout').disabled=false;$('keep-paste-layout').disabled=false;
 }
+$('back-spreadsheet-layout').onclick=()=>{if(spreadsheetReviewing)return;$('spreadsheet-dialog').close();showPastedLayoutSuggestion();$('paste-layout-dialog').showModal();};
 $('keep-paste-layout').onclick=()=>{$('paste-layout-dialog').close();$('spreadsheet-dialog').showModal();};
 $('continue-paste-layout').onclick=startPastedHeadingSetup;
 $('back-paste-layout').onclick=()=>{$('paste-layout-dialog').close();closeSpreadsheet();$('paste-inventory-dialog').showModal();$('paste-inventory-text').focus();};
@@ -1334,26 +1380,30 @@ $('close-paste-layout').onclick=()=>{$('paste-layout-dialog').close();closeSprea
 $('paste-layout-dialog').addEventListener('cancel',()=>closeSpreadsheet());
 let pastedFieldSetup=null;
 function startPastedHeadingSetup(){
+  if(pastedFieldSetup?.file===spreadsheetFile){$('paste-layout-dialog').close();showPastedHeading();$('paste-field-dialog').showModal();return;}
   const columns=currentTab==='equipment' ? structuredClone(spreadsheetInventory.layout || defaultInventoryLayout).columns : importFields().map(([key,label])=>({key,label,type:'text',options:[]}));
   const decisions=spreadsheetData.headers.map((header,index)=>{
     const matching=columns.find(column=>$('map-'+column.key)?.value===String(index)) || columns.find(column=>column.type==='calculated'&&[column.label,...(column.aliases || [])].some(alias=>normalizedHeader(alias)===normalizedHeader(header)));
     const serialNotUsed=currentTab==='equipment' && ['tv','scala'].includes(spreadsheetInventory.layout?.template) && /^(serial|serial number|s\/n|sn)$/.test(normalizedHeader(header));
-    return {source:index,target:matching?.key || (currentTab==='equipment'&&!serialNotUsed?'__new':'__skip'),column:matching?structuredClone(matching):{key:'',label:header,type:'text',options:[],important:false,filter:'none',require_confirmation:false}};
+    return {source:index,target:matching?.key || (currentTab==='equipment'&&!serialNotUsed&&!/^column\s*\d+$/i.test(header)?'__new':'__skip'),column:matching?structuredClone(matching):{key:'',label:header,type:'text',options:[],important:false,filter:'none',require_confirmation:false}};
   });
+  const cached=window.importWorkflow.preferences.mappings;
+  if(cached && Object.keys(cached).length){for(let i=decisions.length-1;i>=0;i--)if(decisions[i].target!=='__new' && (decisions[i].target!=='__skip' || window.importWorkflow.preferences.seen_headers?.includes(normalizedHeader(spreadsheetData.headers[decisions[i].source]))))decisions.splice(i,1);}
+  if(!decisions.length){$('paste-layout-dialog').close();$('spreadsheet-dialog').showModal();return;}
   pastedFieldSetup={index:0,columns,decisions,file:spreadsheetFile,inventory:spreadsheetInventory,tab:currentTab};
   $('paste-layout-dialog').close();showPastedHeading();$('paste-field-dialog').showModal();
 }
 function showPastedHeading(){
   const setup=pastedFieldSetup,decision=setup.decisions[setup.index],header=spreadsheetData.headers[decision.source];
   $('paste-field-progress').textContent=`Heading ${setup.index+1} of ${setup.decisions.length}`;
-  $('paste-field-title').textContent=header;
+  $('paste-field-title').textContent=header+(spreadsheetData.headers.filter(value=>value===header).length>1?` · source column ${decision.source+1}`:'');
   const samples=[...new Set(spreadsheetData.rows.map(row=>String(row[decision.source] ?? '').trim()).filter(Boolean))];
   $('paste-field-sample').textContent='Examples: '+(samples.slice(0,4).join(' · ') || 'All cells are blank');
   $('paste-field-target').replaceChildren(new Option('Skip this heading','__skip'),...(setup.tab==='equipment'?[new Option('Create a new column','__new')]:[]),...setup.columns.map(column=>new Option(column.label,column.key)));
   $('paste-field-target').value=decision.target;
   $('paste-field-error').hidden=true;renderPastedHeadingControls();
   $('back-paste-field').disabled=setup.index===0;
-  $('next-paste-field').textContent=setup.index===setup.decisions.length-1?'Apply fields and match columns':'Next heading';
+  $('next-paste-field').textContent=setup.index===setup.decisions.length-1?'Use these fields':'Next heading';
 }
 function renderPastedHeadingControls(){
   const setup=pastedFieldSetup,decision=setup.decisions[setup.index],column=decision.column;
@@ -1367,7 +1417,7 @@ function renderPastedHeadingControls(){
   $('paste-field-options-label').hidden=!choices;
   $('paste-field-options').value=(column.options || []).join('\n');
   $('paste-field-confirm').checked=network || !!column.require_confirmation;$('paste-field-confirm').disabled=skip||network;
-  $('paste-field-help').textContent=skip?'This source heading will not be mapped to a table column.':network?'AV Devices and IPTV use fixed fields and validation. Every pasted row is confirmed during review.':dependent||column.type==='calculated'?'This field is part of a calculated stock total, so its numeric control is preserved.':'Your choices apply to this inventory. Required fields will have a Checked box during import review; they cannot be added automatically.';
+  $('paste-field-help').textContent=skip?'This source heading will not be mapped to a table column.':network?'AV Devices and IPTV use fixed fields and validation. Every pasted row is confirmed during review.':dependent||column.type==='calculated'?'This field is part of a calculated stock total, so its numeric control is preserved.':'These choices remain a draft until you start importing. Required fields will have a Checked box during import review; they cannot be added automatically.';
 }
 $('paste-field-target').onchange=()=>{
   const setup=pastedFieldSetup,decision=setup.decisions[setup.index];decision.target=$('paste-field-target').value;
@@ -1389,14 +1439,14 @@ function readPastedHeading(){
     if(!decision.column.options.length||decision.column.options.length>50||new Set(decision.column.options.map(value=>value.toLowerCase())).size!==decision.column.options.length)throw new Error('Enter between 1 and 50 distinct choices, one per line.');
   }
 }
-$('back-paste-field').onclick=()=>{try{readPastedHeading();pastedFieldSetup.index--;showPastedHeading();}catch(error){$('paste-field-error').textContent=error.message;$('paste-field-error').hidden=false;}};
+$('back-paste-field').onclick=()=>{try{readPastedHeading();pastedFieldSetup.index--;showPastedHeading();window.importWorkflow.checkpoint().catch(error=>toast(error.message));}catch(error){$('paste-field-error').textContent=error.message;$('paste-field-error').hidden=false;}};
 $('paste-field-form').onsubmit=async event=>{
   event.preventDefault();const setup=pastedFieldSetup;
   try{
     readPastedHeading();
-    if(setup.index<setup.decisions.length-1){setup.index++;showPastedHeading();return;}
+    if(setup.index<setup.decisions.length-1){setup.index++;showPastedHeading();await window.importWorkflow.checkpoint();return;}
     $('next-paste-field').disabled=true;
-    const assignments=new Map(),columns=setup.file.from_headers?[]:structuredClone(setup.columns),used=new Set();
+    const assignments=new Map(window.importWorkflow.preferences.mappings?importFields().map(([key])=>[key,$('map-'+key)?.value || '']):[]),columns=setup.file.from_headers?[]:structuredClone(setup.columns),used=new Set();
     for(const decision of setup.decisions){
       if(decision.target==='__skip')continue;
       const column=structuredClone(decision.column);
@@ -1416,41 +1466,46 @@ $('paste-field-form').onsubmit=async event=>{
       const layout={...(setup.inventory.layout || defaultInventoryLayout),columns};
       if(!columns.some(column=>column.key===layout.primary_search))layout.primary_search=columns[0].key;
       if(!columns.some(column=>column.key===layout.identifier))layout.identifier='';
-      const saved=await api(`/api/equipment/inventories/${setup.inventory.id}`,'PUT',{name:setup.inventory.name,layout});
-      await window.equipmentUI.load(saved.id);spreadsheetInventory=saved;
+      spreadsheetInventory={...setup.inventory,layout};
     }
     await loadSpreadsheet();
     if(!$('spreadsheet-error').hidden)throw new Error($('spreadsheet-error').textContent);
     importFields().forEach(([key])=>{$('map-'+key).value=assignments.get(key) ?? '';});
     showVenueEditors();showSpreadsheetPreview();
-    $('paste-field-dialog').close();$('spreadsheet-dialog').showModal();pastedFieldSetup=null;
+    await window.importWorkflow.checkpoint();
+    $('paste-field-dialog').close();$('spreadsheet-dialog').showModal();pastedFieldSetup=null;await window.importWorkflow.checkpoint();
   }catch(error){$('paste-field-error').textContent=error.message;$('paste-field-error').hidden=false;}
   finally{$('next-paste-field').disabled=false;}
 };
-$('close-paste-field').onclick=()=>{if($('next-paste-field').disabled)return;$('paste-field-dialog').close();pastedFieldSetup=null;$('paste-layout-dialog').showModal();};
-$('paste-field-dialog').addEventListener('cancel',event=>{if($('next-paste-field').disabled){event.preventDefault();return;}pastedFieldSetup=null;$('paste-layout-dialog').showModal();});
+$('close-paste-field').onclick=()=>{if($('next-paste-field').disabled)return;try{readPastedHeading();}catch(_){}$('paste-field-dialog').close();$('paste-layout-dialog').showModal();window.importWorkflow.checkpoint().catch(error=>toast(error.message));};
+$('paste-field-dialog').addEventListener('cancel',event=>{if($('next-paste-field').disabled){event.preventDefault();return;}try{readPastedHeading();}catch(_){}$('paste-layout-dialog').showModal();window.importWorkflow.checkpoint().catch(error=>toast(error.message));});
 async function startSpreadsheetImport(file,inventory) {
-  spreadsheetFile=file;spreadsheetInventory=inventory;
+  spreadsheetFile=file;spreadsheetInventory=inventory;spreadsheetData=null;pastedFieldSetup=null;
+  $('confirm-import').disabled=true;$('spreadsheet-error').hidden=true;
+  await window.importWorkflow.begin(file,inventory);
+  delete $('header-row').dataset.manual;$('import-sheet-choices').replaceChildren();
   spreadsheetData=null;venueEdits=new Map();skippedImportLocations.clear();$('import-venue-editor').hidden=true;
   $('import-venue-list').replaceChildren();$('header-row').value='1';$('sheet-choice').replaceChildren();$('sheet-choice').disabled=/\.csv$/i.test(file.filename);
   $('column-mappings').replaceChildren();$('spreadsheet-preview').replaceChildren();
   $('spreadsheet-summary').textContent='Reading '+file.filename+'…';
-  if(file.pasted){
+  if(file.pasted || file.from_headers){
     $('paste-layout-summary').textContent='Reading the first row and suggesting columns…';
     $('paste-layout-head').replaceChildren();$('paste-layout-rows').replaceChildren();$('paste-layout-unmatched').hidden=true;$('continue-paste-layout').disabled=true;$('keep-paste-layout').disabled=true;
     $('paste-layout-dialog').showModal();
   }else $('spreadsheet-dialog').showModal();
   await loadSpreadsheet();
   if(spreadsheetFile!==file)return;
-  if(file.pasted && spreadsheetData && $('paste-layout-dialog').open)showPastedLayoutSuggestion();
-  else if(file.pasted && $('paste-layout-dialog').open){$('paste-layout-dialog').close();$('spreadsheet-dialog').showModal();}
+  if((file.pasted || file.from_headers) && spreadsheetData && $('paste-layout-dialog').open)showPastedLayoutSuggestion();
+  else if((file.pasted || file.from_headers) && $('paste-layout-dialog').open){$('paste-layout-dialog').close();$('spreadsheet-dialog').showModal();}
 }
-let pasteInventory=null,pasteInventorySaving=false,pasteTargetTab=null,pasteFromHeaders=false;
+let pasteInventory=null,pasteInventorySaving=false,pasteTargetTab=null,pasteFromHeaders=false,pasteSavedPreferences={};
 async function openPastedImport(options={}){
   pasteFromHeaders=options.fromHeaders===true;
   try{
     pasteTargetTab=currentTab;
     pasteInventory=currentTab==='equipment'?await window.equipmentUI.waitUntilReady():null;
+    pasteSavedPreferences=await api('/api/import-preferences?target='+encodeURIComponent(pasteInventory?`equipment:${pasteInventory.id}`:currentTab));
+    await window.importWorkflow.offerResume(pasteInventory?`equipment:${pasteInventory.id}`:currentTab);
     $('paste-inventory-form').reset();
     $('paste-inventory-location-label').hidden=!pasteInventory || !(pasteInventory.layout || defaultInventoryLayout).columns.some(col=>col.key==='location');
     $('paste-inventory-location-options').replaceChildren(...(pasteInventory?window.equipmentUI.locations():[]).map(location=>new Option(location,location)));
@@ -1476,7 +1531,12 @@ $('paste-inventory-form').onsubmit=async event=>{
     const content=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=()=>reject(new Error('Could not read the pasted cells.'));reader.readAsDataURL(blob);});
     const sourceLabel=$('paste-inventory-sheet').value.trim();const location=pasteInventory && (pasteInventory.layout || defaultInventoryLayout).columns.some(col=>col.key==='location')?cleanVenue($('paste-inventory-location').value):'';
     const file={filename:(sourceLabel || 'Pasted spreadsheet')+'.csv',content,pasted:true,from_headers:pasteFromHeaders,default_location:location,source_label:sourceLabel,...(text.includes('\t')?{delimiter:'\t'}:{})};
-    $('paste-inventory-dialog').close();openPasteConfirmation(file,pasteInventory);
+    $('paste-inventory-dialog').close();
+    if(pasteSavedPreferences.confirmation_mode && !pasteFromHeaders){
+      file.confirmation_mode=pasteSavedPreferences.confirmation_mode;
+      const inventory=pasteInventory?{...pasteInventory,layout:{...(pasteInventory.layout || defaultInventoryLayout),confirmation_mode:file.confirmation_mode,show_status:file.confirmation_mode!=='none'}}:null;
+      await startSpreadsheetImport(file,inventory);
+    }else openPasteConfirmation(file,pasteInventory);
   }catch(error){$('paste-inventory-error').textContent=error.message;$('paste-inventory-error').hidden=false;}
   finally{pasteInventorySaving=false;$('continue-paste-inventory').disabled=!$('paste-inventory-text').value.trim();}
 };
@@ -1487,7 +1547,7 @@ function openPasteConfirmation(file,inventory){
   $('paste-confirmation-mode').replaceChildren(...options.map(([value,label])=>new Option(label,value)));
   $('paste-confirmation-mode').value=inventory?(inventory.layout?.confirmation_mode || (inventory.layout?.show_status===false?'none':'storage')):currentTab==='device'?'ip':'none';
   $('paste-confirmation-target').textContent='Import into: '+(inventory?.name || (currentTab==='iptv'?'IPTV Channels':'AV Devices'));
-  $('paste-confirmation-help').textContent=inventory?'This setting controls confirmation buttons for this inventory. Changing the workflow resets existing confirmation marks, so they can be checked using the new method.':'This choice applies to records added in this paste. Existing records keep their current workflow.';
+  $('paste-confirmation-help').textContent=inventory?'This setting will apply to this inventory when import starts. Changing the workflow resets existing confirmation marks. Closing the draft keeps your current settings.':'This choice applies to records added in this paste. Existing records keep their current workflow.';
   $('paste-confirmation-error').hidden=true;$('paste-confirmation-dialog').showModal();
 }
 $('back-paste-confirmation').onclick=()=>{if($('continue-paste-confirmation').disabled)return;$('paste-confirmation-dialog').close();pendingPasteConfirmation=null;$('paste-inventory-dialog').showModal();};
@@ -1501,8 +1561,7 @@ $('paste-confirmation-form').onsubmit=async event=>{
     const mode=$('paste-confirmation-mode').value;pending.file.confirmation_mode=mode;
     if(pending.inventory){
       const layout={...(pending.inventory.layout || defaultInventoryLayout),confirmation_mode:mode,show_status:mode!=='none'};
-      pending.inventory=await api(`/api/equipment/inventories/${pending.inventory.id}`,'PUT',{name:pending.inventory.name,layout});
-      await window.equipmentUI.load(pending.inventory.id);
+      pending.inventory={...pending.inventory,layout};
     }
     $('paste-confirmation-dialog').close();pendingPasteConfirmation=null;await startSpreadsheetImport(pending.file,pending.inventory);
   }catch(error){$('paste-confirmation-error').textContent=error.message;$('paste-confirmation-error').hidden=false;}
@@ -1512,6 +1571,7 @@ $('import').onclick = openPastedImport;
 $('upload-paste-inventory').onclick=()=>{if(pasteInventorySaving)return;$('paste-inventory-dialog').close();$('import-file').click();};
 $('import-file').onchange = async event => {
   const file = event.target.files[0]; if (!file) return;
+  $('confirm-import').disabled=true;
   $('import').disabled = true;
   try {
     const importTab = currentTab;
@@ -1521,7 +1581,7 @@ $('import-file').onchange = async event => {
       const content = await new Promise((resolve, reject) => {
         const reader = new FileReader(); reader.onload = () => resolve(reader.result.split(',')[1]); reader.onerror = () => reject(new Error('Could not read file.')); reader.readAsDataURL(file);
       });
-      await startSpreadsheetImport({filename:file.name,content},importInventory);
+      await startSpreadsheetImport({filename:file.name,content,from_headers:pasteFromHeaders},importInventory);
     } else if (/\.json$/i.test(file.name)) {
       const payload = JSON.parse(await file.text());
       if (importInventory && payload && typeof payload === 'object' && !Array.isArray(payload)) payload.inventory_id = importInventory.id;

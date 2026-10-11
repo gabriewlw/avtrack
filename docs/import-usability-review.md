@@ -1,94 +1,29 @@
-# AVTrack import usability review
+# AVTrack import usability review and improvements
 
-Reviewed 11 October 2026, with desktop use as the priority. Scope: paste and file upload, inventory templates, heading setup, field mapping, location management, batch review, duplicates, completion reports, original-file reconciliation, and checks after import.
+Reviewed and implemented 10 October 2026 (Pacific time), with desktop use as the priority. The review covered paste and upload, templates, heading setup, mapping, location exclusions, batch review, duplicates, completion, reconciliation and physical checks.
 
-Evidence: inspected the implementation and the attached spare-parts CSV and XLSX; exercised desktop browser flows for TV, Scala, spare parts, custom inventories, AV Devices and IPTV. Recommendations below are proposals, not implemented features.
+## Implemented workflow
 
-## What works well
+1. **Detect headings independently for every source.** Scan the first 50 rows, skip title and placeholder rows, and show candidate rows with sample values. Header selection remains editable. Duplicate headings display their column numbers and sample values. XLSX numeric identifiers with zero-padded number formats retain their displayed zeros.
+2. **Keep the stages in one workspace.** A persistent progress strip connects paste/upload, headings and fields, review by location, and summary. Keep heading-by-heading questions for new custom fields. Reuse saved choices by heading name and occurrence, never by old column position. Each new paste can reorder, rename, add or omit headings. The preview reports changes, and Reset suggested matches allows a fresh setup.
+3. **Apply setup explicitly.** Column and confirmation changes remain drafts until Apply setup and start import. Cancelling leaves the saved inventory unchanged. The preview explains when changing confirmation clears previous marks. Concurrent layout changes require a fresh setup.
+4. **Review IP lists in batches.** AV Devices and IPTV use the same editable multi-row review as inventory, with up to eight records per screen. Valid rows start selected; flagged rows remain available for editing. Import acceptance remains separate from IP reachability and storage checks.
+5. **Save resumable progress and reports.** SQLite stores the source, draft mappings, edited pending rows, exclusions and per-row receipts. Inventory writes and receipts commit together; retrying a completed source row does not add it again. History supports Resume and View report, including older sessions. Downloaded reports contain results without embedding the uploaded file. Deleted inventories retain read-only reports and cannot resume into a replacement inventory.
+6. **Queue worksheets.** Select several XLSX worksheets and process them sequentially, reviewing each sheet's own headings and mappings. Blank storage locations can default to the worksheet name; Scala geographical locations remain blank. Add another location opens a new paste with suggested previous choices.
+7. **Explain duplicates and exclusions.** Preview matching saved records and combined TV source rows before import. Exclude location applies only to the current import, with a visible Restore action. Exclusions survive preview reloads and resume, and remain visible in reports and reconciliation.
+8. **Keep batch review compact.** Selection, model/ID and results stay visible while scrolling. Narrower controls and floating Notes editors reduce table width. Alt+Up/Down moves between rows. Required field checks stay explicit; optional orientation remains editable.
+9. **Compare at completion.** The summary offers Compare with source and uploading the original workbook. It reuses saved mapping choices where applicable, displays discrepancies and saves the comparison for later viewing or download. Counts distinguish source rows, records added and combined TV rows.
 
-- Paste is the first option, with upload available for whole workbooks.
-- The table preview shows suggested matches, blank cells and unmatched headings before records are imported.
-- Custom inventories support heading-by-heading configuration; existing templates can keep their fields.
-- Inventory review groups records by location and supports several editable rows on a screen. Complete rows can be imported automatically.
-- TV imports derive totals from location counts, combine repeated brand/model rows, preserve source-total discrepancies for review and skip zero-stock models.
-- Original-file reconciliation already reports matched, different, missing and ambiguous rows, plus saved records without a unique source match.
-- TV **Last checked** remains a clickable date box. Only explicitly confirming a stock check sets its timestamp; an import does not establish that stock was physically checked.
-- After a paste, users can choose no later confirmation, IP confirmation, or storage confirmation. IP lists offer the first two choices. Imported rows start unconfirmed.
+## Preserved behavior
 
-## Highest-priority improvements
+Template defaults, custom brands, optional orientation, location-first review and zero-stock handling remain available. TV **Last checked** stays a clickable stock-check box. Importing, reconciling or reviewing a record never establishes that stock was physically checked; only an explicit stock check sets the date.
 
-### 1. Detect and explain the header row
+## Practical limits
 
-The attached XLSX has five worksheets. Real headings are generally on row 5; Deck 2 STB has a placeholder Column1/Column2 row above its real headings. Edit Room Deck 7 repeats LOCATION. The regular preview starts with header row 1 and uses the first nonempty row, while automatic header scanning is currently used in reconciliation. This means the import can initially select placeholder headings.
+A paste comparison covers the pasted data only. Upload the original workbook to check the full source; unsupported worksheets, excluded locations and ambiguous matches remain visible for review. Different original-file headings can still require mapping adjustments through a new import preview or investigation of the reported differences. Comparison results are snapshots and should be rerun after edits. Wide custom inventories may still scroll horizontally, with key cells pinned.
 
-Scan the first 50 rows, score recognizable headings and the data below them, and propose the best row. Display “Column headings found on row 5” with an editable miniature sheet. For repeated headings, show the source column number and several sample values. Ask only when confidence is low. Preserve identifiers as text, including leading zeros.
+Drafts and history live in the application's SQLite database and require access to its server. They are included in database backups; browser cache is not the source of truth. Sources are capped by the existing upload limit and session size limit. Separate pastes create separate resumable sessions, while selected worksheets share one session.
 
-Evidence: spreadsheets.py preview; static/app.js loadSpreadsheet; reconciliation.py reconcile_profile.
+## Validation
 
-### 2. Consolidate the stages and reuse previous decisions
-
-Paste, confirmation, preview, heading setup, mapping and review are separate dialogs. Heading setup already assigns source columns, but mapping then asks the user to inspect those same assignments again. Repeated worksheets also rebuild mappings.
-
-Use a stable desktop workspace with a visible progress strip: **Paste or upload → Check headings and fields → Review by location → Import summary**. Keep the requested one-by-one questions for first-time setup, while displaying their answers in a side panel. Remember mappings and confirmation preferences per inventory; subsequent pastes should ask only about new or changed headings. Allow Back without losing edits.
-
-Evidence: static/app.js showPastedLayoutSuggestion, startPastedHeadingSetup, loadSpreadsheet.
-
-### 3. Keep setup changes as a draft until explicitly applied
-
-Inventory layout changes are currently saved during heading setup, before item import. The new confirmation choice also applies the inventory-wide workflow before preview. Changing that workflow resets existing confirmation marks. Cancelling later does not undo settings already applied.
-
-Hold field definitions, mappings and workflow changes in a draft. Show their effects together before an explicit “Apply setup and start import” action. State clearly when a change affects existing records. Keep confirmed location checks and IP checks distinct so one cannot be mistaken for the other.
-
-Evidence: static/app.js paste-field-form and paste-confirmation-form; app.py save_equipment_inventory.
-
-### 4. Offer batch review for AV Devices and IPTV
-
-Inventory review supports batches of up to eight rows, while AV and IPTV still require an individual acceptance dialog for every row. This becomes repetitive for large IP lists.
-
-Reuse the editable batch table for all types. Filter to invalid IPs, missing values or duplicate assignments; let users import valid selected rows together. Retain individual row editing. Import acceptance must remain separate from later IP reachability or storage confirmation.
-
-Evidence: static/app.js spreadsheet-form, reviewImportRow; static/import-review.js reviewEquipmentBatch.
-
-### 5. Make completion durable and allow interrupted imports to resume
-
-Accepted rows are saved as review proceeds. Stopping retains those rows. Import reports and cross-check displays are stored in browser memory, so reload loses them; there is no saved import session to resume.
-
-Persist an import session with source worksheet/row, mapping, completed rows, skipped rows and unresolved issues. Show “42 saved; 18 still to review” before stopping. Offer Resume and a downloadable report. Keep a clear summary by location: added, existing, merged, zero-stock, skipped and unresolved. Separate source-row counts from saved-record counts because TV merging changes those totals.
-
-Evidence: static/app.js spreadsheet-form, closeSpreadsheet; static/equipment.js importReports and crossChecks; static/import-review.js outcomes.
-
-## Further improvements
-
-### 6. Import several worksheets as one session
-
-Workbook import currently selects one worksheet at a time. The supplied file has Deck 6 Locker, Deck 2 PORT, Deck 2 STB, Edit Room Deck 7 and Tools, with different column orders.
-
-Offer worksheet checkboxes, preview a separate mapping for each sheet, and suggest its name as a default location only where location cells are blank. Process each location's complete and flagged records before advancing. For repeated pastes, provide “Add another location” while retaining the session and inventory setup.
-
-### 7. Explain duplicate decisions and make location exclusions reversible
-
-Network duplicate assignments are skipped; TV brand/model rows can be combined. Location deletion during mapping excludes its items, and reloading the sheet resets those exclusions. These behaviors need an explicit, stable preview.
-
-Show an existing-versus-source comparison and the intended action before import. List combined TV source rows and resulting counts. Include a separate “Excluded locations” panel with Restore. Label the action “Exclude location from this import” to distinguish it from deleting stored inventory locations.
-
-### 8. Reduce horizontal scrolling during review
-
-The batch table has a minimum width of 380 + 170 pixels per field. A wide custom inventory still requires substantial horizontal scrolling even on desktop.
-
-Keep row selection, model/ID and result visible while scrolling. Size controls to their values, collapse notes into the existing floating editor, and allow secondary fields to expand per row. Provide keyboard Next/Previous and keep required unchecked fields visibly marked.
-
-### 9. Bring original-file reconciliation into the finish step
-
-The original-file cross-check is a separate upload action. Users must remember to run it, and reports disappear on reload unless downloaded.
-
-Offer “Compare with original” directly in the final summary, reusing the source file and mappings where available. For paste-only imports, explain that comparison covers only pasted rows and allow uploading the original workbook for a complete check. Separate “all source rows accounted for” from “all items physically located.” Preserve the report after reload.
-
-## Suggested order
-
-1. Header detection and duplicate-heading samples.
-2. Saved mappings and a unified progress workspace.
-3. Draft setup plus batch review on IP pages.
-4. Durable completion reports, resume and multiple worksheets.
-5. Integrated reconciliation and compact review controls.
-
-Keep template defaults, optional orientation editing, custom brands, location-first review, zero-stock handling and the TV Last checked box throughout these changes.
+Backend checks cover receipt retry, transaction rollback, destination pinning, deleted inventory protection, saved reports, header detection, zero-padded identifiers, duplicate heading mappings and explicit exclusions. Desktop browser checks cover draft cancellation, IP batch edits, floating notes, reload/resume, independently changed paste headings, reset suggestions, multi-sheet mapping, source comparison and report download, plus inventory templates, custom heading setup, repeated pastes, brands, optional orientation, exclusions and TV stock dates. The supplied five-sheet spare-parts workbook independently detects its real headings on row 5 in every sheet.
