@@ -49,7 +49,8 @@ async function loadOverview() {
   } catch (error) {
     if (version !== overviewVersion) return;
     for (const id of ['overview-av-validated','overview-iptv-total','overview-inventory-total']) $(id).textContent = '—';
-    $('overview-error').textContent = 'Could not refresh the workspace overview. Use Refresh to try again.';
+    for (const id of ['overview-av-total','overview-iptv-sources','overview-inventory-count']) $(id).textContent='Unavailable — use Refresh to retry';
+    $('overview-error').textContent = 'Could not refresh the workspace overview. '+error.message;
     $('overview-error').hidden = false;
   }
 }
@@ -354,13 +355,27 @@ function toast(message) {
   clearTimeout(timer); timer = setTimeout(() => { $('toast').hidden = true; }, 6000);
 }
 async function api(path, method = 'GET', body) {
-  const options = {method, headers: {'Content-Type': 'application/json'}};
+  const options = {method, headers: method==='GET'?{}:{'Content-Type':'application/json'}};
   if (body !== undefined) options.body = JSON.stringify(body);
   const request = (async () => {
-    const response = await fetch(path, options);
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Request failed. Please try again.');
-    return data;
+    const reading=method==='GET',controller=reading?new AbortController():null;
+    const timeout=reading?setTimeout(()=>controller.abort(),20000):null;
+    if(controller)options.signal=controller.signal;
+    try{
+      const response=await fetch(path,options);
+      const type=response.headers.get('Content-Type') || '';
+      if(!type.includes('application/json')){
+        if(response.status===401 || response.status===403 || response.redirected || location.hostname.endsWith('.app.github.dev'))throw new Error('GitHub sign-in may be required. Open Reload workspace below, complete sign-in, then try again.');
+        throw new Error('The server returned a page instead of inventory data. Check the server address and reload.');
+      }
+      const data=await response.json();
+      if(!response.ok)throw new Error(data.error || 'Request failed. Please try again.');
+      return data;
+    }catch(error){
+      if(error.name==='AbortError')throw new Error('The server did not respond within 20 seconds. Check the running server or use Reload workspace below.');
+      if(error instanceof TypeError && location.hostname.endsWith('.app.github.dev'))throw new Error('The Codespaces connection failed. Use Reload workspace below to renew sign-in and reload browser files.');
+      throw error;
+    }finally{if(timeout)clearTimeout(timeout);}
   })();
   if (method !== 'GET') pendingWrites.add(request);
   try { return await request; }
@@ -508,15 +523,15 @@ function options(id, values) {
 async function load() {
   if (currentTab === 'equipment') return window.equipmentUI.load();
   $('refresh').disabled = true;
+  const overview=loadOverview();
   try {
-    await satelliteCatalogReady;
     devices = (await api('/api/devices')).devices;
     networkLoaded = true;
     $('load-error').hidden = true;
     updateFilterOptions();
     $('venues').replaceChildren(...savedVenues().map(v => new Option(v, v)));
     render();
-    await loadOverview();
+    await overview;
     return true;
   } catch (error) {
     $('load-error').textContent = 'Could not refresh inventory. ' + error.message;
@@ -860,7 +875,7 @@ const satelliteCatalogReady = api('/satellite-channels.json').then(catalog => {
   for (const channel of catalog.channels) {
     for (const alias of [channel.name, ...channel.aliases]) satelliteChannelAliases.set(normalizedChannelName(alias), channel);
   }
-}).catch(error => { satelliteCatalogError = error; });
+}).catch(error => { satelliteCatalogError = error; }).then(()=>{if(networkLoaded)render();});
 function satelliteChannelForName(name) {
   const channel = normalizedChannelName(name).replace(/(?:\s+(?:hd|sd|fhd|uhd|4k|1080p|720p))+$/, '');
   return satelliteChannelAliases.get(channel);
@@ -1595,7 +1610,9 @@ $('import-file').onchange = async event => {
 };
 load();
 
-if ('serviceWorker' in navigator) {
+if (location.hostname.endsWith('.app.github.dev')) {
+  $('broadcastgab-cache-status').textContent='Saved homepage · offline cache available when hosted locally';
+} else if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/service-worker.js').then(() => navigator.serviceWorker.ready).then(() => {
     $('broadcastgab-offline-link').title = 'Saved BroadcastGab copy · available offline';
     $('broadcastgab-cache-status').textContent = 'Available offline';

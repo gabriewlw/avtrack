@@ -42,16 +42,27 @@ class AppTests(unittest.TestCase):
 
     def test_codespaces_signin_connection_policy(self):
         from unittest.mock import patch
-        for codespaces in ('', 'false', 'true'):
-            with self.subTest(codespaces=codespaces), patch.dict(app.os.environ, {'CODESPACES':codespaces}):
-                with urlopen(self.url+'/inventory') as response:
+        for codespaces,host,allowed in (('',None,False),('false',None,False),('true',None,True),('false','test-8000.app.github.dev',True),('false','test-8000.app.github.dev.other.example',False)):
+            with self.subTest(codespaces=codespaces,host=host), patch.dict(app.os.environ, {'CODESPACES':codespaces}):
+                request=Request(self.url+'/inventory',headers={'Host':host} if host else {})
+                with urlopen(request) as response:
                     policy=response.headers['Content-Security-Policy']
                 directives=dict(part.strip().split(' ',1) for part in policy.split(';'))
-                self.assertEqual(directives['connect-src'], "'self' https://github.dev/pf-signin" if codespaces=='true' else "'self'")
+                self.assertEqual(directives['connect-src'], "'self' https://github.dev/pf-signin" if allowed else "'self'")
                 self.assertEqual(directives['script-src'], "'self'")
                 self.assertEqual(directives['frame-ancestors'], "'none'")
                 self.assertEqual(directives['form-action'], "'self'")
                 self.assertEqual(self.request('/api/devices','POST',EXAMPLE,{'Content-Type':'application/json','Origin':'https://github.dev'})[0],403)
+
+    def test_recovery_assets_do_not_change_saved_inventory(self):
+        saved=app.save_device(EXAMPLE)
+        self.assertEqual(self.request('/recover')[0],200)
+        self.assertIn(b'/recovery.js',self.request('/recover')[1])
+        self.assertEqual(self.request('/recovery.js')[0],200)
+        self.assertEqual(app.inventory()[0]['id'],saved['id'])
+        worker=self.request('/service-worker.js')[1].decode()
+        assets=worker.split('const ASSETS = ',1)[1].split(';',1)[0]
+        self.assertNotIn('/recover',assets)
 
     def test_full_lifecycle_and_persistence(self):
         status, saved = self.request('/api/devices', 'POST', EXAMPLE)

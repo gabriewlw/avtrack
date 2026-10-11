@@ -711,3 +711,6 @@ main, dialog {
 #import-workspace .batch-review-table .choice-buttons{flex-wrap:wrap}.batch-notes-button{max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .batch-review-table .batch-field-confirmation{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;color:#e7bd72}
 @media(max-width:700px){#import-workspace{width:calc(100vw - 20px);padding:18px}.import-steps{gap:6px}.import-steps li{font-size:10px;display:block}.import-steps li:before{margin-bottom:6px}#import-workspace #column-mappings{grid-template-columns:1fr}.import-workspace-top{display:block}}
+
+.workspace-recovery { margin: 24px auto; max-width: 1260px; padding: 0 24px; font-size: 12px; color: var(--muted); }
+.workspace-recovery a { color: #eeeee9; text-decoration: underline; text-underline-offset: 3px; }

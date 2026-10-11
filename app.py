@@ -780,7 +780,8 @@ class Handler(BaseHTTPRequestHandler):
         # Codespaces' private-port proxy renews browser authentication at this endpoint.
         # Permit only that connection in Codespaces; ordinary deployments stay same-origin.
         connect_sources = "'self'"
-        if os.environ.get('CODESPACES', '').lower() == 'true':
+        forwarded_host = self.headers.get('Host', '').split(':', 1)[0].lower().rstrip('.')
+        if os.environ.get('CODESPACES', '').lower() == 'true' or forwarded_host.endswith('.app.github.dev'):
             connect_sources += ' https://github.dev/pf-signin'
         self.send_header('Content-Security-Policy', f"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src {connect_sources}; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
         if filename:
@@ -944,6 +945,8 @@ class Handler(BaseHTTPRequestHandler):
             assets['/import-review.js'] = ('import-review.js', 'text/javascript')
             assets['/demo'] = ('demo.html', 'text/html')
             assets['/demo/'] = ('demo.html', 'text/html')
+            assets['/recover'] = ('recovery.html', 'text/html')
+            assets['/recovery.js'] = ('recovery.js', 'text/javascript')
             assets['/import-workflow.js'] = ('import-workflow.js', 'text/javascript')
             assets['/demo.js'] = ('demo.js', 'text/javascript')
             assets['/demo.css'] = ('demo.css', 'text/css')
