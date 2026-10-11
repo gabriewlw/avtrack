@@ -59,9 +59,9 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#inventory-import-review-rows tr').count()==2
             combined=page.locator('tr[data-source-row="3, 4"]')
             assert combined.get_by_label('Deck 6, row 3, 4',exact=True).input_value()=='8'
-            assert combined.get_by_label('Total count, row 3, 4',exact=True).input_value()=='8'
-            assert 'Source row 3: Original Total count: 2' in combined.inner_text()
-            assert 'Source row 4: Original Total count: 22' in combined.inner_text()
+            assert combined.get_by_label('Total, row 3, 4',exact=True).input_value()=='8'
+            assert 'Source row 3: Original Total: 2' in combined.inner_text()
+            assert 'Source row 4: Original Total: 22' in combined.inner_text()
             page.locator('#inventory-import-review-all').check();page.locator('#inventory-import-review-save').click()
             page.locator('#inventory-import-review').wait_for(state='hidden')
             page.wait_for_function("() => document.getElementById('equipment-records').textContent==='6'")

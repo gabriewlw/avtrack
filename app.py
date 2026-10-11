@@ -394,6 +394,8 @@ def equipment_inventory_details(con, inventory_id):
         raise LookupError('Inventory not found.')
     record = dict(record)
     layout = json.loads(record.pop('layout'))
+    if layout.get('template')=='tv' or layout.get('stock_mode')=='tv_counts':
+        layout['columns']=[dict(column,label='Total') if column['key']=='total_count' and column['label'].casefold()=='total count' else column for column in layout['columns']]
     # Apply Scala's display rules to existing inventories as well as new presets.
     keys = {column['key'] for column in layout.get('columns', [])}
     if 'scala' in record['name'].casefold() or {'monitor_model','orientation'}.issubset(keys):

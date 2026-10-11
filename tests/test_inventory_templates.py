@@ -68,7 +68,7 @@ class InventoryTemplateTests(unittest.TestCase):
         raw=b'Brand,Model,Deck 6,Deck 2 Port,Deck 2 Stbd,Total count\nSony,X,2,3,0,9\n'
         report=reconcile_profile(dict(filename='tv.csv',content=base64.b64encode(raw).decode()),app.equipment_inventory(inventory['id']),inventory['layout'])
         self.assertFalse(report['complete']);self.assertEqual(report['summary']['needs_review'],1)
-        self.assertIn('Original Total count: 9; calculated: 5',report['rows'][0]['issues'])
+        self.assertIn('Original Total: 9; calculated: 5',report['rows'][0]['issues'])
 
     def test_spare_quantity_limits_and_scala_location_count(self):
         inventory=self.create('spare_parts')

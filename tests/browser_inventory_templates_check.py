@@ -42,8 +42,8 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#inventory-import-review-title').inner_text()=='Review TV models'
             assert page.locator('#inventory-import-review-rows tr').count()==1
             page.get_by_label('Deck 2 Port, row 4',exact=True).select_option('2')
-            assert page.get_by_label('Total count, row 4',exact=True).input_value()=='3'
-            assert page.get_by_label('Total count, row 4',exact=True).get_attribute('readonly') is not None
+            assert page.get_by_label('Total, row 4',exact=True).input_value()=='3'
+            assert page.get_by_label('Total, row 4',exact=True).get_attribute('readonly') is not None
             page.get_by_role('checkbox',name='Select row 4',exact=True).check()
             page.locator('#inventory-import-review-save').click()
             page.locator('#inventory-import-review').wait_for(state='hidden')
@@ -56,7 +56,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#add-device').click()
             page.locator('#equipment-brand').fill('Samsung');page.locator('#equipment-model').fill('Found TV')
             page.locator('#equipment-form').get_by_label('Deck 6',exact=True).select_option('1')
-            assert page.locator('#equipment-form').get_by_label('Total count',exact=True).input_value()=='1'
+            assert page.locator('#equipment-form').get_by_label('Total',exact=True).input_value()=='1'
             page.locator('#save-equipment').click();page.locator('#equipment-dialog').wait_for(state='hidden')
             page.wait_for_function("() => document.getElementById('equipment-records').textContent==='3'")
             page.get_by_role('button',name='Edit equipment Found TV',exact=True).click()

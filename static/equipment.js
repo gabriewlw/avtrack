@@ -237,12 +237,18 @@
   function renderInventoryColumns() {
     const heading=$('select-visible-equipment').closest('label');
     heading.querySelector('span').textContent=displayColumns()[0].label;
-    const baseWidths={description:140,brand:80,model:100,serial_number:120,quantity:65,location:110,notes:120};
+    const baseWidths={description:140,brand:80,model:100,serial_number:120,quantity:65,location:110,notes:120,total_count:65};
     const widths=displayColumns().map((col,index)=>{
       if(col.key==='notes')return 74+(index===0?30:0);
       const labelWidth=Math.min(220,col.label.length*8+20+(index===0?30:0));
       const controlWidth=col.key==='orientation' ? Math.max(164,(col.options || []).reduce((width,value)=>width+value.length*6+24,8)) : col.type==='buttons' ? (col.options || []).reduce((width,value)=>width+value.length*6+24,0) : col.type==='checkbox' ? 100 : 0;
-      return Math.max(baseWidths[col.key] || 120,labelWidth,controlWidth);
+      let modelWidth=0;
+      if(col.key==='model'&&(layout().template==='tv'||layout().stock_mode==='tv_counts')){
+        const context=document.createElement('canvas').getContext('2d');
+        context.font=`12px ${getComputedStyle($('equipment-table')).fontFamily}`;
+        modelWidth=Math.ceil(items.reduce((width,item)=>Math.max(width,context.measureText(String(inventoryValue(item,col.key))).width),0))+22+(index===0?30:0);
+      }
+      return Math.max(baseWidths[col.key] || 120,labelWidth,controlWidth,modelWidth);
     });
     widths.push(115,...(showLocatedStatus()?[110]:[]),96);
     const totalWidth=widths.reduce((total,width)=>total+width,0);
@@ -259,6 +265,7 @@
     $('equipment-location-buttons').hidden=location?.filter!=='buttons';
     if (!location || location.filter==='none') $('equipment-location-filter').value='';
   }
+  document.fonts.ready.then(()=>{if(inventoryReady)renderEquipment();});
   function renderCustomFilters() {
     $('equipment-custom-filters').replaceChildren(...displayColumns().filter(col=>col.key!=='location'&&col.filter!=='none').map(col=>{
       const group=element('fieldset','button-filter');group.append(element('legend','',col.label));
