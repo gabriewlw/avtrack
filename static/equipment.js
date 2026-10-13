@@ -41,6 +41,14 @@
   const displayName = item => String(inventoryValue(item,layout().primary_search) || [item.brand,item.model].filter(Boolean).join(' ') || `record ${item.id}`);
   const serialKey = value => String(value || '').replace(/\s+/g,'').toLowerCase();
   const serialNumbers = item => [...new Set(String(item.serial_number || '').split(/[\r\n,|;]+/).map(value => value.replace(/\s+/g,'')).filter(Boolean))];
+  const recordReviewDetails = item => {
+    if (isTVInventory()) return `${displayName(item)} · Total ${item.quantity ?? 'unknown'}`;
+    const serial = item.serial_number || 'No serial', name = displayName(item);
+    const details = [serial];
+    if (name && serialKey(name) !== serialKey(serial)) details.push(name);
+    details.push(item.location || 'No location', `Quantity ${item.quantity ?? 'unknown'}`);
+    return details.join(' · ');
+  };
   function updateEquipmentSelection() {
     const visibleSelected = visibleItems.filter(item => selectedItems.has(item.id)).length;
     const check = $('select-visible-equipment');
@@ -220,7 +228,7 @@
           button.title = checkedDate?`Last confirmed ${checkedDate.toLocaleString()}. Click to view history or confirm again.`:'Click to confirm this inventory record';
           button.setAttribute('aria-label', `Review record ${displayName(item)}`);
           button.onclick = async () => {
-            $('equipment-record-review-details').textContent = isTVInventory() ? `${displayName(item)} · Total ${item.quantity ?? 'unknown'}` : `${item.serial_number || 'No serial'} · ${displayName(item)} · ${item.location || 'No location'} · Quantity ${item.quantity ?? 'unknown'}`;
+            $('equipment-record-review-details').textContent = recordReviewDetails(item);
             $('equipment-record-review-issues').textContent = issues.length ? issues.join(' · ') + '. Use Edit to correct the record, or acknowledge these blanks after checking the source.' : 'Check these details against the old inventory file.';
             $('equipment-record-review-error').hidden = true;
             let history=$('equipment-record-review-history');if(!history){history=element('div','stock-check-history');history.id='equipment-record-review-history';$('equipment-record-review-error').before(history);}
