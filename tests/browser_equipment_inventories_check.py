@@ -86,7 +86,7 @@ with tempfile.TemporaryDirectory() as temp:
             with app.connect() as con:
                 con.execute('DELETE FROM equipment WHERE id=?', (extra['id'],))
             all_tvs = download('JSON', 'all')
-            assert all_tvs.suggested_filename == 'broadcasthub-tvs.json'
+            assert all_tvs.suggested_filename == 'avtrack-tvs.json'
             exported = json.loads(Path(all_tvs.path()).read_text())
             assert len(exported['equipment']) == 2
             assert {row['inventory_id'] for row in exported['equipment']} == {tvs}

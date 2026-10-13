@@ -1,23 +1,23 @@
-# broadcasthub
+# AVTrack
 
-The compatibility version keeps the visible avtrack identity, layout, fonts, and report branding. Repository and project paths, downloaded reports, and documentation artifact filenames use `broadcasthub`. The GitHub repository remains `gabriewlw/broadcasthub`. The original recovered IPTV feature commit is preserved on `recovery/iptv-udp-44f349a`.
+AVTrack is the official project and product name. Source code is hosted at [gabriewlw/avtrack](https://github.com/gabriewlw/avtrack). Downloads, startup messages and documentation assets use the AVTrack name. The lowercase **avtrack** wordmark remains the visual brand. The original recovered IPTV feature commit is preserved on `recovery/iptv-udp-44f349a`.
 
-A responsive broadcasting workspace for equipment inventory, AV network addresses, and IPTV channel lineups. The site matches broadcastgab.com: **Space Grotesk** for headings, **DM Sans** for body text, and **JetBrains Mono** for navigation, labels, and network values. Fonts are bundled locally so they load without internet access, with system fonts as fallbacks. Font sources and SIL Open Font Licenses are documented in `static/fonts/README.md`. The lowercase **avtrack** wordmark appears at the top left, in PDF reports, and in the footer. Page titles, home-screen labels, and import messages use avtrack. Technical project names and download filenames use broadcasthub for compatibility. Use the same web app in iPhone Safari and on a computer; all connected browsers share one SQLite database. No offline mode or App Store installation is required.
+A responsive broadcasting workspace for equipment inventory, AV network addresses, and IPTV channel lineups. The site matches broadcastgab.com: **Space Grotesk** for headings, **DM Sans** for body text, and **JetBrains Mono** for navigation, labels, and network values. Fonts are bundled locally so they load without internet access, with system fonts as fallbacks. Font sources and SIL Open Font Licenses are documented in `static/fonts/README.md`. The lowercase **avtrack** wordmark appears at the top left, in PDF reports, and in the footer. Page titles, home-screen labels, and import messages use avtrack. Download filenames use the `avtrack-` prefix. Use the same web app in iPhone Safari and on a computer; all connected browsers share one SQLite database. No offline mode or App Store installation is required.
 
 ## Run
 
 Requires Python 3.12 or newer. Install the pinned Excel and PDF dependencies once; no frontend build is needed.
 
 ```sh
-cd /path/to/broadcasthub
+cd /path/to/avtrack
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python app.py
 ```
 
-On Windows, open a terminal in the extracted project folder and run `py -m pip install -r requirements.txt`, then `py app.py`. On Mac/Linux, replace `/path/to/broadcasthub` above with the actual downloaded folder path. In the cloud workspace it is `/workspace/broadcasthub`.
+On Windows, open a terminal in the extracted project folder and run `py -m pip install -r requirements.txt`, then `py app.py`. On Mac/Linux, replace `/path/to/avtrack` above with the actual downloaded folder path. GitHub Codespaces created from the renamed repository normally use `/workspaces/avtrack`; existing Codespaces keep their previous folder name.
 
-Keep the extracted project folder named `broadcasthub` for the compatibility test. GitHub downloads still use the repository folder name `broadcasthub-main`. Stop the server first, keep the complete `data` folder inside the project, then reopen PowerShell in the renamed folder and run `py app.py`. The folder name does not affect the page or database.
+GitHub ZIP downloads use the folder name `avtrack-main`. Existing local folders can be renamed to `avtrack`: stop the server, keep the complete `data` folder with the project, and reopen the terminal in the renamed folder. Recreate a virtual environment after moving a folder because its launch scripts can contain absolute paths. The folder name does not affect saved records. For an existing Git checkout, update its remote with `git remote set-url origin https://github.com/gabriewlw/avtrack.git`; GitHub also redirects the previous repository URL.
 
 The default bind address is `127.0.0.1`, port `8000`. For a computer or private server reachable by your iPhone on the same network:
 
@@ -110,13 +110,13 @@ To update an existing Windows installation, replace `app.py`, add `exports.py`, 
 
 **CSV ↓** exports the chosen content for spreadsheet use and can also be imported through column mapping. Formula-like text is escaped for spreadsheet safety. Choose **All in this tab** to include every record from the active tab, regardless of filters. JSON and CSV include `record_type` (`device` or `iptv`) , `channel_source` (`Onboard` or `Satellite` for IPTV), and `port` (IPTV only). Old JSON exports default to AV devices. AV spreadsheet imports always create AV device records. The **IPTV channels** spreadsheet importer shows **Channel Name**, **Multicast IP**, **Port**, and **Notes**. Existing **MCAST IP [S]** and **MCAST PORT [S]** spreadsheet headers remain supported and take priority over broader aliases such as IP Address and Port. CSV and Excel imports use the same one-by-one review as AV devices: edit the values, choose **Yes** to save the channel immediately, or **SKIP** to move on without saving it. The IPTV tab supplies the channel inventory type; spreadsheet category, source, inventory type, venue, VLAN, and system are ignored. Missing values remain blank. Choose Onboard/Satellite using the **Type** dropdown during each import review or through Edit afterward. Channel names containing CLTV, Carnival, Map, Crew, Scala, Casino, or Safety automatically suggest Onboard; ESPN, National Geographic, and Nat Geo suggest Satellite. Matching ignores case, and Onboard wins if both sets match. Satellite channel names are also matched against a bundled 63-entry reference catalog, including international news, sports, and entertainment networks. Matching accepts listed aliases, capitalization/punctuation differences, and HD/SD suffixes. [Catalog contents and references](docs/satellite-channel-reference.md) document its source and limitations. Unrecognized names stay blank. You can override or clear any suggestion before saving; later name edits preserve your manual choice. Notes can be edited during or after import. IPTV imports append **H.264** for port **2000**, and **H.265** for port **1234** when the same IP has a port-2000 stream elsewhere in the spreadsheet or saved IPTV inventory. Pair detection does not depend on row order. Existing notes are kept, codec labels are not repeated, and the suggestions can be edited or cleared in row review. Locally stored logos are limited to the 22 Galaxy 31 entries supplied from LyngSat: 20 entries have logos using 18 shared PNG files. Logos appear immediately after the channel name and match its text height; Rai Italia Nord America and the CruiseSat test card display text only. Channels outside this logo scope retain their text names and Satellite source suggestions where recognized. No other channel logos are stored or fetched automatically. The IPTV filter row shows **Search channels** on the left and **All sources / Onboard / Satellite** buttons on the right. The Clear button is hidden in IPTV; clear the search box and choose All sources to reset its filters. Each IPTV table row includes a read-only **UDP** field and a copy button, formatted as `udp://@IP:PORT`. Incomplete endpoints leave it blank. IPTV has no manual IP confirmation button; supplied addresses and ports still receive format/range checks. JSON transfers continue to restore every exported field in both inventories. Legacy IPTV exports with missing ports can be imported and completed later. Imports skip existing AV IP addresses and IPTV IP/port endpoints. Identical IP addresses can exist in separate inventories. Blank AV IPs, DHCP assignments, incomplete IPTV endpoints, and equipment without a known identity are kept separately rather than treated as duplicates; repeatedly importing these incomplete records may add another copy. JSON and CSV exports preserve all blank fields.
 
-The database defaults to `data/inventory.sqlite3`, excluded from Git. Set `BROADCASTHUB_DB` to a persistent database location when hosting. Existing `AVTRACK_DB` and `IPTRACKING_DB` settings remain supported as compatibility fallbacks, in that order; `BROADCASTHUB_DB` takes priority. Rebranding keeps the same default SQLite file and accepts existing version-1 JSON exports. Do not use temporary container storage for your only copy. For a consistent live backup, use SQLite's backup API rather than copying an active WAL database:
+The database defaults to `data/inventory.sqlite3`, excluded from Git. Set `AVTRACK_DB` to a persistent database location when hosting. Legacy `BROADCASTHUB_DB` and `IPTRACKING_DB` settings remain supported as fallbacks, in that order; `AVTRACK_DB` takes priority. Rebranding keeps the same default SQLite file and accepts existing version-1 JSON exports. Do not use temporary container storage for your only copy. For a consistent live backup, use SQLite's backup API rather than copying an active WAL database:
 
 ```sh
 python3 - <<'PY'
 import sqlite3
 from app import connect
-with connect() as source, sqlite3.connect('/tmp/broadcasthub-backup.sqlite3') as backup:
+with connect() as source, sqlite3.connect('/tmp/avtrack-backup.sqlite3') as backup:
     source.backup(backup)
 PY
 ```
@@ -140,6 +140,7 @@ Optional browser check (requires Python Playwright and Chromium):
 .venv/bin/python tests/browser_guided_import_check.py
 .venv/bin/python tests/layout_browser_check.py
 .venv/bin/python tests/browser_inventory_controls_check.py
+.venv/bin/python tests/browser_project_identity_check.py
 .venv/bin/python tests/browser_network_paste_check.py
 .venv/bin/python tests/browser_paste_quick_setup_check.py
 .venv/bin/python tests/browser_paste_inventory_check.py

@@ -1,4 +1,4 @@
-"""broadcasthub server. Python 3.12+; install requirements.txt for Excel import."""
+"""AVTrack server. Python 3.12+; install requirements.txt for Excel import."""
 import csv
 from contextlib import nullcontext
 import import_sessions
@@ -17,8 +17,8 @@ from inventory_profiles import DEFAULT_PROFILE, SCALA_PROFILE, validate_profile,
 from exports import network_xlsx, equipment_xlsx, network_pdf, equipment_pdf
 
 ROOT = Path(__file__).resolve().parent
-# Keep existing hosted database configurations working during the project rename.
-DB_PATH = Path(os.environ.get('BROADCASTHUB_DB') or os.environ.get('AVTRACK_DB') or os.environ.get('IPTRACKING_DB') or ROOT / 'data' / 'inventory.sqlite3')
+# AVTRACK_DB is canonical; legacy names keep existing deployments on their data.
+DB_PATH = Path(os.environ.get('AVTRACK_DB') or os.environ.get('BROADCASTHUB_DB') or os.environ.get('IPTRACKING_DB') or ROOT / 'data' / 'inventory.sqlite3')
 DISCIPLINES = {'Video', 'Audio', 'Lighting', 'Control', 'Network', 'Other'}
 SYSTEM_NAME_RULES = (
     ('audio', 'Audio'), ('amx', 'Control'), ('scheduler', 'Control'), ('dsp', 'Audio'),
@@ -886,14 +886,14 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             return
         exports = {
-            '/api/export': (lambda rows: {'version':1, 'devices':rows}, inventory, 'application/json; charset=utf-8', 'broadcasthub-network.json'),
-            '/api/export.csv': (network_csv, inventory, 'text/csv; charset=utf-8', 'broadcasthub-network.csv'),
-            '/api/export.xlsx': (network_xlsx, inventory, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'broadcasthub-network.xlsx'),
-            '/api/export.pdf': (network_pdf, inventory, 'application/pdf', 'broadcasthub-network.pdf'),
-            '/api/equipment/export': (lambda rows: {'version':1, 'equipment':rows}, equipment_inventory, 'application/json; charset=utf-8', 'broadcasthub-equipment.json'),
-            '/api/equipment/export.csv': (equipment_csv, equipment_inventory, 'text/csv; charset=utf-8', 'broadcasthub-equipment.csv'),
-            '/api/equipment/export.xlsx': (equipment_xlsx, equipment_inventory, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'broadcasthub-equipment.xlsx'),
-            '/api/equipment/export.pdf': (equipment_pdf, equipment_inventory, 'application/pdf', 'broadcasthub-equipment.pdf'),
+            '/api/export': (lambda rows: {'version':1, 'devices':rows}, inventory, 'application/json; charset=utf-8', 'avtrack-network.json'),
+            '/api/export.csv': (network_csv, inventory, 'text/csv; charset=utf-8', 'avtrack-network.csv'),
+            '/api/export.xlsx': (network_xlsx, inventory, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'avtrack-network.xlsx'),
+            '/api/export.pdf': (network_pdf, inventory, 'application/pdf', 'avtrack-network.pdf'),
+            '/api/equipment/export': (lambda rows: {'version':1, 'equipment':rows}, equipment_inventory, 'application/json; charset=utf-8', 'avtrack-equipment.json'),
+            '/api/equipment/export.csv': (equipment_csv, equipment_inventory, 'text/csv; charset=utf-8', 'avtrack-equipment.csv'),
+            '/api/equipment/export.xlsx': (equipment_xlsx, equipment_inventory, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'avtrack-equipment.xlsx'),
+            '/api/equipment/export.pdf': (equipment_pdf, equipment_inventory, 'application/pdf', 'avtrack-equipment.pdf'),
         }
         if self.command in ('GET', 'POST') and path in exports:
             payload = self.body() if self.command == 'POST' else None
@@ -926,14 +926,14 @@ class Handler(BaseHTTPRequestHandler):
                     rows = selected_export_rows(rows, payload)
             if record_type:
                 suffix = filename.rsplit('.', 1)[1]
-                filename = f'broadcasthub-{"av-devices" if record_type == "device" else "iptv-channels"}.{suffix}'
+                filename = f'avtrack-{"av-devices" if record_type == "device" else "iptv-channels"}.{suffix}'
             if record_type and generate in (network_pdf, network_xlsx):
                 return self.send(200, generate(rows, record_type=record_type), mime, filename)
             if named_inventory:
                 suffix = filename.rsplit('.', 1)[1]
                 slug = re.sub(r'[^a-z0-9]+', '-', named_inventory['name'].lower()).strip('-') or 'equipment'
                 if named_inventory['id'] != 1 or named_inventory['name'] != 'Equipment inventory':
-                    filename = f'broadcasthub-{slug}.{suffix}'
+                    filename = f'avtrack-{slug}.{suffix}'
                 if generate in (equipment_pdf, equipment_xlsx):
                     return self.send(200, generate(rows, inventory_name=named_inventory['name'], layout=named_inventory.get('layout')), mime, filename)
                 if path == '/api/equipment/export':
@@ -1120,5 +1120,5 @@ if __name__ == '__main__':
         pass
     host = os.environ.get('HOST', '127.0.0.1')
     port = int(os.environ.get('PORT', '8000'))
-    print(f'broadcasthub listening on {host}:{port}', flush=True)
+    print(f'AVTrack listening on {host}:{port}', flush=True)
     ThreadingHTTPServer((host, port), Handler).serve_forever()

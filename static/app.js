@@ -282,7 +282,7 @@ function switchTab(type) {
   $('inventory').querySelectorAll('.export-links a[download]').forEach(link => {
     const url = new URL(link.href); url.searchParams.set('record_type', type); link.href = url.href;
     const extension = url.pathname.split('.').pop();
-    link.download = `broadcasthub-${iptv ? 'iptv-channels' : 'av-devices'}.${['csv','xlsx','pdf'].includes(extension) ? extension : 'json'}`;
+    link.download = `avtrack-${iptv ? 'iptv-channels' : 'av-devices'}.${['csv','xlsx','pdf'].includes(extension) ? extension : 'json'}`;
   });
   $('sort-order').value = tabSortOrders[type];
   for (const direction of ['asc', 'desc']) {
@@ -507,7 +507,7 @@ document.querySelectorAll('.export-links a[download]').forEach(link => {
       const extension = new URL(link.href).pathname.split('.').pop();
       let inventoryFilename = equipment ? equipmentExport.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'equipment' : '';
       if (equipment && equipmentExport.inventory_id === 1 && equipmentExport.name === 'Equipment inventory') inventoryFilename = 'equipment';
-      download.download = `broadcasthub-${equipment ? inventoryFilename : recordType === 'iptv' ? 'iptv-channels' : 'av-devices'}.${['csv','xlsx','pdf'].includes(extension) ? extension : 'json'}`;
+      download.download = `avtrack-${equipment ? inventoryFilename : recordType === 'iptv' ? 'iptv-channels' : 'av-devices'}.${['csv','xlsx','pdf'].includes(extension) ? extension : 'json'}`;
       document.body.append(download); download.click(); download.remove();
       setTimeout(() => URL.revokeObjectURL(url), 30000);
     } catch(error) { toast('Export failed: ' + error.message); }

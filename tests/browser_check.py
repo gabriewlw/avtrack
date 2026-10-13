@@ -199,7 +199,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert not page.locator('[id^=default-]').count()
             assert 'Excel camera' in page.locator('#spreadsheet-preview').inner_text()
             assert len(app.inventory()) == 2  # Preview never writes.
-            page.screenshot(path='/tmp/broadcasthub-excel-mobile.png', full_page=True)
+            page.screenshot(path='/tmp/avtrack-excel-mobile.png', full_page=True)
             page.locator('#confirm-import').click()
             accept_rows(1)
             page.get_by_role('button', name='Edit Excel camera').wait_for()
@@ -301,7 +301,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert not any(d['name'] == 'Skipped channel' for d in app.inventory())
             assert not page.locator('.ip-confirm').count()
             assert page.locator('.device-row').count() == 3
-            page.screenshot(path='/tmp/broadcasthub-iptv-mobile.png', full_page=True)
+            page.screenshot(path='/tmp/avtrack-iptv-mobile.png', full_page=True)
             open_page('AV devices')
             assert page.locator('.device-row').count() == 3
             assert page.get_by_role('button', name='Edit Ship information').count() == 0
@@ -398,7 +398,7 @@ with tempfile.TemporaryDirectory() as temp:
             preview_colors = page.locator('#import-venue-list button').evaluate_all('(nodes) => nodes.map(n => getComputedStyle(n).color)')
             assert len(set(preview_colors)) == 2
             assert len([r for r in app.inventory() if r['record_type'] == 'device']) == 3
-            page.screenshot(path='/tmp/broadcasthub-venue-preview-mobile.png', full_page=True)
+            page.screenshot(path='/tmp/avtrack-venue-preview-mobile.png', full_page=True)
             page.locator('#confirm-import').click()
             accept_rows(3, total=5)
             page.get_by_role('button', name='Edit CSV camera', exact=True).wait_for()
@@ -561,7 +561,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert page.locator('#row-review-ip-hint').is_hidden()
             assert page.locator('#row-review-fields > label').evaluate_all('(nodes) => new Set(nodes.map(n => n.getBoundingClientRect().top)).size') == 1
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
-            page.screenshot(path='/tmp/broadcasthub-row-review-mobile.png')
+            page.screenshot(path='/tmp/avtrack-row-review-mobile.png')
 
             def review_action(action):
                 progress = page.locator('#row-review-progress').inner_text()
@@ -638,7 +638,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert not page.locator('.system-options').count()
             picker.press('ArrowDown')
             page.locator('.system-options').get_by_role('option', name='Video', exact=True).wait_for()
-            page.screenshot(path='/tmp/broadcasthub-system-picker-mobile.png')
+            page.screenshot(path='/tmp/avtrack-system-picker-mobile.png')
             page.locator('#iptv-tab').evaluate('(node) => node.click()')
             assert not page.locator('.system-options').count()
             assert page.locator('#directory-venue-title').is_hidden()
@@ -673,14 +673,14 @@ with tempfile.TemporaryDirectory() as temp:
             assert not page.locator('.device-row .ip-confirm').count()
             clear_network_filters()
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
-            page.screenshot(path='/tmp/broadcasthub-mobile.png', full_page=True)
+            page.screenshot(path='/tmp/avtrack-mobile.png', full_page=True)
             page.set_viewport_size({'width':1440,'height':1000})
             directory.evaluate('(node) => { node.scrollTop = 0; node.scrollLeft = 0; }')
             assert directory.evaluate('(node) => node.scrollWidth <= node.clientWidth')
             assert page.locator('.device-row').first.locator(':scope > div').evaluate_all('(nodes) => new Set(nodes.map(n => n.getBoundingClientRect().top)).size') == 1
             assert page.locator('.ip-info-line').evaluate_all('(nodes) => nodes.filter(n => n.querySelector(".ip-confirm")).every(n => { const ip = n.querySelector(".device-ip").getBoundingClientRect(); const button = n.querySelector(".ip-confirm").getBoundingClientRect(); return Math.abs((ip.top + ip.bottom) / 2 - (button.top + button.bottom) / 2) < 1 && button.left >= ip.right; })')
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
-            page.screenshot(path='/tmp/broadcasthub-desktop.png', full_page=True)
+            page.screenshot(path='/tmp/avtrack-desktop.png', full_page=True)
             path = Path(temp) / 'desktop-review.csv'
             path.write_text('VENUE,DEVICE NAME,IP Address,VLAN\nRD CONTROL ROOM,Desktop review,DHCP,1500\n')
             before = len(app.inventory())
@@ -690,7 +690,7 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#row-review-dialog').wait_for(state='visible')
             assert page.locator('#row-review-fields > label').evaluate_all('(nodes) => new Set(nodes.map(n => n.getBoundingClientRect().top)).size') == 1
             assert page.locator('.review-line-scroll').evaluate('(node) => node.scrollWidth <= node.clientWidth')
-            page.screenshot(path='/tmp/broadcasthub-row-review-desktop.png')
+            page.screenshot(path='/tmp/avtrack-row-review-desktop.png')
             page.locator('#skip-review-row').click()
             page.locator('#spreadsheet-dialog').wait_for(state='hidden')
             assert len(app.inventory()) == before
@@ -700,7 +700,7 @@ with tempfile.TemporaryDirectory() as temp:
             open_export_menu('inventory')
             with page.expect_download() as download:
                 page.locator('#inventory').get_by_role('link', name='XLSX ↓', exact=True).click()
-            assert download.value.suggested_filename == 'broadcasthub-av-devices.xlsx'
+            assert download.value.suggested_filename == 'avtrack-av-devices.xlsx'
             workbook = load_workbook(io.BytesIO(Path(download.value.path()).read_bytes()))
             assert workbook.sheetnames == ['AV devices']
             exported = next(row for row in list(workbook['AV devices'].values)[1:] if row[1] == 'Unassigned camera')
@@ -708,14 +708,14 @@ with tempfile.TemporaryDirectory() as temp:
             open_export_menu('inventory')
             with page.expect_download() as download:
                 page.locator('#inventory').get_by_role('link', name='PDF ↓', exact=True).click()
-            assert download.value.suggested_filename == 'broadcasthub-av-devices.pdf'
+            assert download.value.suggested_filename == 'avtrack-av-devices.pdf'
             assert Path(download.value.path()).read_bytes().startswith(b'%PDF-')
             open_page('Equipment inventory')
             for extension, label in [('xlsx','XLSX ↓'), ('pdf','PDF ↓')]:
                 open_export_menu('equipment-panel')
                 with page.expect_download() as download:
                     page.locator('#equipment-panel').get_by_role('link', name=label, exact=True).click()
-                assert download.value.suggested_filename == f'broadcasthub-equipment.{extension}'
+                assert download.value.suggested_filename == f'avtrack-equipment.{extension}'
                 data = Path(download.value.path()).read_bytes()
                 assert data.startswith(b'PK') if extension == 'xlsx' else data.startswith(b'%PDF-')
             # Numeric address ordering, missing values, system groups, and per-tab order.
@@ -846,7 +846,7 @@ with tempfile.TemporaryDirectory() as temp:
                     page.locator('#'+panel).get_by_role('link', name=label, exact=True).click()
                 extension = {'JSON ↓':'json','CSV ↓':'csv','XLSX ↓':'xlsx','PDF ↓':'pdf'}[label]
                 prefix = 'equipment' if panel == 'equipment-panel' else ('iptv-channels' if page.locator('#iptv-tab').get_attribute('aria-current') == 'page' else 'av-devices')
-                assert download.value.suggested_filename == f'broadcasthub-{prefix}.{extension}'
+                assert download.value.suggested_filename == f'avtrack-{prefix}.{extension}'
                 return Path(download.value.path()).read_bytes()
 
             raw = scoped_download('inventory', 'JSON ↓', 'filtered')
