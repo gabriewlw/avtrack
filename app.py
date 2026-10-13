@@ -9,7 +9,10 @@ import ipaddress
 import json
 import os
 import re
+import shutil
 import sqlite3
+import subprocess
+import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -21,6 +24,31 @@ from exports import network_xlsx, equipment_xlsx, network_pdf, equipment_pdf
 ROOT = Path(__file__).resolve().parent
 # AVTRACK_DB is canonical; legacy names keep existing deployments on their data.
 DB_PATH = Path(os.environ.get('AVTRACK_DB') or os.environ.get('BROADCASTHUB_DB') or os.environ.get('IPTRACKING_DB') or ROOT / 'data' / 'inventory.sqlite3')
+BACKUP_MAX_BYTES = 25_000_000
+
+
+def backup_directory():
+    return Path(os.environ.get('AVTRACK_BACKUP_DIR') or DB_PATH.parent / 'backups')
+
+
+def backup_storage_name(backup_id, filename):
+    safe = re.sub(r'[^A-Za-z0-9._-]+', '_', filename).strip('._') or 'backup-file'
+    return f'{backup_id}-{safe[:160]}'
+
+
+def stored_backup_path(storage_name):
+    if not storage_name or storage_name != Path(storage_name).name:
+        raise ValueError('Invalid stored backup path.')
+    return backup_directory() / storage_name
+
+
+def write_stored_backup(storage_name, content):
+    folder = backup_directory(); folder.mkdir(parents=True, exist_ok=True)
+    destination = stored_backup_path(storage_name)
+    temporary = folder / f'.{storage_name}.{os.getpid()}.tmp'
+    temporary.write_bytes(content)
+    temporary.replace(destination)
+    return destination
 DISCIPLINES = {'Video', 'Audio', 'Lighting', 'Control', 'Network', 'Other'}
 SYSTEM_NAME_RULES = (
     ('audio', 'Audio'), ('amx', 'Control'), ('scheduler', 'Control'), ('dsp', 'Audio'),
@@ -165,7 +193,16 @@ def connect():
     con.execute("""CREATE TABLE IF NOT EXISTS av_backups (
         id INTEGER PRIMARY KEY, equipment_type TEXT NOT NULL, device_name TEXT NOT NULL,
         filename TEXT NOT NULL, content BLOB NOT NULL, size INTEGER NOT NULL,
-        notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
+        notes TEXT NOT NULL DEFAULT '', storage_name TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
+    backup_columns={row['name'] for row in con.execute('PRAGMA table_info(av_backups)')}
+    if 'storage_name' not in backup_columns:
+        con.execute("ALTER TABLE av_backups ADD COLUMN storage_name TEXT NOT NULL DEFAULT ''")
+    # Existing database-backed files are extracted once into the visible backup folder.
+    for row in con.execute("SELECT id,filename,content FROM av_backups WHERE storage_name='' AND length(content)>0"):
+        storage_name=backup_storage_name(row['id'],row['filename'])
+        write_stored_backup(storage_name,row['content'])
+        con.execute("UPDATE av_backups SET storage_name=?,content=X'' WHERE id=?",(storage_name,row['id']))
     import_sessions.initialize(con)
     return con
 
@@ -652,17 +689,45 @@ def save_av_backup(value):
     if not isinstance(notes,str) or len(notes.strip())>2000:raise ValueError('Notes must be up to 2,000 characters.')
     try:content=base64.b64decode(value.get('content',''),validate=True)
     except (ValueError,binascii.Error):raise ValueError('The backup file could not be read.') from None
-    if not content or len(content)>5_000_000:raise ValueError('Choose a backup file between 1 byte and 5 MB.')
-    with connect() as con:
-        backup_id=con.execute('INSERT INTO av_backups (equipment_type,device_name,filename,content,size,notes) VALUES (?,?,?,?,?,?)',(kind,name.strip(),filename,content,len(content),notes.strip())).lastrowid
-        return dict(con.execute('SELECT id,equipment_type,device_name,filename,size,notes,created_at FROM av_backups WHERE id=?',(backup_id,)).fetchone())
+    if not content or len(content)>BACKUP_MAX_BYTES:raise ValueError('Choose a backup file between 1 byte and 25 MB.')
+    destination=None
+    try:
+        with connect() as con:
+            backup_id=con.execute("INSERT INTO av_backups (equipment_type,device_name,filename,content,size,notes,storage_name) VALUES (?,?,?,?,?,?,?)",(kind,name.strip(),filename,b'',len(content),notes.strip(),'')).lastrowid
+            storage_name=backup_storage_name(backup_id,filename);destination=write_stored_backup(storage_name,content)
+            con.execute('UPDATE av_backups SET storage_name=? WHERE id=?',(storage_name,backup_id))
+            return dict(con.execute('SELECT id,equipment_type,device_name,filename,size,notes,created_at FROM av_backups WHERE id=?',(backup_id,)).fetchone())
+    except Exception:
+        if destination:destination.unlink(missing_ok=True)
+        raise
 
 
 def av_backup_file(backup_id):
     with connect() as con:
-        row=con.execute('SELECT filename,content FROM av_backups WHERE id=?',(backup_id,)).fetchone()
+        row=con.execute('SELECT filename,content,storage_name FROM av_backups WHERE id=?',(backup_id,)).fetchone()
         if row is None:raise LookupError('Backup file not found.')
+        if row['storage_name']:
+            path=stored_backup_path(row['storage_name'])
+            if not path.is_file():raise LookupError('The saved backup file is missing from the backup folder.')
+            return row['filename'],path.read_bytes()
         return row['filename'],row['content']
+
+
+def delete_av_backup(backup_id):
+    with connect() as con:
+        row=con.execute('SELECT storage_name FROM av_backups WHERE id=?',(backup_id,)).fetchone()
+        if row is None:raise LookupError('Backup file not found.')
+        con.execute('DELETE FROM av_backups WHERE id=?',(backup_id,))
+    if row['storage_name']:stored_backup_path(row['storage_name']).unlink(missing_ok=True)
+    return {'deleted':backup_id}
+
+
+def folder_open_command():
+    folder=str(backup_directory().resolve())
+    if sys.platform=='darwin' and shutil.which('open'):return ['open',folder]
+    if os.name=='nt':return ['explorer',folder]
+    if shutil.which('xdg-open'):return ['xdg-open',folder]
+    return None
 
 
 def set_equipment_stock_check(item_id, value):
@@ -845,6 +910,11 @@ def selected_export_rows(rows, payload):
 
 
 class Handler(BaseHTTPRequestHandler):
+    def can_open_backup_folder(self):
+        forwarded_host=self.headers.get('Host','').split(':',1)[0].lower().rstrip('.')
+        remote=self.client_address[0]
+        return remote in ('127.0.0.1','::1') and os.environ.get('CODESPACES','').lower()!='true' and not forwarded_host.endswith('.app.github.dev') and folder_open_command() is not None
+
     def send(self, status, data, content_type='application/json; charset=utf-8', filename=None):
         body = json.dumps(data).encode() if content_type.startswith('application/json') else data
         self.send_response(status)
@@ -875,8 +945,9 @@ class Handler(BaseHTTPRequestHandler):
             size = int(self.headers.get('Content-Length', '0'))
         except ValueError:
             raise ValueError('Invalid request size.') from None
-        if size < 1 or size > 8_000_000:
-            raise ValueError('Request must be between 1 byte and 8 MB.')
+        maximum=35_000_000 if urlsplit(self.path).path=='/api/backups' else 8_000_000
+        if size < 1 or size > maximum:
+            raise ValueError(f'Request must be between 1 byte and {maximum // 1_000_000} MB.')
         return json.loads(self.rfile.read(size))
 
     def dispatch(self):
@@ -1003,7 +1074,8 @@ class Handler(BaseHTTPRequestHandler):
             if path == '/api/overview':
                 return self.send(200, workspace_overview())
             if path == '/api/backups':
-                return self.send(200,{'backups':av_backups()})
+                folder=backup_directory();folder.mkdir(parents=True,exist_ok=True)
+                return self.send(200,{'backups':av_backups(),'folder':{'path':str(folder.resolve()),'can_open':self.can_open_backup_folder()}})
             match=re.fullmatch(r'/api/backups/([1-9][0-9]*)/download',path)
             if match:
                 filename,content=av_backup_file(int(match[1]));return self.send(200,content,'application/octet-stream',filename)
@@ -1050,13 +1122,15 @@ class Handler(BaseHTTPRequestHandler):
                 data=(ROOT / 'static' / file).read_bytes()
                 if mime=='application/json':data=json.loads(data)
                 return self.send(200, data, mime + '; charset=utf-8' if mime.startswith('text/') or mime == 'image/svg+xml' else mime)
+        elif self.command == 'POST' and path == '/api/backups/open-folder':
+            self.body()
+            if not self.can_open_backup_folder():raise PermissionError('The backup folder can only be opened when AVTrack is running locally with a desktop file manager.')
+            subprocess.Popen(folder_open_command(),stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
+            return self.send(200,{'opened':str(backup_directory().resolve())})
         elif self.command == 'POST' and path == '/api/backups':
             return self.send(201,save_av_backup(self.body()))
         elif self.command == 'DELETE' and re.fullmatch(r'/api/backups/[1-9][0-9]*',path):
-            self.body();backup_id=int(path.rsplit('/',1)[1])
-            with connect() as con:
-                if not con.execute('DELETE FROM av_backups WHERE id=?',(backup_id,)).rowcount:raise LookupError('Backup file not found.')
-            return self.send(200,{'deleted':backup_id})
+            self.body();return self.send(200,delete_av_backup(int(path.rsplit('/',1)[1])))
         elif self.command == 'POST' and path == '/api/equipment/inventories':
             return self.send(201, save_equipment_inventory(self.body()))
         elif self.command == 'PUT' and path.startswith('/api/equipment/inventories/'):

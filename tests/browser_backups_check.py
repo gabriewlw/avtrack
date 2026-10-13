@@ -24,6 +24,8 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#backups-panel').wait_for(state='visible')
             assert page.locator('#backups-tab').get_attribute('aria-current') == 'page'
             assert page.locator('#workspace-page-title').text_content() == 'AV Backups'
+            assert str(Path(temp) / 'backups') in page.locator('#backup-folder-path').text_content()
+            assert page.locator('#open-backup-folder').is_visible()
             page.locator('#add-backup').click()
             page.locator('#backup-type').select_option('ATEM')
             page.locator('#backup-device').fill('ATEM 2 M/E Production Studio')
@@ -32,6 +34,9 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#save-backup').click()
             page.locator('#backup-dialog').wait_for(state='hidden')
             page.wait_for_function("() => document.getElementById('backup-count').textContent === '1'")
+            stored_files = list((Path(temp) / 'backups').iterdir())
+            assert len(stored_files) == 1
+            assert stored_files[0].read_bytes() == backup.read_bytes()
             card=page.locator('.backup-card')
             assert 'ATEM 2 M/E Production Studio' in card.inner_text()
             assert 'control-room-show.xml' in card.inner_text()
@@ -46,6 +51,7 @@ with tempfile.TemporaryDirectory() as temp:
             card.get_by_role('button', name='Delete control-room-show.xml').click()
             page.locator('#confirm-delete-backup').click()
             page.wait_for_function("() => document.getElementById('backup-count').textContent === '0'")
+            assert list((Path(temp) / 'backups').iterdir()) == []
             assert page.locator('#backups-empty').is_visible()
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
             assert not errors, errors

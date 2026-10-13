@@ -1,6 +1,6 @@
 'use strict';
 (() => {
-  let backups = [], deleting = null, loaded = false;
+  let backups = [], deleting = null, loaded = false, folderInfo = null;
   const form = $('backup-form');
   const dialog = $('backup-dialog');
   const deleteDialog = $('delete-backup-dialog');
@@ -47,7 +47,9 @@
     if (loaded && !force) { render(); return; }
     $('refresh-backups').disabled = true;
     try {
-      backups = (await api('/api/backups')).backups;
+      const result = await api('/api/backups');backups = result.backups;folderInfo=result.folder;
+      $('backup-folder-path').textContent=`Backup folder · ${folderInfo.path}`;
+      $('open-backup-folder').textContent=folderInfo.can_open?'Open backup folder':'Copy backup folder path';
       loaded = true; $('backups-error').hidden = true; render();
     } catch (error) {
       $('backups-error').textContent = `Could not load AV backups. ${error.message}`;
@@ -69,7 +71,7 @@
     if (!file) return;
     const submit = $('save-backup'); submit.disabled = true; $('backup-form-error').hidden = true;
     try {
-      if (file.size > 5_000_000) throw new Error('Choose a file no larger than 5 MB.');
+      if (file.size > 25_000_000) throw new Error('Choose a file no larger than 25 MB.');
       await api('/api/backups', 'POST', {equipment_type:$('backup-type').value, device_name:$('backup-device').value, filename:file.name, content:await fileContent(file), notes:$('backup-notes').value});
       dialog.close(); loaded = false; await load(); toast('Backup saved.');
     } catch (error) {
@@ -91,5 +93,15 @@
   $('cancel-delete-backup').onclick = () => deleteDialog.close();
   $('backup-filter').onchange = $('backup-search').oninput = render;
   $('refresh-backups').onclick = () => load(true);
+  $('open-backup-folder').onclick = async () => {
+    if(!folderInfo)return;
+    if(folderInfo.can_open){
+      try{await api('/api/backups/open-folder','POST',{});toast('Backup folder opened.');}
+      catch(error){toast('Could not open the backup folder: '+error.message);}
+      return;
+    }
+    try{await navigator.clipboard.writeText(folderInfo.path);toast('Backup folder path copied.');}
+    catch(_){toast(`Backup folder: ${folderInfo.path}`);}
+  };
   window.backupsUI = {load, open};
 })();

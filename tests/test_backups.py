@@ -1,5 +1,6 @@
 import base64
 import json
+import sqlite3
 import tempfile
 import threading
 import unittest
@@ -46,16 +47,37 @@ class BackupTests(unittest.TestCase):
         self.assertEqual(saved['size'], 31)
         status, listing = self.request('/api/backups')
         self.assertEqual(status, 200)
+        backup_folder = Path(listing['folder']['path'])
+        self.assertEqual(backup_folder, app.DB_PATH.parent / 'backups')
         self.assertEqual(listing['backups'][0]['filename'], 'show-control.xml')
         self.assertNotIn('content', listing['backups'][0])
+        stored_files = list(backup_folder.iterdir())
+        self.assertEqual(len(stored_files), 1)
+        self.assertEqual(stored_files[0].read_bytes(), b'<switcher>known good</switcher>')
         self.assertEqual(self.request(f"/api/backups/{saved['id']}/download"), (200, b'<switcher>known good</switcher>'))
         self.assertEqual(self.request(f"/api/backups/{saved['id']}", 'DELETE', {}), (200, {'deleted':saved['id']}))
-        self.assertEqual(self.request('/api/backups')[1], {'backups':[]})
+        self.assertEqual(self.request('/api/backups')[1]['backups'], [])
+        self.assertEqual(list(backup_folder.iterdir()), [])
         self.assertEqual(self.request(f"/api/backups/{saved['id']}/download")[0], 404)
 
         for change in ({'equipment_type':'Unknown'}, {'filename':'../secret'}, {'filename':'bad"name.cfg'}, {'content':'not base64'}, {'content':''}):
             with self.subTest(change=change):
                 self.assertEqual(self.request('/api/backups', 'POST', payload | change)[0], 400)
+
+    def test_database_backups_are_moved_to_the_local_folder(self):
+        with app.connect() as con:
+            backup_id = con.execute(
+                "INSERT INTO av_backups (equipment_type,device_name,filename,content,size,notes) VALUES (?,?,?,?,?,?)",
+                ('Videohub', 'Main router', 'router.vhub', sqlite3.Binary(b'legacy backup'), 13, ''),
+            ).lastrowid
+
+        with app.connect() as con:
+            row = con.execute('SELECT content,storage_name FROM av_backups WHERE id=?', (backup_id,)).fetchone()
+
+        self.assertEqual(row['content'], b'')
+        self.assertTrue(row['storage_name'])
+        self.assertEqual((app.backup_directory() / row['storage_name']).read_bytes(), b'legacy backup')
+        self.assertEqual(app.av_backup_file(backup_id), ('router.vhub', b'legacy backup'))
 
 
 if __name__ == '__main__': unittest.main()
