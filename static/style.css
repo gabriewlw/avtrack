@@ -644,6 +644,7 @@ main, dialog {
 #import-complete-options small { display: block; margin-top: 8px; line-height: 1.6; }
 .import-summary-action-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:22px}.import-summary-action-grid section{display:flex;flex-direction:column;gap:10px;padding:16px;border:1px solid var(--border);border-radius:9px;background:#181b20}.import-summary-action-grid button{width:100%}.import-summary-action-grid p{margin:0;color:var(--muted);font-size:12px;line-height:1.55}.import-summary-finish{margin-top:22px;padding-top:18px;border-top:1px solid var(--border)}
 .equipment-stats.without-status { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.equipment-confirmed-stat{display:flex;align-items:baseline;justify-content:center;gap:9px}.equipment-confirmed-stat small{font:600 11px/1 var(--mono);letter-spacing:.02em;color:var(--muted);white-space:nowrap}
 .equipment-filters:has(.equipment-status-group[hidden]) { grid-template-columns: minmax(220px,1fr) minmax(260px,1.5fr); }
 .equipment-filters:has(.equipment-status-group[hidden]) > .equipment-search-group { grid-column: 2; }
 .equipment-filters:has(.equipment-status-group[hidden]):has(.equipment-location-group[hidden]) { grid-template-columns: minmax(0,1fr); }

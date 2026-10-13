@@ -145,11 +145,18 @@
     $('equipment-zero-label').hidden=layout().stock_mode!=='tv_counts';
     document.querySelector('.equipment-stats').style.gridTemplateColumns=`repeat(${2+Number(storage)+Number(showLocatedStatus())},minmax(0,1fr))`;
     if(!displayColumns().some(col=>col.key==='quantity'||col.type==='count'||col.type==='calculated')){$('equipment-units').textContent=items.length;}
+    const quantityTracked=displayColumns().some(col=>col.key==='quantity'||col.type==='count'||col.type==='calculated');
+    const totalUnits=quantityTracked?items.reduce((total,item) => total + (Number(item.quantity) || 0), 0):items.length;
+    const confirmedUnits=items.filter(item=>item.item_confirmed).reduce((total,item)=>total+(quantityTracked?(Number(item.quantity)||0):1),0);
+    const confirmedPercent=totalUnits?confirmedUnits/totalUnits*100:0;
+    const confirmedPercentLabel=Number.isInteger(confirmedPercent)?String(confirmedPercent):confirmedPercent.toFixed(1);
     $('equipment-records').textContent = items.length;
-    $('equipment-units').textContent = displayColumns().some(col=>col.key==='quantity'||col.type==='count'||col.type==='calculated')?items.reduce((total,item) => total + (item.quantity ?? 0), 0):items.length;
+    $('equipment-units').textContent = totalUnits;
     $('equipment-units').title = 'Sum of known quantities; blank quantities are not counted.';
     $('equipment-locations').textContent = new Set(items.map(i => i.location).filter(Boolean)).size;
     $('equipment-found').textContent = items.filter(item => item.item_confirmed).length;
+    $('equipment-found-percent').textContent = `${confirmedPercentLabel}% of units`;
+    $('equipment-found-percent').title = `${confirmedUnits} of ${totalUnits} ${quantityTracked?'known units':'records'} confirmed`;
     $('equipment-found').previousElementSibling.textContent=ipConfirmation()?'Confirmed IPs':'Confirmed locations';
     $('equipment-result-count').textContent = results.length;
     $('equipment-showing').textContent = `${results.length} of ${items.length} items`+(showLocatedStatus() ? ` · ${results.filter(item => item.item_confirmed).length} ${ipConfirmation()?'IPs confirmed':'located'} in this view` : '');

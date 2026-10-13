@@ -55,6 +55,7 @@ with tempfile.TemporaryDirectory() as temp:
             microphone = page.locator('#equipment-rows tr').filter(has_text='Handheld microphone')
             microphone.locator('.equipment-confirm').check()
             page.wait_for_function("() => document.getElementById('equipment-found').textContent === '1'")
+            assert page.locator('#equipment-found-percent').inner_text() == '4.5% of units'
             assert microphone.locator('.equipment-confirm-label').get_attribute('class').endswith('confirmed')
             assert page.locator('#equipment-rows .row-select:checked').count() == 0
             page.locator('#equipment-refresh').click()
@@ -67,6 +68,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert page.locator('#equipment-rows tr').count() == 1
             microphone.locator('.equipment-confirm').click()
             page.wait_for_function("() => document.getElementById('equipment-found').textContent === '0'")
+            assert page.locator('#equipment-found-percent').inner_text() == '0% of units'
             assert page.locator('#equipment-no-results').is_visible()
             page.locator('#equipment-clear').click()
             page.locator('#equipment-status-buttons').get_by_role('button', name='All items', exact=True).click()
