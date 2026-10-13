@@ -131,8 +131,8 @@ window.importWorkflow = (() => {
       summary.textContent=location+' · '+['added','existing','skip','exclude','zero'].map(outcome=>`${rows.filter(row=>row.outcome===outcome).length} ${outcome==='exclude'?'excluded':outcome==='zero'?'zero stock':outcome}`).join(' · ')+` · ${rows.reduce((sum,row)=>sum+row.merged,0)} source rows combined · ${rows.filter(row=>row.issues.length).length} flagged`;
       const list=el('ul');rows.forEach(row=>list.append(el('li','',`${row.sheet || 'Pasted table'} · ${row.keys.map(key=>key.split(':').pop()).join(', ')} · ${row.label} · ${row.outcome}${row.issues.length?' · '+row.issues.join(' · '):''}`)));detail.append(summary,list);return detail;
     }));
-    byId('import-summary-resume').hidden=!stopped || !!session.retired;byId('import-summary-add').hidden=!!session.retired;byId('import-summary-compare').hidden=!!session.retired || !session.target.startsWith('equipment:');
-    byId('import-summary-original').hidden=!!session.retired || !session.target.startsWith('equipment:');
+    byId('import-summary-resume-option').hidden=!stopped || !!session.retired;byId('import-summary-add-option').hidden=!!session.retired;byId('import-summary-compare-option').hidden=!!session.retired || !session.target.startsWith('equipment:');
+    byId('import-summary-original-option').hidden=!!session.retired || !session.target.startsWith('equipment:');
     byId('import-summary-comparison-details').replaceChildren();
     byId('import-summary-comparison').textContent=session.reconciliation?`Last source comparison: ${session.reconciliation.complete?'All source rows matched':'Differences need review'}. Download the report for details.`:'';
     byId('import-summary-panel').showModal();
@@ -186,7 +186,7 @@ window.importWorkflow = (() => {
     refreshHistory();
     byId('import-history-older').onclick=()=>refreshHistory(true);
     byId('cancel-import-cell-notes').onclick=()=>byId('import-cell-notes-dialog').close();
-    byId('close-import-summary').onclick=()=>byId('import-summary-panel').close();
+    byId('close-import-summary').onclick=byId('import-summary-close-action').onclick=()=>byId('import-summary-panel').close();
     byId('import-summary-resume').onclick=()=>resume(session.id).catch(error=>toast(error.message));
     byId('import-summary-download').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify({name:session.name,status:session.status,destination:session.state.inventory?.name || session.target,receipts:session.receipts,reconciliation:session.reconciliation,completed_keys:session.completed_keys},null,2)],{type:'application/json'})),link=el('a');link.href=url;link.download='avtrack-import-report.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
     byId('import-summary-add').onclick=()=>{byId('import-summary-panel').close();openPastedImport();};

@@ -25,6 +25,12 @@ ROOT = Path(__file__).resolve().parent
 # AVTRACK_DB is canonical; legacy names keep existing deployments on their data.
 DB_PATH = Path(os.environ.get('AVTRACK_DB') or os.environ.get('BROADCASTHUB_DB') or os.environ.get('IPTRACKING_DB') or ROOT / 'data' / 'inventory.sqlite3')
 BACKUP_MAX_BYTES = 25_000_000
+BACKUP_ICON_MAX_BYTES = 1_000_000
+BACKUP_ICON_TYPES = {
+    'image/png': ('.png', lambda content: content.startswith(b'\x89PNG\r\n\x1a\n')),
+    'image/jpeg': ('.jpg', lambda content: content.startswith(b'\xff\xd8\xff')),
+    'image/webp': ('.webp', lambda content: len(content) >= 12 and content[:4] == b'RIFF' and content[8:12] == b'WEBP'),
+}
 
 
 def backup_directory():
@@ -194,10 +200,15 @@ def connect():
         id INTEGER PRIMARY KEY, equipment_type TEXT NOT NULL, device_name TEXT NOT NULL,
         filename TEXT NOT NULL, content BLOB NOT NULL, size INTEGER NOT NULL,
         notes TEXT NOT NULL DEFAULT '', storage_name TEXT NOT NULL DEFAULT '',
+        icon_storage_name TEXT NOT NULL DEFAULT '', icon_mime TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
     backup_columns={row['name'] for row in con.execute('PRAGMA table_info(av_backups)')}
     if 'storage_name' not in backup_columns:
         con.execute("ALTER TABLE av_backups ADD COLUMN storage_name TEXT NOT NULL DEFAULT ''")
+    if 'icon_storage_name' not in backup_columns:
+        con.execute("ALTER TABLE av_backups ADD COLUMN icon_storage_name TEXT NOT NULL DEFAULT ''")
+    if 'icon_mime' not in backup_columns:
+        con.execute("ALTER TABLE av_backups ADD COLUMN icon_mime TEXT NOT NULL DEFAULT ''")
     # Existing database-backed files are extracted once into the visible backup folder.
     for row in con.execute("SELECT id,filename,content FROM av_backups WHERE storage_name='' AND length(content)>0"):
         storage_name=backup_storage_name(row['id'],row['filename'])
@@ -438,7 +449,7 @@ def validate_equipment(value):
             raw = ''
         if not isinstance(raw, str):
             raise ValueError(f'{field.replace("_", " ").title()} must be text.')
-        row[field] = raw.strip()
+        row[field] = normalize_serial(raw) if field == 'serial_number' else raw.strip()
         if len(row[field]) > (2000 if field in ('description', 'notes') else 120):
             raise ValueError(f'{field.replace("_", " ").title()} is too long.')
     quantity = value.get('quantity')
@@ -451,6 +462,19 @@ def validate_equipment(value):
     if not any(v is not None and v != '' for v in row.values()) and not (isinstance(value.get('custom_values'), dict) and any(isinstance(v,str) and v.strip() for v in value['custom_values'].values())):
         raise ValueError('Provide at least one equipment detail.')
     return row
+
+
+def normalize_serial(value):
+    """Use commas between serials and ignore whitespace inside each serial."""
+    parts=[]
+    for part in re.split(r'[,|;\r\n]+',value):
+        serial=re.sub(r'\s+','',part)
+        if serial and serial.casefold() not in {saved.casefold() for saved in parts}:parts.append(serial)
+    return ', '.join(parts)
+
+
+def serial_key(value):
+    return re.sub(r'\s+','',str(value or '')).casefold()
 
 
 def equipment_inventory_id(value=1):
@@ -677,7 +701,20 @@ def equipment_record_history(item_id):
 BACKUP_TYPES=('Videohub','ATEM','Satellite receiver','OBS profile','Other')
 def av_backups():
     with connect() as con:
-        return [dict(row) for row in con.execute('SELECT id,equipment_type,device_name,filename,size,notes,created_at FROM av_backups ORDER BY created_at DESC,id DESC')]
+        return [dict(row) for row in con.execute("SELECT id,equipment_type,device_name,filename,size,notes,created_at,icon_storage_name!='' AS has_icon FROM av_backups ORDER BY created_at DESC,id DESC")]
+
+
+def backup_icon(value):
+    if value in (None, ''):return None
+    if not isinstance(value,dict):raise ValueError('Choose a PNG, JPEG, or WebP icon.')
+    mime=value.get('mime_type')
+    if mime not in BACKUP_ICON_TYPES:raise ValueError('Choose a PNG, JPEG, or WebP icon.')
+    try:content=base64.b64decode(value.get('content',''),validate=True)
+    except (ValueError,binascii.Error):raise ValueError('The backup icon could not be read.') from None
+    if not content or len(content)>BACKUP_ICON_MAX_BYTES:raise ValueError('Choose an icon between 1 byte and 1 MB.')
+    extension,valid=BACKUP_ICON_TYPES[mime]
+    if not valid(content):raise ValueError('The backup icon does not match its image format.')
+    return mime,extension,content
 
 
 def save_av_backup(value):
@@ -690,15 +727,21 @@ def save_av_backup(value):
     try:content=base64.b64decode(value.get('content',''),validate=True)
     except (ValueError,binascii.Error):raise ValueError('The backup file could not be read.') from None
     if not content or len(content)>BACKUP_MAX_BYTES:raise ValueError('Choose a backup file between 1 byte and 25 MB.')
-    destination=None
+    icon=backup_icon(value.get('icon'))
+    destinations=[]
     try:
         with connect() as con:
             backup_id=con.execute("INSERT INTO av_backups (equipment_type,device_name,filename,content,size,notes,storage_name) VALUES (?,?,?,?,?,?,?)",(kind,name.strip(),filename,b'',len(content),notes.strip(),'')).lastrowid
-            storage_name=backup_storage_name(backup_id,filename);destination=write_stored_backup(storage_name,content)
-            con.execute('UPDATE av_backups SET storage_name=? WHERE id=?',(storage_name,backup_id))
-            return dict(con.execute('SELECT id,equipment_type,device_name,filename,size,notes,created_at FROM av_backups WHERE id=?',(backup_id,)).fetchone())
+            storage_name=backup_storage_name(backup_id,filename);destinations.append(write_stored_backup(storage_name,content))
+            icon_name=icon_mime=''
+            if icon:
+                icon_mime,extension,icon_content=icon
+                icon_name=f'{backup_id}-icon{extension}'
+                destinations.append(write_stored_backup(icon_name,icon_content))
+            con.execute('UPDATE av_backups SET storage_name=?,icon_storage_name=?,icon_mime=? WHERE id=?',(storage_name,icon_name,icon_mime,backup_id))
+            return dict(con.execute("SELECT id,equipment_type,device_name,filename,size,notes,created_at,icon_storage_name!='' AS has_icon FROM av_backups WHERE id=?",(backup_id,)).fetchone())
     except Exception:
-        if destination:destination.unlink(missing_ok=True)
+        for destination in destinations:destination.unlink(missing_ok=True)
         raise
 
 
@@ -713,12 +756,22 @@ def av_backup_file(backup_id):
         return row['filename'],row['content']
 
 
+def av_backup_icon(backup_id):
+    with connect() as con:
+        row=con.execute('SELECT icon_storage_name,icon_mime FROM av_backups WHERE id=?',(backup_id,)).fetchone()
+        if row is None or not row['icon_storage_name']:raise LookupError('Backup icon not found.')
+        path=stored_backup_path(row['icon_storage_name'])
+        if not path.is_file():raise LookupError('The saved backup icon is missing from the backup folder.')
+        return row['icon_mime'],path.read_bytes()
+
+
 def delete_av_backup(backup_id):
     with connect() as con:
-        row=con.execute('SELECT storage_name FROM av_backups WHERE id=?',(backup_id,)).fetchone()
+        row=con.execute('SELECT storage_name,icon_storage_name FROM av_backups WHERE id=?',(backup_id,)).fetchone()
         if row is None:raise LookupError('Backup file not found.')
         con.execute('DELETE FROM av_backups WHERE id=?',(backup_id,))
     if row['storage_name']:stored_backup_path(row['storage_name']).unlink(missing_ok=True)
+    if row['icon_storage_name']:stored_backup_path(row['icon_storage_name']).unlink(missing_ok=True)
     return {'deleted':backup_id}
 
 
@@ -814,7 +867,7 @@ def manage_equipment_location(payload):
 
 def equipment_identity(row):
     if row['serial_number']:
-        return ('serial', row['serial_number'].casefold())
+        return ('serial', serial_key(row['serial_number']))
     if all(row[f] for f in ('brand', 'model', 'location')):
         return ('stock', row['brand'].casefold(), row['model'].casefold(), row['description'], row['location'].casefold())
     return None
@@ -1079,6 +1132,9 @@ class Handler(BaseHTTPRequestHandler):
             match=re.fullmatch(r'/api/backups/([1-9][0-9]*)/download',path)
             if match:
                 filename,content=av_backup_file(int(match[1]));return self.send(200,content,'application/octet-stream',filename)
+            match=re.fullmatch(r'/api/backups/([1-9][0-9]*)/icon',path)
+            if match:
+                mime,content=av_backup_icon(int(match[1]));return self.send(200,content,mime)
             if path == '/satellite-channels.json':
                 return self.send(200, json.loads((ROOT / 'static' / 'satellite-channels.json').read_text()))
             if re.fullmatch(r'/channel-logos/[A-Za-z0-9_-]+\.[a-z]{2}\.png', path):

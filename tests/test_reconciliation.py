@@ -26,6 +26,12 @@ class ReconciliationTests(unittest.TestCase):
         self.assertEqual({d['field'] for d in report['rows'][0]['differences']}, {'quantity','location'})
         self.assertFalse(report['complete'])
 
+    def test_serial_matching_ignores_spaces_and_keeps_punctuation(self):
+        source = payload(b'brand,model,description,serial_number,quantity,location\nSony,X,Camera,AB C-1/2,1,Store\n')
+        report = reconcile(source,[item(serial_number='ABC-1/2')])
+        self.assertEqual(report['summary']['matched'],1)
+        self.assertTrue(report['complete'])
+
     def test_repeated_or_blank_serial_never_proves_two_source_rows(self):
         for serial in ('S1',''):
             source = payload(f'brand,model,description,serial_number,quantity,location\nSony,X,Camera,{serial},1,Store\nSony,X,Camera,{serial},1,Store\n'.encode())

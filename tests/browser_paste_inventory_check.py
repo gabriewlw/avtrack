@@ -122,7 +122,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert {row['serial_number'] for row in saved}=={'S1','S2','S3','S4'}
             assert {row['location'] for row in saved}=={'Locker B'}
             assert page.locator('#equipment-location-buttons button').count()==1
-            assert 'Source sheet: Locker C worksheet' in next(row for row in saved if row['serial_number']=='S3')['notes']
+            assert 'Source sheet:' not in next(row for row in saved if row['serial_number']=='S3')['notes']
             page.locator('#close-import-summary').click()
             # Repeated stock models can be merged deliberately; quantities with comments stay reviewable.
             page.locator('#equipment-paste').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')

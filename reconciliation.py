@@ -19,6 +19,10 @@ def norm(value):
     return re.sub(r'\s+', ' ', str(value or '').strip()).casefold()
 
 
+def serial_norm(value):
+    return re.sub(r'\s+', '', str(value or '')).casefold()
+
+
 def meaningful(value):
     return bool(norm(value)) and norm(value) not in PLACEHOLDERS
 
@@ -74,15 +78,15 @@ def original_records(payload):
 
 def reconcile(payload, inventory):
     sources, sheet_errors = original_records(payload)
-    serial_counts = Counter(norm(entry['record']['serial_number']) for entry in sources if entry['record']['serial_number'])
+    serial_counts = Counter(serial_norm(entry['record']['serial_number']) for entry in sources if entry['record']['serial_number'])
     used, results = set(), []
     for entry in sources:
         source = entry['record']
-        serial = norm(source['serial_number'])
+        serial = serial_norm(source['serial_number'])
         candidates = []
         basis = 'serial number' if serial else 'model/item and brand'
         if serial:
-            candidates = [item for item in inventory if norm(item['serial_number']) == serial]
+            candidates = [item for item in inventory if serial_norm(item['serial_number']) == serial]
         else:
             candidates = [item for item in inventory if
                           (not source['brand'] or norm(item['brand']) == norm(source['brand'])) and
@@ -107,7 +111,7 @@ def reconcile(payload, inventory):
                 original = source[field]
                 if original is None or original == '':
                     continue
-                equal = original == match[field] if field == 'quantity' else norm(original) == norm(match[field])
+                equal = original == match[field] if field == 'quantity' else serial_norm(original) == serial_norm(match[field]) if field == 'serial_number' else norm(original) == norm(match[field])
                 if not equal:
                     differences.append({'field':field, 'original':original, 'saved':match[field]})
             for field, value in {'notes':source['notes'], **entry['details']}.items():
@@ -185,7 +189,7 @@ def reconcile_profile(payload, inventory, profile):
             entries.append({'sheet':sheet,'row_number':number,'record':row,'issues':issues,'details':{}})
             if len(entries)>10000:raise ValueError('Cross-check supports up to 10,000 source rows.')
     key=profile.get('identifier') or profile['primary_search']
-    identity_for=lambda row: profile_identifier(row,profile) if profile.get('stock_mode')=='tv_counts' else norm(column_value(row,key))
+    identity_for=lambda row: profile_identifier(row,profile) if profile.get('stock_mode')=='tv_counts' else serial_norm(column_value(row,key)) if key=='serial_number' else norm(column_value(row,key))
     counts=Counter(identity_for(entry['record']) for entry in entries if identity_for(entry['record']) and not (profile.get('stock_mode')=='tv_counts' and entry['record']['quantity']==0))
     used,results=set(),[]
     lookup={}
@@ -204,7 +208,7 @@ def reconcile_profile(payload, inventory, profile):
             match=candidates[0];used.add(match['id'])
             for col in profile['columns']:
                 original=column_value(source,col['key']);saved=column_value(match,col['key'])
-                if original not in ('',None) and norm(original)!=norm(saved):differences.append({'field':col['label'],'original':original,'saved':saved})
+                if original not in ('',None) and (serial_norm(original)!=serial_norm(saved) if col['key']=='serial_number' else norm(original)!=norm(saved)):differences.append({'field':col['label'],'original':original,'saved':saved})
             status='different' if differences else 'needs_review' if entry['issues'] else 'matched'
         results.append(dict(entry,status=status,basis=next(col['label'] for col in profile['columns'] if col['key']==key),saved_id=match['id'] if match else None,candidate_ids=[item['id'] for item in candidates],differences=differences))
     summary={status:sum(row['status']==status for row in results) for status in ('matched','needs_review','different','missing','ambiguous')}

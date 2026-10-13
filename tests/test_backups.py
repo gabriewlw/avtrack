@@ -9,6 +9,8 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 import app
 
+ICON_BYTES = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=')
+
 
 class BackupTests(unittest.TestCase):
     @classmethod
@@ -40,6 +42,7 @@ class BackupTests(unittest.TestCase):
             'device_name':'ATEM 2 M/E Production Studio',
             'filename':'show-control.xml',
             'content':base64.b64encode(b'<switcher>known good</switcher>').decode(),
+            'icon':{'mime_type':'image/png','content':base64.b64encode(ICON_BYTES).decode()},
             'notes':'Saved after the October show check.',
         }
         status, saved = self.request('/api/backups', 'POST', payload)
@@ -50,17 +53,22 @@ class BackupTests(unittest.TestCase):
         backup_folder = Path(listing['folder']['path'])
         self.assertEqual(backup_folder, app.DB_PATH.parent / 'backups')
         self.assertEqual(listing['backups'][0]['filename'], 'show-control.xml')
+        self.assertEqual(listing['backups'][0]['has_icon'], 1)
         self.assertNotIn('content', listing['backups'][0])
         stored_files = list(backup_folder.iterdir())
-        self.assertEqual(len(stored_files), 1)
-        self.assertEqual(stored_files[0].read_bytes(), b'<switcher>known good</switcher>')
+        self.assertEqual(len(stored_files), 2)
+        self.assertIn(b'<switcher>known good</switcher>', [path.read_bytes() for path in stored_files])
+        self.assertIn(ICON_BYTES, [path.read_bytes() for path in stored_files])
         self.assertEqual(self.request(f"/api/backups/{saved['id']}/download"), (200, b'<switcher>known good</switcher>'))
+        self.assertEqual(self.request(f"/api/backups/{saved['id']}/icon"), (200, ICON_BYTES))
         self.assertEqual(self.request(f"/api/backups/{saved['id']}", 'DELETE', {}), (200, {'deleted':saved['id']}))
         self.assertEqual(self.request('/api/backups')[1]['backups'], [])
         self.assertEqual(list(backup_folder.iterdir()), [])
         self.assertEqual(self.request(f"/api/backups/{saved['id']}/download")[0], 404)
 
-        for change in ({'equipment_type':'Unknown'}, {'filename':'../secret'}, {'filename':'bad"name.cfg'}, {'content':'not base64'}, {'content':''}):
+        for change in ({'equipment_type':'Unknown'}, {'filename':'../secret'}, {'filename':'bad"name.cfg'}, {'content':'not base64'}, {'content':''},
+                       {'icon':{'mime_type':'image/svg+xml','content':base64.b64encode(b'<svg/>').decode()}},
+                       {'icon':{'mime_type':'image/png','content':base64.b64encode(b'not a png').decode()}}):
             with self.subTest(change=change):
                 self.assertEqual(self.request('/api/backups', 'POST', payload | change)[0], 400)
 

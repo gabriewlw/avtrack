@@ -832,6 +832,7 @@ const networkImportFields = [
   ['port', 'Port (IPTV)', ['port','udp port','stream port','port number']]
 ];
 const equipmentCheckFields = ['description','brand','model','serial_number','quantity','location'];
+const serialKey = value => String(value || '').replace(/\s+/g,'').toLowerCase();
 function equipmentIssues(row,profile=window.equipmentUI?.profile() || defaultInventoryLayout) {
   const important=profile.columns.filter(col=>col.important&&col.key!=='orientation');
   const issues=[...(row.source_issues || []),...important.filter(col=>String(inventoryValue(row,col.key)).trim()==='').map(col=>`Missing ${col.label}`)];
@@ -846,7 +847,7 @@ function orderEquipmentReview(entries) {
   const serialCounts = new Map();
   const profile=spreadsheetInventory?.layout || window.equipmentUI?.profile()||defaultInventoryLayout;const identifierCounts=new Map();
   const rowIdentifier=row=>profile.stock_mode==='tv_counts'&&row.brand&&row.model?JSON.stringify([row.brand.trim().toLowerCase(),row.model.trim().toLowerCase()]):profile.identifier?String(inventoryValue(row,profile.identifier)).trim().toLowerCase():'';
-  entries.forEach(({row}) => { const key = (row.serial_number || '').trim().toLowerCase(); if (key) serialCounts.set(key, (serialCounts.get(key) || 0) + 1); });
+  entries.forEach(({row}) => { const key = serialKey(row.serial_number); if (key) serialCounts.set(key, (serialCounts.get(key) || 0) + 1); });
   entries.forEach(({row})=>{const value=rowIdentifier(row);if(value)identifierCounts.set(value,(identifierCounts.get(value)||0)+1);});
   const groups = new Map(),locationCounts=new Map();
   entries.forEach(({row})=>{const location=(row.location||'').trim();if(location)locationCounts.set(location,(locationCounts.get(location)||0)+1);});
@@ -854,7 +855,7 @@ function orderEquipmentReview(entries) {
     entry.issues = equipmentIssues(entry.row,profile);
     profile.columns.filter(col=>col.require_confirmation).forEach(col=>entry.issues.push(`Confirm ${col.label} during review`));
     if(identifierCounts.get(rowIdentifier(entry.row))>1)entry.issues.push('Repeated item identifier in this file');
-    if (serialCounts.get((entry.row.serial_number || '').trim().toLowerCase()) > 1) entry.issues.push('Repeated serial number in this file');
+    if (serialCounts.get(serialKey(entry.row.serial_number)) > 1) entry.issues.push('Repeated serial number in this file');
     const location = entry.row.location || '';
     if(location&&locationCounts.get(location)===1&&locationCounts.size>1)entry.issues.push('Unusual location: appears once in this paste');
     if (!groups.has(location)) groups.set(location, []);
@@ -943,7 +944,7 @@ function mappedRows(applyVenueEdits = true) {
       const quantityOriginal=String(mapped.quantity ?? '').trim(),quantityMatch=quantityOriginal.match(/^(\d+)\s+(.+)$/);
       if(quantityMatch){mapped.quantity=quantityMatch[1];mapped.notes=[mapped.notes,`Quantity detail: ${quantityOriginal}`].filter(Boolean).join(' · ');sourceIssues.push(`Quantity contained extra text: ${quantityOriginal}`);}
       else if(quantityOriginal&&!/^\d+$/.test(quantityOriginal))sourceIssues.push(`Quantity is not numeric: ${quantityOriginal}`);
-      const extras = ['name','storage_position','condition','unit','quantity_original','source_sheet','source_row'];
+      const extras = ['name','storage_position','condition','unit','quantity_original'];
       const read = name => { const index = spreadsheetData.headers.findIndex(header => header.trim().toLowerCase() === name); return index < 0 ? '' : String(row[index] ?? '').trim(); };
       if (!mapped.description && importFields().some(([key])=>key==='description') && $('map-description').value!=='') mapped.description = read('name');
       const tvProfile=spreadsheetInventory?.layout || window.equipmentUI.profile();
@@ -957,7 +958,6 @@ function mappedRows(applyVenueEdits = true) {
       const hasMapped=Object.entries(mapped).some(([key,value])=>key==='custom_values'?Object.values(value).some(v=>String(v).trim()):String(value??'').trim());
       const details = extras.filter(name => hasMapped && name !== 'name' && read(name)).map(name => `${name.replaceAll('_',' ')}: ${read(name)}`);
       if(hasMapped && spreadsheetData.headers.filter(header=>normalizedHeader(header)==='location').length>1){spreadsheetData.headers.forEach((header,index)=>{if(normalizedHeader(header)==='location' && String(index)!==$('map-location')?.value && row[index])details.push(`Source Location (column ${index+1}): ${row[index]}`);});}
-      if(hasMapped && spreadsheetFile?.source_label)details.push('Source sheet: '+spreadsheetFile.source_label);
       mapped.notes = [mapped.notes, ...details].filter(Boolean).join(' · ');
       if(hasMapped && spreadsheetFile?.force_location)mapped.location=spreadsheetFile.default_location;
       else if(hasMapped && !mapped.location && (spreadsheetFile?.default_location || spreadsheetFile?.sheet_location))mapped.location=spreadsheetFile.default_location || spreadsheetFile.sheet_location;
@@ -1061,7 +1061,7 @@ function renderImportDraftDetails(){
     if(currentTab!=='equipment')return importAddressKey(row) && importAddressKey(row)===importAddressKey(saved);
     if(draft?.stock_mode==='tv_counts')return row.brand && row.model && row.brand.toLowerCase()===saved.brand.toLowerCase() && row.model.toLowerCase()===saved.model.toLowerCase();
     if(draft?.identifier){const id=String(inventoryValue(row,draft.identifier)).trim();return id && id.toLowerCase()===String(inventoryValue(saved,draft.identifier)).trim().toLowerCase();}
-    if(row.serial_number)return row.serial_number.toLowerCase()===saved.serial_number.toLowerCase();
+    if(row.serial_number)return serialKey(row.serial_number)===serialKey(saved.serial_number);
     return row.brand && row.model && row.location && ['brand','model','location','description'].every(key=>String(row[key] || '').toLowerCase()===String(saved[key] || '').toLowerCase());
   });
   const comparisons=combined.flatMap(entry=>{

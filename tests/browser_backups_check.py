@@ -1,4 +1,5 @@
-"""AV Backups navigation, upload, search, download, and delete check."""
+"""AV Backups navigation, upload, custom icon, search, download, and delete check."""
+import base64
 import shutil
 import sys
 import tempfile
@@ -16,6 +17,8 @@ with tempfile.TemporaryDirectory() as temp:
     try:
         backup = Path(temp) / 'control-room-show.xml'
         backup.write_bytes(b'<atem>known-good</atem>')
+        icon = Path(temp) / 'atem-icon.png'
+        icon.write_bytes(base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='))
         with sync_playwright() as p:
             browser = p.chromium.launch(executable_path=shutil.which('chromium') or None)
             page = browser.new_page(viewport={'width':1440, 'height':1000})
@@ -30,14 +33,18 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#backup-type').select_option('ATEM')
             page.locator('#backup-device').fill('ATEM 2 M/E Production Studio')
             page.locator('#backup-file').set_input_files(str(backup))
+            page.locator('#backup-icon').set_input_files(str(icon))
             page.locator('#backup-notes').fill('Known-good setup after show check')
             page.locator('#save-backup').click()
             page.locator('#backup-dialog').wait_for(state='hidden')
             page.wait_for_function("() => document.getElementById('backup-count').textContent === '1'")
             stored_files = list((Path(temp) / 'backups').iterdir())
-            assert len(stored_files) == 1
-            assert stored_files[0].read_bytes() == backup.read_bytes()
+            assert len(stored_files) == 2
+            assert backup.read_bytes() in [path.read_bytes() for path in stored_files]
+            assert icon.read_bytes() in [path.read_bytes() for path in stored_files]
             card=page.locator('.backup-card')
+            assert card.locator('.backup-custom-icon').is_visible()
+            page.wait_for_function("() => document.querySelector('.backup-custom-icon').naturalWidth > 0")
             assert 'ATEM 2 M/E Production Studio' in card.inner_text()
             assert 'control-room-show.xml' in card.inner_text()
             page.locator('#backup-search').fill('known-good')

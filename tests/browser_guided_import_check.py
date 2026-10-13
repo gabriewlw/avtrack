@@ -26,6 +26,9 @@ with tempfile.TemporaryDirectory() as tmp:
             def paste(text,mode=None):
                 page.locator('#network-paste' if page.locator('#equipment-panel').is_hidden() else '#equipment-paste').click()
                 page.locator('#paste-inventory-text').fill(text);page.locator('#continue-paste-inventory').click()
+                page.wait_for_function("() => document.getElementById('paste-location-dialog').open || document.getElementById('paste-layout-dialog').open")
+                if page.locator('#paste-location-dialog').is_visible():
+                    page.locator('#paste-batch-location').fill('Shelf');page.locator('#continue-paste-location').click()
                 page.locator('#paste-layout-dialog').wait_for(state='visible')
                 page.wait_for_function("() => !document.getElementById('paste-start-review').disabled")
                 if mode:page.locator('#paste-preview-confirmation').select_option(mode)
@@ -54,7 +57,9 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#inventory-import-review-save').click();page.locator('#import-summary-panel').wait_for(state='visible')
             assert len(app.inventory())==2
             assert 'Import complete' in page.locator('#import-summary-title').inner_text()
-            page.locator('#close-import-summary').click()
+            assert page.locator('#import-summary-close-action').is_visible()
+            assert 'Start another Excel paste' in page.locator('#import-summary-add-option').inner_text()
+            page.locator('#import-summary-close-action').click()
             # Each new paste can reorder, rename, add or omit headings independently.
             page.locator('#network-paste').click()
             page.locator('#paste-inventory-text').fill('Notes\tIP Address\tDevice Name\tMaintenance owner\nnew note\t10.20.1.3\tThird\tTara')

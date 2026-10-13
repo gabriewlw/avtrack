@@ -39,7 +39,8 @@
   const fields = ['description','brand','model','serial_number','quantity','location','notes'];
   const label = field => field === 'description' ? 'Item' : field.replaceAll('_', ' ').replace(/^./, s => s.toUpperCase());
   const displayName = item => String(inventoryValue(item,layout().primary_search) || [item.brand,item.model].filter(Boolean).join(' ') || `record ${item.id}`);
-  const serialNumbers = item => [...new Set(String(item.serial_number || '').split(/[\r\n|;]+/).map(value => value.trim()).filter(Boolean))];
+  const serialKey = value => String(value || '').replace(/\s+/g,'').toLowerCase();
+  const serialNumbers = item => [...new Set(String(item.serial_number || '').split(/[\r\n,|;]+/).map(value => value.replace(/\s+/g,'')).filter(Boolean))];
   function updateEquipmentSelection() {
     const visibleSelected = visibleItems.filter(item => selectedItems.has(item.id)).length;
     const check = $('select-visible-equipment');
@@ -106,7 +107,7 @@
     renderInventoryColumns();
     renderLocationButtons();
     renderCustomFilters();
-    const query = $('equipment-search').value.trim().toLowerCase();
+    const query = $('equipment-search').value.trim().toLowerCase(),serialQuery=serialKey(query);
     const reviewFilter = $('equipment-review-filter').value;
     const flaggedCount=items.filter(i => !i.data_checked && equipmentIssues(i).length).length;
     const flaggedLink=element('a','',`${flaggedCount} flagged`);
@@ -115,16 +116,16 @@
       document.createTextNode(`${items.filter(i => !i.data_checked).length} records not checked · `),
       flaggedCount ? flaggedLink : document.createTextNode('0 flagged'),
       document.createTextNode(showLocatedStatus() ? ` · ${items.filter(i => !i.item_confirmed).length} ${ipConfirmation()?'IPs':'locations'} not confirmed` : ''));
-    const results = items.filter(item => (layout().stock_mode!=='tv_counts'||$('equipment-show-zero').checked||item.quantity!==0) && [...fields.map(field=>item[field]),...Object.values(item.custom_values || {}),
+    const results = items.filter(item => (layout().stock_mode!=='tv_counts'||$('equipment-show-zero').checked||item.quantity!==0) && ([...fields.map(field=>item[field]),...Object.values(item.custom_values || {}),
       ...(showLocatedStatus() ? [item.item_confirmed ? confirmedLabel() : pendingLabel()] : []),
       item.data_checked ? 'Record checked' : equipmentIssues(item).length ? 'Check flagged record' : 'Check record'
-    ].some(value => String(value ?? '').toLowerCase().includes(query)) &&
+    ].some(value => String(value ?? '').toLowerCase().includes(query)) || (serialQuery && serialKey(item.serial_number).includes(serialQuery))) &&
       [...customFilterValues].every(([key,value]) => !value || String(inventoryValue(item,key)) === value) &&
       (!$('equipment-location-filter').value || item.location === $('equipment-location-filter').value) &&
       (!$('equipment-status-filter').value || Boolean(item.item_confirmed) === ($('equipment-status-filter').value === 'found')) &&
       (!reviewFilter || (reviewFilter === 'checked' ? item.data_checked : reviewFilter === 'pending' ? !item.data_checked : !item.data_checked && equipmentIssues(item).length)));
     if (query) results.sort((a,b) => {
-      const rank = item => String(inventoryValue(item,layout().primary_search)).toLowerCase() === query ? 0 : String(inventoryValue(item,layout().primary_search)).toLowerCase().includes(query) ? 1 : item.serial_number.toLowerCase().includes(query) ? 2 : item.model.toLowerCase().includes(query) ? 3 : 4;
+      const rank = item => (layout().primary_search==='serial_number'?serialKey(inventoryValue(item,layout().primary_search)):String(inventoryValue(item,layout().primary_search)).toLowerCase()) === (layout().primary_search==='serial_number'?serialQuery:query) ? 0 : (layout().primary_search==='serial_number'?serialKey(inventoryValue(item,layout().primary_search)):String(inventoryValue(item,layout().primary_search)).toLowerCase()).includes(layout().primary_search==='serial_number'?serialQuery:query) ? 1 : serialKey(item.serial_number).includes(serialQuery) ? 2 : item.model.toLowerCase().includes(query) ? 3 : 4;
       return rank(a) - rank(b);
     });
     visibleItems = results;
@@ -481,7 +482,7 @@
     $('save-equipment').textContent = editingId ? 'Save changes' : 'Save equipment';
     fields.forEach(field=>{const input=equipmentForm.elements[field];const label=input.closest('label');const col=displayColumns().find(col=>col.key===field);label.hidden=!col;if(!col){input.value=item?.[field] ?? '';return;}
       const {wrapper,control}=inventoryInput(col,inventoryValue(item || {},field),{locations:locations()});control.id='equipment-'+field;control.name=field;
-      if(field==='serial_number'){control.placeholder=Number(item?.quantity)>1?'Separate serial numbers with |':'Serial number';control.title='For multiple units, separate each serial number with a vertical bar (|).';}
+      if(field==='serial_number'){control.placeholder=Number(item?.quantity)>1?'Separate serial numbers with commas':'Serial number';control.title='For multiple units, separate serial numbers with commas. Spaces inside serial numbers are ignored; letters, numbers, and special characters are allowed.';}
       const oldWrapper=input.closest('.inventory-value-input');(oldWrapper || input).replaceWith(wrapper);
       if(label.firstChild.nodeType===Node.TEXT_NODE)label.firstChild.textContent=col.label+' ';
       if(col.type==='location'){const name=element('input');name.type='text';name.maxLength=120;name.placeholder='New storage location';name.setAttribute('aria-label','New storage location');name.hidden=true;const add=element('button','quiet','New location');add.type='button';add.onclick=()=>{if(name.hidden){name.hidden=false;add.textContent='Add location';name.focus();return;}if(name.value.trim()){control.add(new Option(name.value.trim(),name.value.trim()));control.value=name.value.trim();name.value='';name.hidden=true;add.textContent='New location';}};wrapper.append(name,add);}

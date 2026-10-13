@@ -137,7 +137,8 @@ def profile_identifier(row,profile):
     if profile.get('stock_mode')=='tv_counts':
         return ('tv',row['brand'].strip().casefold(),row['model'].strip().casefold()) if row.get('brand') and row.get('model') else None
     value=column_value(row,profile['identifier']) if profile.get('identifier') else ''
-    return str(value).strip().casefold() if value not in ('',None) else None
+    if value in ('',None):return None
+    return re.sub(r'\s+','',str(value)).casefold() if profile.get('identifier')=='serial_number' else str(value).strip().casefold()
 
 
 def normalize_template_row(row, profile):

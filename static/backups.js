@@ -20,7 +20,10 @@
       const card = element('article', 'backup-card');
       const top = element('div', 'backup-card-top');
       const badge = element('span', 'backup-type');
-      badge.append(element('b', '', typeMark(item.equipment_type)), document.createTextNode(item.equipment_type));
+      if(item.has_icon){
+        const icon=element('img','backup-custom-icon');icon.src=`/api/backups/${item.id}/icon`;icon.alt='';
+        badge.append(icon,document.createTextNode(item.equipment_type));
+      }else badge.append(element('b', '', typeMark(item.equipment_type)), document.createTextNode(item.equipment_type));
       top.append(badge, element('time', '', formatDate(item.created_at)));
       const name = element('h3', '', item.device_name);
       const file = element('div', 'backup-file');
@@ -68,11 +71,13 @@
   form.onsubmit = async event => {
     event.preventDefault();
     const file = $('backup-file').files[0];
+    const icon = $('backup-icon').files[0];
     if (!file) return;
     const submit = $('save-backup'); submit.disabled = true; $('backup-form-error').hidden = true;
     try {
       if (file.size > 25_000_000) throw new Error('Choose a file no larger than 25 MB.');
-      await api('/api/backups', 'POST', {equipment_type:$('backup-type').value, device_name:$('backup-device').value, filename:file.name, content:await fileContent(file), notes:$('backup-notes').value});
+      if(icon && (!['image/png','image/jpeg','image/webp'].includes(icon.type) || icon.size > 1_000_000)) throw new Error('Choose a PNG, JPEG, or WebP icon no larger than 1 MB.');
+      await api('/api/backups', 'POST', {equipment_type:$('backup-type').value, device_name:$('backup-device').value, filename:file.name, content:await fileContent(file), icon:icon?{mime_type:icon.type,content:await fileContent(icon)}:null, notes:$('backup-notes').value});
       dialog.close(); loaded = false; await load(); toast('Backup saved.');
     } catch (error) {
       $('backup-form-error').textContent = error.message; $('backup-form-error').hidden = false;

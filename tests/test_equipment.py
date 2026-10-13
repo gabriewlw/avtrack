@@ -35,6 +35,13 @@ class EquipmentTests(unittest.TestCase):
         self.assertEqual(self.request('/api/equipment', 'POST', ITEM)[0], 201)
         self.assertEqual(self.request('/api/equipment', 'POST', dict(ITEM, serial_number='atem-001', location='Theater'))[0], 409)
 
+    def test_serial_lists_use_commas_ignore_spaces_and_keep_special_characters(self):
+        status, saved = self.request('/api/equipment', 'POST', dict(ITEM, serial_number=' AB C-1 | D/E .2 ; AB C-1 ', quantity=2))
+        self.assertEqual(status, 201)
+        self.assertEqual(saved['serial_number'], 'ABC-1, D/E.2')
+        self.assertEqual(self.request('/api/equipment', 'POST', dict(ITEM, serial_number='A B C-1', location='Theater'))[0], 201)
+        self.assertEqual(self.request('/api/equipment', 'POST', dict(ITEM, serial_number='ABC-1', location='Store'))[0], 409)
+
     def test_import_roundtrip_and_atomic_errors(self):
         payload = {'version':1,'equipment':[ITEM, dict(ITEM, serial_number='', brand='Neutrik', model='XLR', quantity=20)]}
         self.assertEqual(self.request('/api/equipment/import', 'POST', payload)[1], {'added':2,'skipped':0})
