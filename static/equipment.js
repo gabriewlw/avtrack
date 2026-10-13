@@ -39,6 +39,7 @@
   const fields = ['description','brand','model','serial_number','quantity','location','notes'];
   const label = field => field === 'description' ? 'Item' : field.replaceAll('_', ' ').replace(/^./, s => s.toUpperCase());
   const displayName = item => String(inventoryValue(item,layout().primary_search) || [item.brand,item.model].filter(Boolean).join(' ') || `record ${item.id}`);
+  const serialNumbers = item => [...new Set(String(item.serial_number || '').split(/[\r\n|;]+/).map(value => value.trim()).filter(Boolean))];
   function updateEquipmentSelection() {
     const visibleSelected = visibleItems.filter(item => selectedItems.has(item.id)).length;
     const check = $('select-visible-equipment');
@@ -150,6 +151,7 @@
     $('equipment-table').hidden = !results.length;
     $('equipment-rows').replaceChildren(...results.map(item => {
       const row = element('tr');
+      let notesCell=null;
       row.dataset.itemId = item.id;
       displayColumns().forEach((column,index) => {
         const field=column.key;
@@ -176,24 +178,53 @@
           if(index===0){wrapper.prepend(selectionControl(item.id,`equipment ${displayName(item)}`,selectedItems,updateEquipmentSelection));}
         }
         if(field==='location'&&column.type==='location'&&inventoryValue(item,field)){const button=element('button','choice-button',item.location);button.type='button';colorVenueButton(button,item.location);button.onclick=()=>{$('equipment-location-filter').value=item.location;renderEquipment();};cell.replaceChildren(button);}
+        if(field==='serial_number'&&Number(item.quantity)>1){
+          const serials=serialNumbers(item),select=element('select','equipment-serial-list');
+          select.setAttribute('aria-label',`Serial numbers for ${displayName(item)}`);
+          if(serials.length)serials.forEach(serial=>select.append(new Option(serial,serial)));
+          else select.append(new Option('No serial numbers recorded',''));
+          select.title=serials.length?`${serials.length} serial number${serials.length===1?'':'s'}`:'Serial numbers are missing';
+          cell.replaceChildren(select);
+        }
         if(field==='notes'){
           const button=element('button',`quiet equipment-notes-button${item.notes?' has-notes':''}`,item.notes?'View':'Add');button.type='button';button.disabled=pendingConfirmations.has(item.id);button.setAttribute('aria-label',`${item.notes?'Edit':'Add'} notes for ${displayName(item)}`);button.onclick=()=>openNotes(item);
           const content=element('div','equipment-notes-cell');if(index===0)content.append(selectionControl(item.id,`equipment ${displayName(item)}`,selectedItems,updateEquipmentSelection));content.append(button);cell.replaceChildren(content);
         }
         cell.title = String(inventoryValue(item,field));
-        cell.dataset.label = column.label; row.append(cell);
+        cell.dataset.label = column.key==='quantity'?'Qnt':column.label;if(field==='notes')notesCell=cell;else row.append(cell);
         if (index === displayColumns().length-1) {
+          const recordIssues=equipmentIssues(item);
+          if(showLocatedStatus()) {
+          const status = element('td', 'equipment-status'); status.dataset.label = 'Status';
+          const control = element('label', `equipment-confirm-label${item.item_confirmed ? ' confirmed' : ''}`);
+          const check = element('input', 'equipment-confirm'); check.type = 'checkbox';
+          check.checked = Boolean(item.item_confirmed); check.disabled = pendingConfirmations.has(item.id);
+          check.setAttribute('aria-label', `${ipConfirmation()?'Confirm IP for':'Mark equipment'} ${displayName(item)}${ipConfirmation()?'':' as located'}`);
+          control.title=recordIssues.join(' · ') || 'Confirm this item in the inventory';control.append(check, element('span', '', item.item_confirmed ? confirmedLabel() : pendingLabel()));
+          check.onchange = async () => {
+            const write = api(`/api/equipment/${item.id}/confirm`, 'POST', {...item, item_confirmed:check.checked});
+            pendingConfirmations.set(item.id, write); check.disabled = true;
+            try { const updated = await write;items = items.map(record => record.id === updated.id ? updated : record); }
+            catch(error) { toast('Could not update confirmation: ' + error.message); }
+            finally { pendingConfirmations.delete(item.id); renderEquipment(); }
+          };
+          if(layout().template || ipConfirmation()){const button=element('button',`ip-confirm${item.item_confirmed?' confirmed':' pending'}`,item.item_confirmed?confirmedLabel():pendingLabel());button.type='button';button.title=control.title;button.disabled=check.disabled;button.setAttribute('aria-pressed',String(!!item.item_confirmed));button.setAttribute('aria-label',check.getAttribute('aria-label'));button.onclick=()=>{button.disabled=true;check.checked=!check.checked;check.onchange();};status.append(button);}else status.append(control); row.append(status);
+          }
           if(recordChecksEnabled()){
-          const review = element('td', 'equipment-review'); review.dataset.label = 'Record check';
-          const issues = equipmentIssues(item);
-          const button = element('button', item.data_checked ? 'quiet record-checked' : 'quiet', item.data_checked ? 'Record checked' : issues.length ? 'Check flagged record' : 'Check record');
+          const review = element('td', 'equipment-review'); review.dataset.label = 'Stock check';
+          const issues = recordIssues;
+          const checkedDate=item.data_checked_at?new Date(item.data_checked_at):null;
+          const button = element('button', item.data_checked ? 'quiet record-checked' : 'quiet', checkedDate?checkedDate.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):issues.length ? 'Check flagged record' : 'Never checked');
           button.type = 'button'; button.disabled = pendingConfirmations.has(item.id);
-          button.title = issues.join(' · ') || 'Verify against the old inventory file';
+          button.title = checkedDate?`Last confirmed ${checkedDate.toLocaleString()}. Click to view history or confirm again.`:'Click to confirm this inventory record';
           button.setAttribute('aria-label', `Review record ${displayName(item)}`);
           button.onclick = async () => {
             $('equipment-record-review-details').textContent = isTVInventory() ? `${displayName(item)} · Total ${item.quantity ?? 'unknown'}` : `${item.serial_number || 'No serial'} · ${displayName(item)} · ${item.location || 'No location'} · Quantity ${item.quantity ?? 'unknown'}`;
             $('equipment-record-review-issues').textContent = issues.length ? issues.join(' · ') + '. Use Edit to correct the record, or acknowledge these blanks after checking the source.' : 'Check these details against the old inventory file.';
             $('equipment-record-review-error').hidden = true;
+            let history=$('equipment-record-review-history');if(!history){history=element('div','stock-check-history');history.id='equipment-record-review-history';$('equipment-record-review-error').before(history);}
+            history.replaceChildren(element('p','dialog-intro','Loading confirmation history…'));
+            api(`/api/equipment/${item.id}/record-checks`).then(({checks})=>{if(!checks.length)history.replaceChildren(element('p','dialog-intro','No previous confirmations.'));else{const list=element('ul');checks.forEach(check=>list.append(element('li','',new Date(check.checked_at).toLocaleString())));history.replaceChildren(element('strong','','Confirmation history'),list);}}).catch(error=>history.replaceChildren(element('p','error','Could not load confirmation history: '+error.message)));
             $('edit-equipment-record-review').onclick = () => { $('equipment-record-review-dialog').close(); openEquipment(item); };
             $('save-equipment-record-review').onclick = async () => {
               const control = $('save-equipment-record-review'); control.disabled = true;
@@ -241,29 +272,12 @@
             };
             cell.append(button);row.append(cell);
           }
-          if(showLocatedStatus()) {
-          const status = element('td', 'equipment-status'); status.dataset.label = 'Status';
-          const control = element('label', `equipment-confirm-label${item.item_confirmed ? ' confirmed' : ''}`);
-          const check = element('input', 'equipment-confirm'); check.type = 'checkbox';
-          check.checked = Boolean(item.item_confirmed); check.disabled = pendingConfirmations.has(item.id);
-          check.setAttribute('aria-label', `${ipConfirmation()?'Confirm IP for':'Mark equipment'} ${displayName(item)}${ipConfirmation()?'':' as located'}`);
-          control.append(check, element('span', '', item.item_confirmed ? confirmedLabel() : pendingLabel()));
-          check.onchange = async () => {
-            const write = api(`/api/equipment/${item.id}/confirm`, 'POST', {...item, item_confirmed:check.checked});
-            pendingConfirmations.set(item.id, write); check.disabled = true;
-            try {
-              const updated = await write;
-              items = items.map(record => record.id === updated.id ? updated : record);
-            } catch(error) { toast('Could not update confirmation: ' + error.message); }
-            finally { pendingConfirmations.delete(item.id); renderEquipment(); }
-          };
-          if(layout().template || ipConfirmation()){const button=element('button',`ip-confirm${item.item_confirmed?' confirmed':' pending'}`,item.item_confirmed?confirmedLabel():pendingLabel());button.type='button';button.disabled=check.disabled;button.setAttribute('aria-pressed',String(!!item.item_confirmed));button.setAttribute('aria-label',check.getAttribute('aria-label'));button.onclick=()=>{button.disabled=true;check.checked=!check.checked;check.onchange();};status.append(button);}else status.append(control); row.append(status);
-          }
         }
       });
+      if(notesCell)row.append(notesCell);
       const actions = element('td', 'equipment-actions'); actions.dataset.label = 'Actions';
-      const edit = element('button', 'quiet', 'Edit'); edit.setAttribute('aria-label', `Edit equipment ${displayName(item)}`); edit.onclick = () => openEquipment(item);
-      const remove = element('button', 'quiet', 'Delete'); remove.setAttribute('aria-label', `Delete equipment ${displayName(item)}`);
+      const edit = element('button', 'quiet equipment-action-icon', '✎'); edit.title='Edit';edit.setAttribute('aria-label', `Edit equipment ${displayName(item)}`); edit.onclick = () => openEquipment(item);
+      const remove = element('button', 'quiet equipment-action-icon', '🗑'); remove.title='Delete';remove.setAttribute('aria-label', `Delete equipment ${displayName(item)}`);
       remove.onclick = () => {
         deletingItem = item;
         $('equipment-delete-description').textContent = `${displayName(item)} · Quantity ${item.quantity} · ${item.location}`;
@@ -279,11 +293,11 @@
   }
   function renderInventoryColumns() {
     const heading=$('select-visible-equipment').closest('label');
-    heading.querySelector('span').textContent=displayColumns()[0].label;
-    const baseWidths={description:140,brand:80,model:100,serial_number:120,quantity:65,location:110,notes:120,total_count:65};
-    const widths=displayColumns().map((col,index)=>{
-      if(col.key==='notes')return 74+(index===0?30:0);
-      const labelWidth=Math.min(220,col.label.length*8+20+(index===0?30:0));
+    const orderedColumns=displayColumns().filter(column=>column.key!=='notes'),notesColumn=displayColumns().find(column=>column.key==='notes');
+    heading.querySelector('span').textContent=(orderedColumns[0]||notesColumn).label;
+    const baseWidths={description:140,brand:80,model:100,serial_number:120,quantity:44,location:110,notes:120,total_count:65};
+    const widths=orderedColumns.map((col,index)=>{
+      const shownLabel=col.key==='quantity'?'Qnt':col.label,labelWidth=Math.min(220,shownLabel.length*8+20+(index===0?30:0));
       const controlWidth=col.key==='orientation' ? Math.max(164,(col.options || []).reduce((width,value)=>width+value.length*6+24,8)) : col.type==='buttons' ? (col.options || []).reduce((width,value)=>width+value.length*6+24,0) : col.type==='checkbox' ? 100 : 0;
       let modelWidth=0;
       if(col.key==='model'&&(layout().template==='tv'||layout().stock_mode==='tv_counts')){
@@ -293,10 +307,10 @@
       }
       return Math.max(baseWidths[col.key] || 120,labelWidth,controlWidth,modelWidth);
     });
-    widths.push(...(recordChecksEnabled()?[115]:[]),...(stockChecksEnabled()?[126]:[]),...(showLocatedStatus()?[110]:[]),96);
+    widths.push(...(showLocatedStatus()?[110]:[]),...(recordChecksEnabled()?[115]:[]),...(stockChecksEnabled()?[126]:[]),...(notesColumn?[74]:[]),70);
     const totalWidth=widths.reduce((total,width)=>total+width,0);
-    const columns=displayColumns().map((col,index)=>{const th=element('th','',index===0?'':col.label);th.scope='col';if(index===0)th.append(heading);th.style.width=`${widths[index]/totalWidth*100}%`;return th;});
-    [...(recordChecksEnabled()?['Record check']:[]),...(stockChecksEnabled()?['Last checked']:[]),...(showLocatedStatus()?['Status']:[]),'Actions'].forEach((text,index)=>{const th=element('th','',text);th.scope='col';th.style.width=`${widths[displayColumns().length+index]/totalWidth*100}%`;columns.push(th);});
+    const columns=orderedColumns.map((col,index)=>{const th=element('th','',index===0?'':col.key==='quantity'?'Qnt':col.label);th.scope='col';if(index===0)th.append(heading);th.style.width=`${widths[index]/totalWidth*100}%`;return th;});
+    [...(showLocatedStatus()?['Status']:[]),...(recordChecksEnabled()?['Stock check']:[]),...(stockChecksEnabled()?['Last checked']:[]),...(notesColumn?['Notes']:[]),'Actions'].forEach((text,index)=>{const th=element('th','',text);th.scope='col';th.style.width=`${widths[orderedColumns.length+index]/totalWidth*100}%`;columns.push(th);});
     $('equipment-table').querySelector('thead tr').replaceChildren(...columns);
     $('equipment-table').style.minWidth=`${Math.max(850,totalWidth)}px`;
     $('equipment-search').placeholder='Search all inventory columns…';
@@ -467,6 +481,7 @@
     $('save-equipment').textContent = editingId ? 'Save changes' : 'Save equipment';
     fields.forEach(field=>{const input=equipmentForm.elements[field];const label=input.closest('label');const col=displayColumns().find(col=>col.key===field);label.hidden=!col;if(!col){input.value=item?.[field] ?? '';return;}
       const {wrapper,control}=inventoryInput(col,inventoryValue(item || {},field),{locations:locations()});control.id='equipment-'+field;control.name=field;
+      if(field==='serial_number'){control.placeholder=Number(item?.quantity)>1?'Separate serial numbers with |':'Serial number';control.title='For multiple units, separate each serial number with a vertical bar (|).';}
       const oldWrapper=input.closest('.inventory-value-input');(oldWrapper || input).replaceWith(wrapper);
       if(label.firstChild.nodeType===Node.TEXT_NODE)label.firstChild.textContent=col.label+' ';
       if(col.type==='location'){const name=element('input');name.type='text';name.maxLength=120;name.placeholder='New storage location';name.setAttribute('aria-label','New storage location');name.hidden=true;const add=element('button','quiet','New location');add.type='button';add.onclick=()=>{if(name.hidden){name.hidden=false;add.textContent='Add location';name.focus();return;}if(name.value.trim()){control.add(new Option(name.value.trim(),name.value.trim()));control.value=name.value.trim();name.value='';name.hidden=true;add.textContent='New location';}};wrapper.append(name,add);}

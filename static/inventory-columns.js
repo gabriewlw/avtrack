@@ -5,6 +5,7 @@ const inventoryTemplatesReady=fetch('/inventory-templates.json',{signal:inventor
 inventoryTemplatesReady.catch(()=>{});
 const defaultInventoryLayout = {"columns": [{"key": "description", "label": "Item", "type": "text", "important": true, "filter": "none", "options": []}, {"key": "brand", "label": "Brand", "type": "text", "important": true, "filter": "none", "options": []}, {"key": "model", "label": "Model", "type": "text", "important": true, "filter": "none", "options": []}, {"key": "serial_number", "label": "Serial number", "type": "text", "important": true, "filter": "none", "options": []}, {"key": "quantity", "label": "Quantity", "type": "text", "important": true, "filter": "none", "options": []}, {"key": "location", "label": "Location", "type": "text", "important": true, "filter": "buttons", "options": []}, {"key": "notes", "label": "Notes", "type": "text", "important": false, "filter": "none", "options": []}], "primary_search": "serial_number", "identifier": ""};
 const scalaInventoryLayout = {"columns": [{"key": "asset_id", "label": "ID", "type": "text", "important": true, "filter": "none", "options": []}, {"key": "location", "label": "Location", "type": "text", "important": true, "filter": "none", "options": []}, {"key": "monitor_model", "label": "Monitor model", "type": "text", "important": true, "filter": "dropdown", "options": []}, {"key": "orientation", "label": "Orientation", "type": "buttons", "important": false, "filter": "dropdown", "options": ["Vertical", "Horizontal"]}, {"key": "notes", "label": "Notes", "type": "text", "important": false, "filter": "none", "options": []}], "primary_search": "asset_id", "identifier": "asset_id", "show_status": false};
+defaultInventoryLayout.columns.find(column=>column.key==='quantity').label='Qnt';
 const inventoryBaseFields = new Set(['description','brand','model','serial_number','quantity','location','notes']);
 const inventoryValue = (row,key) => inventoryBaseFields.has(key) ? row[key] ?? '' : row.custom_values?.[key] ?? '';
 function inventoryInput(column,value = '', {allowClear = true, locations = []} = {}) {
@@ -14,6 +15,7 @@ function inventoryInput(column,value = '', {allowClear = true, locations = []} =
     column = {...column,type:'buttons',options:column.options.length ? column.options : ['Vertical','Horizontal']};
     allowClear = false;
   }
+  if(column.key==='location')allowClear=false;
   if(column.type==='count')column={...column,type:'select',options:Array.from({length:51-(column.minimum ?? 1)},(_,index)=>String(index+(column.minimum ?? 1)))};
   if(column.type==='location')column={...column,type:'select',options:[...new Set([...locations,String(value || '')].filter(Boolean))].sort()};
   const wrapper = element('div', 'inventory-value-input');
@@ -21,7 +23,7 @@ function inventoryInput(column,value = '', {allowClear = true, locations = []} =
   control.dataset.columnKey = column.key; control.setAttribute('aria-label',column.label);
   control.value = value; control.maxLength = ['notes','description'].includes(column.key) ? 2000 : 120;
   if (column.type === 'select') {
-    control.append(new Option('Leave blank',''),...column.options.map(value => new Option(value,value)));
+    control.append(...(allowClear?[new Option('Leave blank','')]:[]),...column.options.map(value => new Option(value,value)));
     if(value&&!column.options.includes(value))control.append(new Option(column.allow_custom?value:'Review: '+value,value));
     control.value = value;
   } else if (column.type === 'checkbox') {

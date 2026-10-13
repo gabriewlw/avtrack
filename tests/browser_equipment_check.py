@@ -28,7 +28,7 @@ with tempfile.TemporaryDirectory() as temp:
             csv_file.write_text('Item,Brand,Model,Serial number,Quantity,Location,Notes\n'
                                 'HDMI switcher,Blackmagic Design,ATEM Mini Pro,ATEM-01,1,Broadcast center,With PSU\n'
                                 'Handheld microphone,Shure,SM58,MIC-01,1,Main lounge,With cable\n'
-                                'Audio cable,Neutrik,XLR,,20,Main lounge,Spare stock\n')
+                                'Audio cable,Neutrik,XLR,CABLE-01|CABLE-02,20,Main lounge,Spare stock\n')
             page.locator('#import-file').set_input_files(str(csv_file))
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             assert page.locator('#map-description').input_value() == '0'
@@ -42,9 +42,14 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#inventory-import-review-all').check();page.locator('#inventory-import-review-save').click()
             page.locator('#import-summary-panel').wait_for(state='visible');page.locator('#close-import-summary').click()
             page.wait_for_function("() => document.querySelectorAll('#equipment-rows tr').length === 3")
+            cable = page.locator('#equipment-rows tr').filter(has_text='Audio cable')
+            assert cable.locator('.equipment-serial-list option').all_text_contents() == ['CABLE-01','CABLE-02']
+            page.locator('#equipment-search').fill('CABLE-02')
+            assert page.locator('#equipment-rows tr').count() == 1 and 'Audio cable' in page.locator('#equipment-rows').inner_text()
+            page.locator('#equipment-search').fill('')
             assert all(row['item_confirmed'] == 0 for row in app.equipment_inventory())
             headers=page.locator('#equipment-table th').all_text_contents()
-            assert headers == ['Item','Brand','Model','Serial number','Quantity','Location','Notes','Record check','Status','Actions'],headers
+            assert headers == ['Item','Brand','Model','Serial number','Qnt','Location','Status','Stock check','Notes','Actions'],headers
             page.locator('#equipment-location-filter').select_option('Main lounge')
             assert page.locator('#equipment-rows tr').count() == 2
             microphone = page.locator('#equipment-rows tr').filter(has_text='Handheld microphone')

@@ -39,7 +39,7 @@
         },
         {
           "key": "quantity",
-          "label": "Quantity",
+          "label": "Qnt",
           "type": "text",
           "important": true,
           "filter": "none",
@@ -100,7 +100,7 @@
         },
         {
           "key": "location",
-          "label": "Location",
+          "label": "Where",
           "type": "text",
           "important": true,
           "filter": "none",
@@ -547,7 +547,7 @@
         },
         {
           "key": "quantity",
-          "label": "Quantity",
+          "label": "Qnt",
           "type": "count",
           "important": true,
           "filter": "none",

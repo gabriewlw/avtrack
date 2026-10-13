@@ -26,10 +26,14 @@ with tempfile.TemporaryDirectory() as temporary:
                 page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled")
                 page.locator('#equipment-inventory-select').select_option(str(inventory['id']))
                 page.wait_for_function('(name)=>document.getElementById("equipment-inventory-title").textContent===name && !document.getElementById("equipment-inventory-select").disabled',arg=inventory['name'])
-            def paste(text):
+            def paste(text,location=''):
                 page.locator('#equipment-paste').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
                 assert page.locator('#continue-paste-inventory').is_disabled()
-                page.locator('#paste-inventory-text').fill(text);page.locator('#continue-paste-inventory').click()
+                page.locator('#paste-inventory-text').fill(text)
+                page.locator('#continue-paste-inventory').click()
+                if location:
+                    page.locator('#paste-location-dialog').wait_for(state='visible')
+                    page.locator('#paste-batch-location').fill(location);page.locator('#continue-paste-location').click()
                 page.wait_for_function("() => document.getElementById('paste-confirmation-dialog').open || document.getElementById('paste-layout-dialog').open")
                 if page.locator('#paste-confirmation-dialog').is_visible():page.locator('#continue-paste-confirmation').click()
                 page.locator('#paste-layout-dialog').wait_for(state='visible')
@@ -83,18 +87,17 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#close-import-summary').click()
             # Excel tabs feed the same stages, including location deletion.
             choose(parts)
-            paste('Description\tBrand\tModel\tSerial Number\tQuantity\tLocation\tNotes\nCable\tSony\tX\tS1\t1\tLocker A\tnote\nCable\tSony\tY\tS2\t2\tLocker B\tnote\n')
-            page.get_by_role('button',name='Exclude location Locker A and skip its items',exact=True).click()
+            paste('Description\tBrand\tModel\tSerial Number\tQuantity\tLocation\tNotes\nCable\tSony\tX\tS1\t1\tLocker A\tnote\nCable\tSony\tY\tS2\t2\tLocker B\tnote\n','Locker B')
             page.locator('#confirm-import').click();page.locator('#spreadsheet-dialog').wait_for(state='hidden')
-            page.wait_for_function("() => document.getElementById('equipment-records').textContent==='1'")
-            assert app.equipment_inventory(parts['id'])[0]['serial_number']=='S2'
+            page.wait_for_function("() => document.getElementById('equipment-records').textContent==='2'")
+            assert {row['location'] for row in app.equipment_inventory(parts['id'])}=={'Locker B'}
             page.locator('#import-summary-panel').wait_for(state='visible');page.locator('#close-import-summary').click()
             # Another worksheet appends in the same inventory; its location fills blanks only.
             page.locator('#equipment-paste').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
             page.locator('#paste-inventory-sheet').fill('Locker C worksheet')
-            page.locator('#paste-inventory-location').fill('Locker C')
             page.locator('#paste-inventory-text').fill('Description\tBrand\tModel\tSerial Number\tQuantity\tLocation\tNotes\nCable\tSony\tZ\tS3\t1\t\tnote\nCable\tSony\tZ\tS4\t1\tLocker D\tnote\n\t\t\t\t\t\t\n')
             page.locator('#continue-paste-inventory').click()
+            page.locator('#paste-batch-location').fill('locker b');page.locator('#continue-paste-location').click()
             page.wait_for_function("() => document.getElementById('paste-confirmation-dialog').open || document.getElementById('paste-layout-dialog').open")
             if page.locator('#paste-confirmation-dialog').is_visible():page.locator('#continue-paste-confirmation').click()
             page.locator('#paste-layout-dialog').wait_for(state='visible')
@@ -106,28 +109,25 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#spreadsheet-dialog').wait_for(state='visible')
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             assert page.locator('#confirm-import').inner_text()=='Apply setup & review 2 rows'
-            assert 'Locker C' in page.locator('#spreadsheet-preview').inner_text()
-            assert 'Locker D' in page.locator('#spreadsheet-preview').inner_text()
+            assert 'Locker B' in page.locator('#spreadsheet-preview').inner_text()
+            assert 'Locker D' not in page.locator('#spreadsheet-preview').inner_text()
+            page.locator('#import-complete-rows').uncheck()
             page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
-            first_location=page.locator('#inventory-import-review-title').inner_text()
-            assert first_location in ('Review Locker C','Review Locker D')
-            assert 'Unusual location' in page.locator('#inventory-import-review-rows').inner_text()
-            page.locator('#inventory-import-review-all').check();page.locator('#inventory-import-review-save').click()
-            page.wait_for_function('(title)=>document.getElementById("inventory-import-review-title").textContent!==title',arg=first_location)
-            assert page.locator('#inventory-import-review-title').inner_text() in ('Review Locker C','Review Locker D')
+            assert page.locator('#inventory-import-review-title').inner_text()=='Review Locker B'
+            assert page.locator('#inventory-import-review-rows tr').count()==2
             page.locator('#inventory-import-review-all').check();page.locator('#inventory-import-review-save').click()
             page.locator('#import-summary-panel').wait_for(state='visible')
-            page.wait_for_function("() => document.getElementById('equipment-records').textContent==='3'")
+            page.wait_for_function("() => document.getElementById('equipment-records').textContent==='4'")
             saved=app.equipment_inventory(parts['id'])
-            assert {row['serial_number'] for row in saved}=={'S2','S3','S4'}
-            assert next(row for row in saved if row['serial_number']=='S3')['location']=='Locker C'
-            assert next(row for row in saved if row['serial_number']=='S4')['location']=='Locker D'
+            assert {row['serial_number'] for row in saved}=={'S1','S2','S3','S4'}
+            assert {row['location'] for row in saved}=={'Locker B'}
+            assert page.locator('#equipment-location-buttons button').count()==1
             assert 'Source sheet: Locker C worksheet' in next(row for row in saved if row['serial_number']=='S3')['notes']
             page.locator('#close-import-summary').click()
             # Repeated stock models can be merged deliberately; quantities with comments stay reviewable.
             page.locator('#equipment-paste').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
             page.locator('#paste-inventory-text').fill('Description\tBrand\tModel\tSerial Number\tQuantity\tLocation\tNotes\nReceiver\tAtlona\tRX-1\t\t2 USED\tLocker E\tFirst\nReceiver\tAtlona\tRX-1\t\t3\tLocker E\tSecond\n')
-            page.locator('#continue-paste-inventory').click();page.locator('#paste-layout-dialog').wait_for(state='visible')
+            page.locator('#continue-paste-inventory').click();page.locator('#paste-batch-location').fill('Locker E');page.locator('#continue-paste-location').click();page.locator('#paste-layout-dialog').wait_for(state='visible')
             page.wait_for_function("() => !document.getElementById('paste-start-review').disabled")
             assert 'Numeric field · 1 value has extra text to review' in page.locator('#paste-field-analysis').inner_text()
             assert not page.locator('#paste-merge-models').is_checked()
@@ -136,7 +136,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#paste-preview-auto').uncheck();page.locator('#paste-start-review').click()
             page.locator('#inventory-import-review').wait_for(state='visible')
             assert page.locator('#inventory-import-review-rows tr').count()==1
-            assert page.get_by_label('Quantity, row 2, 3',exact=True).input_value()=='5'
+            assert page.get_by_label('Qnt, row 2, 3',exact=True).input_value()=='5'
             notes=page.get_by_role('button',name='Edit notes for row 2, 3',exact=True)
             assert all(text in notes.get_attribute('title') for text in ['First','Second','Quantity detail: 2 USED'])
             page.locator('#inventory-import-review-all').check();page.locator('#inventory-import-review-save').click()

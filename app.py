@@ -1,5 +1,7 @@
 """AVTrack server. Python 3.12+; install requirements.txt for Excel import."""
 import csv
+import base64
+import binascii
 from contextlib import nullcontext
 import import_sessions
 import io
@@ -48,7 +50,7 @@ EQUIPMENT_SCHEMA = """CREATE TABLE {table} (
     description TEXT NOT NULL DEFAULT '', serial_number TEXT NOT NULL DEFAULT '',
     quantity INTEGER, location TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '',
     item_confirmed INTEGER NOT NULL DEFAULT 0, data_checked INTEGER NOT NULL DEFAULT 0,
-    last_checked_at TEXT, custom_values TEXT NOT NULL DEFAULT '{{}}',
+    last_checked_at TEXT, data_checked_at TEXT, custom_values TEXT NOT NULL DEFAULT '{{}}',
     inventory_id INTEGER NOT NULL DEFAULT 1 REFERENCES equipment_inventories(id),
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"""
 
@@ -120,14 +122,18 @@ def connect():
         con.execute('ALTER TABLE equipment ADD COLUMN data_checked INTEGER NOT NULL DEFAULT 0')
     if 'last_checked_at' not in equipment_columns:
         con.execute('ALTER TABLE equipment ADD COLUMN last_checked_at TEXT')
+    if 'data_checked_at' not in equipment_columns:
+        con.execute('ALTER TABLE equipment ADD COLUMN data_checked_at TEXT')
+        con.execute('UPDATE equipment SET data_checked_at=updated_at WHERE data_checked=1')
     if 'inventory_id' not in equipment_columns:
         con.execute('ALTER TABLE equipment ADD COLUMN inventory_id INTEGER NOT NULL DEFAULT 1 REFERENCES equipment_inventories(id)')
+    con.commit()
     if next(row for row in con.execute('PRAGMA table_info(equipment)') if row['name'] == 'quantity')['notnull']:
         # Preserve existing quantities; missing quantities are unknown, not zero or one.
         con.execute('BEGIN IMMEDIATE')
         try:
             con.execute(EQUIPMENT_SCHEMA.format(table='equipment_upgrade'))
-            names = 'id,' + ','.join(EQUIPMENT_FIELDS) + ',item_confirmed,data_checked,last_checked_at,custom_values,inventory_id,updated_at'
+            names = 'id,' + ','.join(EQUIPMENT_FIELDS) + ',item_confirmed,data_checked,last_checked_at,data_checked_at,custom_values,inventory_id,updated_at'
             con.execute(f'INSERT INTO equipment_upgrade ({names}) SELECT {names} FROM equipment')
             con.execute('DROP TABLE equipment')
             con.execute('ALTER TABLE equipment_upgrade RENAME TO equipment')
@@ -150,6 +156,16 @@ def connect():
     con.execute('CREATE INDEX IF NOT EXISTS equipment_stock_check_item ON equipment_stock_checks(equipment_id,id)')
     con.execute("""CREATE TRIGGER IF NOT EXISTS equipment_delete_stock_history AFTER DELETE ON equipment
         BEGIN DELETE FROM equipment_stock_checks WHERE equipment_id=OLD.id; END""")
+    con.execute("""CREATE TABLE IF NOT EXISTS equipment_record_checks (
+        id INTEGER PRIMARY KEY, equipment_id INTEGER NOT NULL,
+        checked_at TEXT NOT NULL, snapshot TEXT NOT NULL)""")
+    con.execute('CREATE INDEX IF NOT EXISTS equipment_record_check_item ON equipment_record_checks(equipment_id,id)')
+    con.execute("""CREATE TRIGGER IF NOT EXISTS equipment_delete_record_history AFTER DELETE ON equipment
+        BEGIN DELETE FROM equipment_record_checks WHERE equipment_id=OLD.id; END""")
+    con.execute("""CREATE TABLE IF NOT EXISTS av_backups (
+        id INTEGER PRIMARY KEY, equipment_type TEXT NOT NULL, device_name TEXT NOT NULL,
+        filename TEXT NOT NULL, content BLOB NOT NULL, size INTEGER NOT NULL,
+        notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
     import_sessions.initialize(con)
     return con
 
@@ -423,7 +439,7 @@ def equipment_inventory_details(con, inventory_id):
     keys = {column['key'] for column in layout.get('columns', [])}
     if 'scala' in record['name'].casefold() or {'monitor_model','orientation'}.issubset(keys):
         layout = dict(layout or DEFAULT_PROFILE)
-        layout['columns'] = [column for column in layout['columns'] if column['key'] != 'serial_number']
+        layout['columns'] = [dict(column,label='Where') if column['key']=='location' else column for column in layout['columns'] if column['key'] != 'serial_number']
         if not layout['columns']:
             layout['columns'] = [dict(SCALA_PROFILE['columns'][0])]
         keys = {column['key'] for column in layout['columns']}
@@ -537,6 +553,7 @@ def save_equipment(value, item_id=None):
             if not cursor.rowcount:
                 raise LookupError('Inventory item not found.')
         con.execute('UPDATE equipment SET custom_values=?, data_checked=CASE WHEN custom_values=? THEN data_checked ELSE 0 END, item_confirmed=CASE WHEN custom_values=? THEN item_confirmed ELSE 0 END WHERE id=?', (json.dumps(values,sort_keys=True), json.dumps(values,sort_keys=True), json.dumps(values,sort_keys=True),item_id))
+        con.execute('UPDATE equipment SET data_checked_at=CASE WHEN data_checked=1 THEN data_checked_at ELSE NULL END WHERE id=?',(item_id,))
         return equipment_record(con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
 
 
@@ -552,6 +569,7 @@ def set_equipment_notes(item_id, value):
             raise ValueError('Notes changed since you opened them. Close and reopen Notes to review the latest version.')
         notes=value['notes'].strip()
         con.execute('UPDATE equipment SET data_checked=CASE WHEN notes=? THEN data_checked ELSE 0 END, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND inventory_id=?',(notes,notes,item_id,inventory_id))
+        con.execute('UPDATE equipment SET data_checked_at=CASE WHEN data_checked=1 THEN data_checked_at ELSE NULL END WHERE id=?',(item_id,))
         return equipment_record(con.execute('SELECT * FROM equipment WHERE id=?',(item_id,)).fetchone())
 
 
@@ -592,6 +610,7 @@ def set_equipment_review(item_id, value):
     row = validate_equipment(value)
     inventory_id = equipment_inventory_id(value.get('inventory_id', 1))
     with connect() as con:
+        con.execute('BEGIN IMMEDIATE')
         equipment_inventory_details(con, inventory_id)
         current = con.execute('SELECT * FROM equipment WHERE id=? AND inventory_id=?', (item_id, inventory_id)).fetchone()
         if current is None:
@@ -600,11 +619,50 @@ def set_equipment_review(item_id, value):
         if custom_values(value.get('custom_values'),profile) != json.loads(current['custom_values']):
             raise ValueError('This item changed. Refresh before confirming or reviewing it.')
         matches = ' AND '.join(f'{field} IS ?' for field in (*EQUIPMENT_CONFIRM_FIELDS, 'notes'))
-        cursor = con.execute('UPDATE equipment SET data_checked=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND ' + matches,
-            [int(value['data_checked']), item_id] + [row[f] for f in (*EQUIPMENT_CONFIRM_FIELDS, 'notes')])
+        cursor = con.execute("UPDATE equipment SET data_checked=?, data_checked_at=CASE WHEN ? THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') ELSE NULL END, updated_at=CURRENT_TIMESTAMP WHERE id=? AND " + matches,
+            [int(value['data_checked']), int(value['data_checked']), item_id] + [row[f] for f in (*EQUIPMENT_CONFIRM_FIELDS, 'notes')])
         if not cursor.rowcount:
             raise ValueError('This item changed. Refresh the inventory before reviewing it.')
-        return equipment_record(con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
+        checked=equipment_record(con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
+        if value['data_checked']:
+            con.execute('INSERT INTO equipment_record_checks (equipment_id,checked_at,snapshot) VALUES (?,?,?)',(item_id,checked['data_checked_at'],json.dumps(checked)))
+        return checked
+
+
+def equipment_record_history(item_id):
+    with connect() as con:
+        if not con.execute('SELECT 1 FROM equipment WHERE id=?',(item_id,)).fetchone():
+            raise LookupError('Inventory item not found.')
+        return [dict(id=row['id'],checked_at=row['checked_at'],snapshot=json.loads(row['snapshot']))
+            for row in con.execute('SELECT * FROM equipment_record_checks WHERE equipment_id=? ORDER BY id DESC',(item_id,))]
+
+
+BACKUP_TYPES=('Videohub','ATEM','Satellite receiver','OBS profile','Other')
+def av_backups():
+    with connect() as con:
+        return [dict(row) for row in con.execute('SELECT id,equipment_type,device_name,filename,size,notes,created_at FROM av_backups ORDER BY created_at DESC,id DESC')]
+
+
+def save_av_backup(value):
+    if not isinstance(value,dict):raise ValueError('Provide the backup file and its details.')
+    kind,name,filename,notes=(value.get(key) for key in ('equipment_type','device_name','filename','notes'))
+    if kind not in BACKUP_TYPES:raise ValueError('Choose a valid equipment type.')
+    if not isinstance(name,str) or not name.strip() or len(name.strip())>120:raise ValueError('Enter a device name up to 120 characters.')
+    if not isinstance(filename,str) or not filename.strip() or len(filename)>180 or filename!=Path(filename).name or any(char in filename for char in '\r\n"\\'):raise ValueError('Choose a valid backup filename.')
+    if not isinstance(notes,str) or len(notes.strip())>2000:raise ValueError('Notes must be up to 2,000 characters.')
+    try:content=base64.b64decode(value.get('content',''),validate=True)
+    except (ValueError,binascii.Error):raise ValueError('The backup file could not be read.') from None
+    if not content or len(content)>5_000_000:raise ValueError('Choose a backup file between 1 byte and 5 MB.')
+    with connect() as con:
+        backup_id=con.execute('INSERT INTO av_backups (equipment_type,device_name,filename,content,size,notes) VALUES (?,?,?,?,?,?)',(kind,name.strip(),filename,content,len(content),notes.strip())).lastrowid
+        return dict(con.execute('SELECT id,equipment_type,device_name,filename,size,notes,created_at FROM av_backups WHERE id=?',(backup_id,)).fetchone())
+
+
+def av_backup_file(backup_id):
+    with connect() as con:
+        row=con.execute('SELECT filename,content FROM av_backups WHERE id=?',(backup_id,)).fetchone()
+        if row is None:raise LookupError('Backup file not found.')
+        return row['filename'],row['content']
 
 
 def set_equipment_stock_check(item_id, value):
@@ -683,9 +741,9 @@ def manage_equipment_location(payload):
                     raise ValueError('Combined stock quantity exceeds 1,000,000. Nothing was changed.')
                 notes = '\n'.join(dict.fromkeys(note for note in (matching['notes'], row['notes']) if note))
                 con.execute('DELETE FROM equipment WHERE id=?', (row['id'],))
-                con.execute('UPDATE equipment SET data_checked=0, item_confirmed=0, location=?, quantity=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', (target, quantity, notes, matching['id']))
+                con.execute('UPDATE equipment SET data_checked=0, data_checked_at=NULL, item_confirmed=0, location=?, quantity=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', (target, quantity, notes, matching['id']))
             else:
-                con.execute('UPDATE equipment SET data_checked=0, item_confirmed=0, location=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', (target, row['id']))
+                con.execute('UPDATE equipment SET data_checked=0, data_checked_at=NULL, item_confirmed=0, location=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', (target, row['id']))
     return {'updated': count}
 
 
@@ -944,6 +1002,11 @@ class Handler(BaseHTTPRequestHandler):
         if self.command == 'GET':
             if path == '/api/overview':
                 return self.send(200, workspace_overview())
+            if path == '/api/backups':
+                return self.send(200,{'backups':av_backups()})
+            match=re.fullmatch(r'/api/backups/([1-9][0-9]*)/download',path)
+            if match:
+                filename,content=av_backup_file(int(match[1]));return self.send(200,content,'application/octet-stream',filename)
             if path == '/satellite-channels.json':
                 return self.send(200, json.loads((ROOT / 'static' / 'satellite-channels.json').read_text()))
             if re.fullmatch(r'/channel-logos/[A-Za-z0-9_-]+\.[a-z]{2}\.png', path):
@@ -952,6 +1015,8 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send(200, logo.read_bytes(), 'image/png')
             if re.fullmatch(r'/api/equipment/[0-9]+/stock-checks',path):
                 return self.send(200,{'checks':equipment_stock_history(int(path.split('/')[3]))})
+            if re.fullmatch(r'/api/equipment/[0-9]+/record-checks',path):
+                return self.send(200,{'checks':equipment_record_history(int(path.split('/')[3]))})
             if path == '/api/equipment':
                 return self.send(200, {'equipment': equipment_inventory(equipment_inventory_id(query.get('inventory_id', [1])[0]))})
             if path == '/api/equipment/inventories':
@@ -971,6 +1036,8 @@ class Handler(BaseHTTPRequestHandler):
             assets['/demo.js'] = ('demo.js', 'text/javascript')
             assets['/demo.css'] = ('demo.css', 'text/css')
             assets['/inventory'] = ('index.html', 'text/html')
+            assets['/backups'] = ('index.html', 'text/html')
+            assets['/backups.js'] = ('backups.js', 'text/javascript')
             assets['/service-worker.js'] = ('service-worker.js', 'text/javascript')
             assets['/broadcastgab-offline'] = ('broadcastgab/index.html', 'text/html')
             assets.update({f'/broadcastgab-assets/{file.name}': (f'broadcastgab/{file.name}',
@@ -983,6 +1050,13 @@ class Handler(BaseHTTPRequestHandler):
                 data=(ROOT / 'static' / file).read_bytes()
                 if mime=='application/json':data=json.loads(data)
                 return self.send(200, data, mime + '; charset=utf-8' if mime.startswith('text/') or mime == 'image/svg+xml' else mime)
+        elif self.command == 'POST' and path == '/api/backups':
+            return self.send(201,save_av_backup(self.body()))
+        elif self.command == 'DELETE' and re.fullmatch(r'/api/backups/[1-9][0-9]*',path):
+            self.body();backup_id=int(path.rsplit('/',1)[1])
+            with connect() as con:
+                if not con.execute('DELETE FROM av_backups WHERE id=?',(backup_id,)).rowcount:raise LookupError('Backup file not found.')
+            return self.send(200,{'deleted':backup_id})
         elif self.command == 'POST' and path == '/api/equipment/inventories':
             return self.send(201, save_equipment_inventory(self.body()))
         elif self.command == 'PUT' and path.startswith('/api/equipment/inventories/'):

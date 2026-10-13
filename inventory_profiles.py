@@ -2,11 +2,11 @@
 import re
 
 BASE_FIELDS = ('description','brand','model','serial_number','quantity','location','notes')
-LABELS = {'description':'Item','brand':'Brand','model':'Model','serial_number':'Serial number','quantity':'Quantity','location':'Location','notes':'Notes'}
+LABELS = {'description':'Item','brand':'Brand','model':'Model','serial_number':'Serial number','quantity':'Qnt','location':'Location','notes':'Notes'}
 DEFAULT_PROFILE = {'columns':[{'key':key,'label':LABELS[key],'type':'text','important':key!='notes','filter':'buttons' if key=='location' else 'none','options':[]} for key in BASE_FIELDS], 'primary_search':'serial_number', 'identifier':''}
 SCALA_PROFILE = {'columns':[
     {'key':'asset_id','label':'ID','type':'text','important':True,'filter':'none','options':[]},
-    {'key':'location','label':'Location','type':'text','important':True,'filter':'none','options':[]},
+    {'key':'location','label':'Where','type':'text','important':True,'filter':'none','options':[]},
     {'key':'monitor_model','label':'Monitor model','type':'text','important':True,'filter':'dropdown','options':[]},
     {'key':'orientation','label':'Orientation','type':'buttons','important':False,'filter':'dropdown','options':['Vertical','Horizontal']},
     {'key':'notes','label':'Notes','type':'text','important':False,'filter':'none','options':[]}], 'primary_search':'asset_id', 'identifier':'asset_id', 'show_status':False}
@@ -20,7 +20,7 @@ def validate_profile(value):
         if not isinstance(col,dict):
             raise ValueError('Each column needs a name and settings.')
         key,label = col.get('key'),col.get('label')
-        if not isinstance(key,str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,47}',key) or key in ('id','inventory_id','custom_values','item_confirmed','data_checked','last_checked_at','updated_at') or key in keys:
+        if not isinstance(key,str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,47}',key) or key in ('id','inventory_id','custom_values','item_confirmed','data_checked','data_checked_at','last_checked_at','updated_at') or key in keys:
             raise ValueError('Column keys must be distinct, valid names.')
         if not isinstance(label,str) or not label.strip() or len(label.strip())>120 or label.strip().casefold() in labels:
             raise ValueError('Give each column a different name, from 1 to 120 characters.')
@@ -100,7 +100,7 @@ def custom_values(value,profile):
     # Retain values for columns hidden/removed from the layout, preventing data loss.
     result={}
     for key,raw in value.items():
-        if not isinstance(key,str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,47}',key) or key in BASE_FIELDS or key in ('id','inventory_id','custom_values','item_confirmed','data_checked','last_checked_at','updated_at'):
+        if not isinstance(key,str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,47}',key) or key in BASE_FIELDS or key in ('id','inventory_id','custom_values','item_confirmed','data_checked','data_checked_at','last_checked_at','updated_at'):
             raise ValueError('Invalid custom column key.')
         if raw is None:raw=''
         if not isinstance(raw,str) or len(raw.strip())>2000:

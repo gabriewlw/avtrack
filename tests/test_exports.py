@@ -279,8 +279,9 @@ class ExportTests(unittest.TestCase):
         self.request('/api/equipment', 'POST', dict(brand='Neutrik', model='XLR', quantity=0, notes='Equipment notes'))
         raw = self.download('/api/equipment/export.pdf', 'application/pdf', 'avtrack-equipment.pdf')
         text = subprocess.run(['pdftotext','-','-'], input=raw, stdout=subprocess.PIPE, check=True).stdout.decode()
-        for value in ['Neutrik','XLR','QUANTITY','Equipment notes']:
+        for value in ['Neutrik','XLR','QNT']:
             self.assertIn(value, text)
+        self.assertNotIn('Equipment notes',text)
 
 
 if __name__ == '__main__':

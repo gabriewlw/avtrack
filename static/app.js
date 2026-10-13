@@ -56,8 +56,10 @@ async function loadOverview() {
 }
 function updatePageSummary(equipmentItems, inventoryName, profile = {}) {
   if (equipmentItems) equipmentPageSummary = {count:equipmentItems.length, locations:new Set(equipmentItems.map(item => item.location).filter(Boolean)).size, name:inventoryName,storage:profile.location_role!=='geographic'&&profile.location_role!=='none'&&!inventoryName?.toLowerCase().includes('scala')};
-  $('workspace-page-title').textContent = currentTab === 'equipment' ? `Inventory${equipmentPageSummary ? ' · ' + equipmentPageSummary.name : ''}` : currentTab === 'iptv' ? 'IPTV' : 'AV Devices';
-  if (currentTab === 'equipment') {
+  $('workspace-page-title').textContent = currentTab === 'backups' ? 'AV Backups' : currentTab === 'equipment' ? `Inventory${equipmentPageSummary ? ' · ' + equipmentPageSummary.name : ''}` : currentTab === 'iptv' ? 'IPTV' : 'AV Devices';
+  if (currentTab === 'backups') {
+    $('workspace-page-summary').textContent = 'Configuration files ready for recovery';
+  } else if (currentTab === 'equipment') {
     $('workspace-page-summary').textContent = equipmentPageSummary
       ? `${equipmentPageSummary.count} ${equipmentPageSummary.count === 1 ? 'item' : 'items'}${equipmentPageSummary.storage ? ` across ${equipmentPageSummary.locations} ${equipmentPageSummary.locations === 1 ? 'location' : 'locations'}` : ''}`
       : 'Loading inventory…';
@@ -256,18 +258,30 @@ function switchTab(type) {
   closeSystemMenu();
   closeExportMenus();
   currentTab = type;
-  $('homepage-overview').hidden = location.pathname === '/inventory' || Boolean(location.hash);
+  $('homepage-overview').hidden = ['/inventory','/backups'].includes(location.pathname) || Boolean(location.hash);
   updatePageSummary();
   const equipment = type === 'equipment';
+  const backups = type === 'backups';
   $('example-media').hidden = type === 'iptv';
   $('equipment-panel').hidden = !equipment;
-  $('inventory').hidden = equipment;
-  document.querySelector('main > .stats').hidden = equipment;
-  for (const [id, tab] of [['device-tab','device'], ['iptv-tab','iptv'], ['equipment-tab','equipment']]) {
+  $('backups-panel').hidden = !backups;
+  $('inventory').hidden = equipment || backups;
+  document.querySelector('main > .stats').hidden = equipment || backups;
+  $('add-device').hidden = backups;
+  for (const [id, tab] of [['device-tab','device'], ['iptv-tab','iptv'], ['equipment-tab','equipment'], ['backups-tab','backups']]) {
     $(id).classList.toggle('nav-active', tab === type);
     if (tab === type) $(id).setAttribute('aria-current', 'page');
     else $(id).removeAttribute('aria-current');
   }
+  if (backups) {
+    $('hero-title').replaceChildren(document.createTextNode('Every setup.'), element('br'), document.createTextNode('Every recovery point.'), element('br'), element('span', '', 'Ready when needed.'));
+    $('hero-intro').textContent = 'Save known-good configuration files for switchers, routers, satellite receivers, OBS systems, and other AV equipment in one searchable archive.';
+    $('example-ip').textContent = 'ATEM 2 M/E'; $('example-name').textContent = 'Production Studio 4K';
+    $('example-tags').replaceChildren(...['Configuration backup','Control room','Ready to restore'].map(text => element('span','',text)));
+    $('validation-note').hidden = true;
+    window.backupsUI?.load(); return;
+  }
+  $('add-device').hidden = false;
   if (equipment) {
     $('hero-title').replaceChildren(document.createTextNode('Every asset.'), element('br'), document.createTextNode('Every location.'), element('br'), element('span', '', 'One clear view.'));
     $('hero-intro').textContent = 'Manage your broadcast equipment, spare stock, and production tools. Keep brands, models, serial numbers, and quantities organized from the control room to the storeroom.';
@@ -314,7 +328,7 @@ function switchTab(type) {
   $('confirmation-legend').textContent = iptv ? 'Channel addresses and stream ports · Onboard / Satellite' : 'Yellow: awaiting confirmation · Green: reachability confirmed';
   updateFilterOptions(); render();
 }
-const inventoryTabs = [['device-tab','device'],['iptv-tab','iptv'],['equipment-tab','equipment']];
+const inventoryTabs = [['device-tab','device'],['iptv-tab','iptv'],['equipment-tab','equipment'],['backups-tab','backups']];
 function navigatePage(type) {
   const link = $(inventoryTabs.find(([,page]) => page === type)[0]);
   const destination = link.pathname + link.hash;
@@ -322,9 +336,9 @@ function navigatePage(type) {
   switchTab(type);
 }
 function restorePage() {
-  $('homepage-overview').hidden = location.pathname === '/inventory' || Boolean(location.hash);
+  $('homepage-overview').hidden = ['/inventory','/backups'].includes(location.pathname) || Boolean(location.hash);
   if (location.hash === '#equipment' || location.hash === '#inventory') history.replaceState(null, '', '/inventory');
-  const page = location.pathname === '/inventory' ? inventoryTabs[2] : inventoryTabs.find(([id]) => $(id).hash && $(id).hash === location.hash) || (!location.hash ? inventoryTabs[0] : null);
+  const page = location.pathname === '/inventory' ? inventoryTabs[2] : location.pathname === '/backups' ? inventoryTabs[3] : inventoryTabs.find(([id]) => $(id).hash && $(id).hash === location.hash) || (!location.hash ? inventoryTabs[0] : null);
   if (page && page[1] !== currentTab) switchTab(page[1]);
 }
 window.addEventListener('hashchange', restorePage);
@@ -345,7 +359,7 @@ for (const [id, type] of inventoryTabs) {
     if (['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) {
       event.preventDefault();
       const index = inventoryTabs.findIndex(([,tab]) => tab === currentTab);
-      const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? 2 : (index + (event.key === 'ArrowRight' ? 1 : 2)) % 3;
+      const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? inventoryTabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : inventoryTabs.length - 1)) % inventoryTabs.length;
       const [nextId,next] = inventoryTabs[nextIndex]; navigatePage(next); $(nextId).focus();
     }
   };
@@ -898,7 +912,7 @@ function channelNotesWithCodec(row, codecIPs) {
   if (!codec || new RegExp(`\\b${codec.replace('.', '\\.')}\\b`, 'i').test(notes)) return notes;
   return notes ? `${notes} · ${codec}` : codec;
 }
-const customImportFields=()=> (spreadsheetInventory?.layout || window.equipmentUI?.profile() || defaultInventoryLayout).columns.filter(col=>col.type!=='calculated').map(col=>{const existing=equipmentImportFields.find(([key])=>key===col.key);return [col.key,col.label,[normalizedHeader(col.label),col.key.replaceAll('_',' '),...(col.aliases || []).map(normalizedHeader),...(existing?.[2] || [])]];});
+const customImportFields=()=> (spreadsheetInventory?.layout || window.equipmentUI?.profile() || defaultInventoryLayout).columns.filter(col=>col.type!=='calculated'&&!(spreadsheetFile?.force_location&&col.key==='location')).map(col=>{const existing=equipmentImportFields.find(([key])=>key===col.key);return [col.key,col.label,[normalizedHeader(col.label),col.key.replaceAll('_',' '),...(col.aliases || []).map(normalizedHeader),...(existing?.[2] || [])]];});
 const importFields = () => currentTab === 'equipment' ? customImportFields() : currentTab === 'device'
   ? networkImportFields.filter(([field]) => ['venue','name','ip','vlan','notes'].includes(field))
   : iptvImportFields;
@@ -945,7 +959,8 @@ function mappedRows(applyVenueEdits = true) {
       if(hasMapped && spreadsheetData.headers.filter(header=>normalizedHeader(header)==='location').length>1){spreadsheetData.headers.forEach((header,index)=>{if(normalizedHeader(header)==='location' && String(index)!==$('map-location')?.value && row[index])details.push(`Source Location (column ${index+1}): ${row[index]}`);});}
       if(hasMapped && spreadsheetFile?.source_label)details.push('Source sheet: '+spreadsheetFile.source_label);
       mapped.notes = [mapped.notes, ...details].filter(Boolean).join(' · ');
-      if(hasMapped && !mapped.location && (spreadsheetFile?.default_location || spreadsheetFile?.sheet_location))mapped.location=spreadsheetFile.default_location || spreadsheetFile.sheet_location;
+      if(hasMapped && spreadsheetFile?.force_location)mapped.location=spreadsheetFile.default_location;
+      else if(hasMapped && !mapped.location && (spreadsheetFile?.default_location || spreadsheetFile?.sheet_location))mapped.location=spreadsheetFile.default_location || spreadsheetFile.sheet_location;
       mapped.item_confirmed = ''; // Old files do not establish a new physical location check.
     }
     if (currentTab !== 'equipment') mapped.record_type = currentTab;
@@ -1342,7 +1357,7 @@ $('spreadsheet-form').onsubmit = async event => {
       while(end<entries.length && (tab==='equipment'?entries[end].row.location:entries[end].row.venue || '')===location)end++;
       const batch=entries.slice(index,end),remaining=[];
       for(const entry of batch){
-        const complete=profile && $('import-complete-rows').checked && !profile.columns.some(column=>column.require_confirmation) && !entry.issues.length && profile.columns.filter(column=>column.key!=='orientation'&&column.type!=='calculated').every(column=>($('map-'+column.key).value!=='' || column.key==='brand'&&profile.stock_mode==='tv_counts' || column.key==='location'&&(spreadsheetFile.default_location || spreadsheetFile.sheet_location)) && String(inventoryValue(entry.row,column.key)).trim()!=='');
+        const complete=profile && $('import-complete-rows').checked && !profile.columns.some(column=>column.require_confirmation) && !entry.issues.length && profile.columns.filter(column=>column.key!=='orientation'&&column.type!=='calculated').every(column=>(($('map-'+column.key)?.value ?? '')!=='' || column.key==='brand'&&profile.stock_mode==='tv_counts' || column.key==='location'&&(spreadsheetFile.default_location || spreadsheetFile.sheet_location)) && String(inventoryValue(entry.row,column.key)).trim()!=='');
         if(!complete){remaining.push(entry);continue;}
         try{await window.importWorkflow.write(entry,entry.row);}catch(error){entry.issues.push(error.message);remaining.push(entry);}
       }
@@ -1529,6 +1544,15 @@ async function startSpreadsheetImport(file,inventory) {
   else if((file.pasted || file.from_headers) && $('paste-layout-dialog').open){$('paste-layout-dialog').close();$('spreadsheet-dialog').showModal();}
 }
 let pasteInventory=null,pasteInventorySaving=false,pasteTargetTab=null,pasteFromHeaders=false,pasteSavedPreferences={};
+const normalizedLocation=value=>cleanVenue(value).normalize('NFKC').toLocaleLowerCase();
+function pasteUsesBatchLocation(inventory){
+  if(!inventory)return false;
+  const profile=inventory.layout || defaultInventoryLayout,column=profile.columns.find(item=>item.key==='location');
+  return !!column&&!['geographic','none'].includes(profile.location_role)&&(profile.location_role==='storage'||column.type==='location'||column.filter==='buttons');
+}
+function updatePasteContinue(){
+  $('continue-paste-inventory').disabled=!$('paste-inventory-text').value.trim();
+}
 async function openPastedImport(options={}){
   pasteFromHeaders=options.fromHeaders===true;
   try{
@@ -1537,8 +1561,7 @@ async function openPastedImport(options={}){
     pasteSavedPreferences=await api('/api/import-preferences?target='+encodeURIComponent(pasteInventory?`equipment:${pasteInventory.id}`:currentTab));
     await window.importWorkflow.offerResume(pasteInventory?`equipment:${pasteInventory.id}`:currentTab);
     $('paste-inventory-form').reset();
-    $('paste-inventory-location-label').hidden=!pasteInventory || !(pasteInventory.layout || defaultInventoryLayout).columns.some(col=>col.key==='location');
-    $('paste-inventory-location-options').replaceChildren(...(pasteInventory?window.equipmentUI.locations():[]).map(location=>new Option(location,location)));
+    $('paste-batch-location-options').replaceChildren(...(pasteInventory?window.equipmentUI.locations():[]).map(location=>new Option(location,location)));
     $('paste-inventory-error').hidden=true;$('continue-paste-inventory').disabled=true;
     $('paste-inventory-target').textContent='Import into: '+(pasteInventory?.name || (currentTab==='iptv'?'IPTV Channels':'AV Devices'));
     $('paste-inventory-dialog').showModal();$('paste-inventory-text').focus();
@@ -1546,9 +1569,19 @@ async function openPastedImport(options={}){
 }
 $('equipment-paste').onclick=openPastedImport;
 $('network-paste').onclick=openPastedImport;
-$('paste-inventory-text').oninput=()=>{$('continue-paste-inventory').disabled=!$('paste-inventory-text').value.trim();};
+$('paste-inventory-text').oninput=updatePasteContinue;
 for(const id of ['close-paste-inventory','cancel-paste-inventory'])$(id).onclick=()=>{if(!pasteInventorySaving)$('paste-inventory-dialog').close();};
 $('paste-inventory-dialog').addEventListener('cancel',event=>{if(pasteInventorySaving)event.preventDefault();});
+let pendingPastedBatch=null;
+async function continuePastedBatch(file,inventory,enteredLocation=''){
+  const forceLocation=pasteUsesBatchLocation(inventory),location=forceLocation?cleanVenue(enteredLocation):'';
+  if(forceLocation&&!location)throw new Error('Enter the location for these items.');
+  const existing=(inventory?window.equipmentUI.locations():[]).find(saved=>normalizedLocation(saved)===normalizedLocation(location));
+  file.default_location=existing || location;file.force_location=forceLocation;
+  file.confirmation_mode=inventory?.layout?.confirmation_mode || pasteSavedPreferences.confirmation_mode || (inventory?(inventory.layout?.show_status===false?'none':'storage'):currentTab==='device'?'ip':'none');
+  const target=inventory?{...inventory,layout:{...(inventory.layout || defaultInventoryLayout),confirmation_mode:file.confirmation_mode,show_status:file.confirmation_mode!=='none'}}:null;
+  await startSpreadsheetImport(file,target);
+}
 $('paste-inventory-form').onsubmit=async event=>{
   event.preventDefault();if(pasteInventorySaving)return;
   $('paste-inventory-error').hidden=true;pasteInventorySaving=true;$('continue-paste-inventory').disabled=true;
@@ -1559,15 +1592,24 @@ $('paste-inventory-form').onsubmit=async event=>{
     const blob=new Blob([text],{type:'text/csv;charset=utf-8'});
     if(blob.size>5_000_000)throw new Error('Paste a smaller range, up to 5 MB.');
     const content=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=()=>reject(new Error('Could not read the pasted cells.'));reader.readAsDataURL(blob);});
-    const sourceLabel=$('paste-inventory-sheet').value.trim();const location=pasteInventory && (pasteInventory.layout || defaultInventoryLayout).columns.some(col=>col.key==='location')?cleanVenue($('paste-inventory-location').value):'';
-    const file={filename:(sourceLabel || 'Pasted spreadsheet')+'.csv',content,pasted:true,from_headers:pasteFromHeaders,default_location:location,source_label:sourceLabel,...(text.includes('\t')?{delimiter:'\t'}:{})};
+    const sourceLabel=$('paste-inventory-sheet').value.trim();
+    const file={filename:(sourceLabel || 'Pasted spreadsheet')+'.csv',content,pasted:true,from_headers:pasteFromHeaders,source_label:sourceLabel,...(text.includes('\t')?{delimiter:'\t'}:{})};
     $('paste-inventory-dialog').close();
-    file.confirmation_mode=pasteInventory?.layout?.confirmation_mode || pasteSavedPreferences.confirmation_mode || (pasteInventory?(pasteInventory.layout?.show_status===false?'none':'storage'):currentTab==='device'?'ip':'none');
-    const inventory=pasteInventory?{...pasteInventory,layout:{...(pasteInventory.layout || defaultInventoryLayout),confirmation_mode:file.confirmation_mode,show_status:file.confirmation_mode!=='none'}}:null;
-    await startSpreadsheetImport(file,inventory);
+    if(pasteUsesBatchLocation(pasteInventory)){
+      pendingPastedBatch={file,inventory:pasteInventory};$('paste-batch-location').value='';$('paste-location-error').hidden=true;$('paste-location-dialog').showModal();$('paste-batch-location').focus();
+    }else await continuePastedBatch(file,pasteInventory);
   }catch(error){$('paste-inventory-error').textContent=error.message;$('paste-inventory-error').hidden=false;}
-  finally{pasteInventorySaving=false;$('continue-paste-inventory').disabled=!$('paste-inventory-text').value.trim();}
+  finally{pasteInventorySaving=false;updatePasteContinue();}
 };
+$('paste-location-form').onsubmit=async event=>{
+  event.preventDefault();if(!pendingPastedBatch)return;
+  const button=$('continue-paste-location');button.disabled=true;$('paste-location-error').hidden=true;
+  try{const pending=pendingPastedBatch,location=$('paste-batch-location').value;$('paste-location-dialog').close();await continuePastedBatch(pending.file,pending.inventory,location);pendingPastedBatch=null;}
+  catch(error){$('paste-location-error').textContent=error.message;$('paste-location-error').hidden=false;if(!$('paste-location-dialog').open)$('paste-location-dialog').showModal();}
+  finally{button.disabled=false;}
+};
+$('back-paste-location').onclick=()=>{$('paste-location-dialog').close();pendingPastedBatch=null;$('paste-inventory-dialog').showModal();$('paste-inventory-text').focus();};
+$('close-paste-location').onclick=()=>{$('paste-location-dialog').close();pendingPastedBatch=null;};
 let pendingPasteConfirmation=null;
 function openPasteConfirmation(file,inventory){
   pendingPasteConfirmation={file,inventory,tab:currentTab};

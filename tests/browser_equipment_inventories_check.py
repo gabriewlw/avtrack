@@ -45,17 +45,17 @@ with tempfile.TemporaryDirectory() as temp:
                 page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
                 target = page.locator('#equipment-inventory-title').inner_text()
                 assert 'Inventory: '+target in page.locator('#spreadsheet-summary').inner_text()
+                page.locator('#import-confirmation-choice').select_option('storage')
                 page.locator('#confirm-import').click()
-                for index in range(len(rows.strip().splitlines())):
-                    page.locator('#row-review-dialog').wait_for(state='visible')
-                    progress = page.locator('#row-review-progress').inner_text()
-                    assert 'Inventory: '+target in progress
-                    page.locator('#accept-review-row').click()
-                    if index < len(rows.strip().splitlines())-1:
-                        page.wait_for_function('previous => document.getElementById("row-review-progress").textContent !== previous', arg=progress)
-                    else:
-                        page.locator('#spreadsheet-dialog').wait_for(state='hidden')
+                locations={line.split(',')[5] for line in rows.strip().splitlines()}
+                for index in range(len(locations)):
+                    page.locator('#inventory-import-review').wait_for(state='visible')
+                    title=page.locator('#inventory-import-review-title').inner_text()
+                    page.locator('#inventory-import-review-all').check();page.locator('#inventory-import-review-save').click()
+                    if index<len(locations)-1:page.wait_for_function('previous => document.getElementById("inventory-import-review-title").textContent !== previous',arg=title)
+                    else:page.locator('#inventory-import-review').wait_for(state='hidden')
                 wait_loaded(target)
+                if page.locator('#import-summary-panel').is_visible(): page.locator('#close-import-summary').click()
 
             def download(label, scope):
                 dropdown = page.locator('#equipment-panel .export-dropdown')
@@ -73,7 +73,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert page.locator('#workspace-page-summary').text_content() == '2 items across 2 locations'
             assert app.equipment_inventory() == []
             page.locator('#equipment-location-filter').select_option('Main lounge')
-            page.locator('#equipment-rows .equipment-confirm').check()
+            page.locator('#equipment-rows .ip-confirm').click()
             page.wait_for_function("() => document.getElementById('equipment-found').textContent === '1'")
             page.locator('#equipment-rows .row-select').check()
             selected = json.loads(Path(download('JSON','selected').path()).read_text())

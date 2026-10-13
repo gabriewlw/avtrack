@@ -79,7 +79,7 @@ with tempfile.TemporaryDirectory() as tmp:
             assert item['quantity']==8 and item['notes']=='New'
             page.locator('#close-import-summary').click()
             headers=page.locator('#equipment-table thead').inner_text().lower()
-            assert all(label in headers for label in ['record check','last checked','status'])
+            assert all(label in headers for label in ['stock check','last checked','status'])
             assert page.locator('#equipment-table tbody tr').first.locator('td').count()==page.locator('#equipment-table thead th').count()
             stock=page.get_by_role('button',name='Confirm stock check for 24LV760M-UA',exact=True)
             for count in [1,2]:

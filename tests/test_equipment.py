@@ -154,6 +154,10 @@ class EquipmentTests(unittest.TestCase):
         path = f"/api/equipment/{item['id']}"
         checked = self.request(path+'/review', 'POST', dict(item, data_checked=True))[1]
         self.assertEqual((checked['data_checked'], checked['item_confirmed']), (1, 0))
+        self.assertTrue(checked['data_checked_at'].endswith('Z'))
+        history=self.request(path+'/record-checks')[1]['checks']
+        self.assertEqual(len(history),1)
+        self.assertEqual(history[0]['checked_at'],checked['data_checked_at'])
         self.assertEqual(app.equipment_inventory()[0]['data_checked'], 1)
         self.assertEqual(self.request(path+'/review', 'POST', dict(data_checked=True))[0], 400)
         self.request(path, 'PUT', dict(ITEM, notes='Corrected old record'))

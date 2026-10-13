@@ -10,10 +10,11 @@ window.pasteWorkflow=(()=>{
     const stock=layout.location_role==='storage'||layout.template==='spare_parts';
     if(stock&&stockOrder.every(key=>keys.has(key))){
       const rank=key=>{const index=stockOrder.indexOf(key);return index<0?stockOrder.length:index;};
-      layout.columns=layout.columns.map(column=>column.key==='description'?{...column,label:'Description'}:column.key==='quantity'?{...column,type:'text',options:[]}:column)
+      layout.columns=layout.columns.map(column=>column.key==='description'?{...column,label:'Description'}:column.key==='quantity'?{...column,label:'Qnt',type:'text',options:[]}:column)
         .sort((a,b)=>rank(a.key)-rank(b.key));
       layout.primary_search='serial_number';
     }
+    if(spreadsheetFile?.force_location){const location=layout.columns.find(column=>column.key==='location');if(location)Object.assign(location,{type:'location',filter:'buttons',options:[]});}
     if(layout.stock_mode==='tv_counts'&&layout.merge_duplicate_models===undefined)layout.merge_duplicate_models=true;
     return {...inventory,layout};
   }
@@ -79,10 +80,6 @@ window.pasteWorkflow=(()=>{
     const brandSuggested=brand&&brand.repeated.length&&brand.distinct>1&&brand.distinct<=8&&brand.distinct<=Math.ceil(brand.filled.length*.6);
     if(brandColumn&&brandSuggested)addChoice(choices,'paste-brand-buttons',`Use quick Brand buttons for ${brand.choices.map(choice=>choice.value).join(', ')}`,`Recommended because ${brand.filled.length-brand.distinct} rows repeat an existing brand. Other brands can still be typed during review.`,['buttons','select'].includes(brandColumn.type),checked=>updateLayout(layout=>{
       const column=layout.columns.find(item=>item.key==='brand');Object.assign(column,checked?{type:'buttons',options:brand.choices.map(choice=>choice.value).slice(0,50),allow_custom:true}:{type:'text',options:[],allow_custom:false});
-    }));
-    const location=stats('location'),locationColumn=profile.columns.find(column=>column.key==='location');
-    if(locationColumn&&location?.repeated.length)addChoice(choices,'paste-location-buttons','Use Location buttons for filtering',`Recommended because ${location.repeated.length} location${location.repeated.length===1?' repeats':'s repeat'} across the pasted rows. One-off locations stay last for review.`,locationColumn.type==='location'&&locationColumn.filter==='buttons',checked=>updateLayout(layout=>{
-      const column=layout.columns.find(item=>item.key==='location');Object.assign(column,checked?{type:'location',filter:'buttons'}:{type:'text',filter:'none'});
     }));
     const groups=modelGroups(),tv=profile.stock_mode==='tv_counts';
     if(groups.eligible.length)addChoice(choices,'paste-merge-models',`Merge ${groups.eligible.length} repeated model group${groups.eligible.length===1?'':'s'} and add quantities`,'Only rows with the same Brand, Model and location and no serial numbers are eligible. Notes and source row numbers are retained.',profile.merge_duplicate_models??tv,checked=>updateLayout(layout=>{layout.merge_duplicate_models=checked;}));
