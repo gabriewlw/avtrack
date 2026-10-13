@@ -1,6 +1,6 @@
 # AVTrack
 
-AVTrack is the official project and product name. Source code is hosted at [gabriewlw/avtrack](https://github.com/gabriewlw/avtrack). Downloads, startup messages and documentation assets use the AVTrack name. The lowercase **avtrack** wordmark remains the visual brand. The original recovered IPTV feature commit is preserved on `recovery/iptv-udp-44f349a`.
+AVTrack is the official project and product name. The GitHub repository is currently [gabriewlw/broadcasthub](https://github.com/gabriewlw/broadcasthub), pending its rename to `gabriewlw/avtrack`. The connected integration cannot edit repository settings; the owner can change **Settings → General → Repository name** to `avtrack`. Downloads, startup messages and documentation assets use the AVTrack name. The lowercase **avtrack** wordmark remains the visual brand. The original recovered IPTV feature commit is preserved on `recovery/iptv-udp-44f349a`.
 
 A responsive broadcasting workspace for equipment inventory, AV network addresses, and IPTV channel lineups. The site matches broadcastgab.com: **Space Grotesk** for headings, **DM Sans** for body text, and **JetBrains Mono** for navigation, labels, and network values. Fonts are bundled locally so they load without internet access, with system fonts as fallbacks. Font sources and SIL Open Font Licenses are documented in `static/fonts/README.md`. The lowercase **avtrack** wordmark appears at the top left, in PDF reports, and in the footer. Page titles, home-screen labels, and import messages use avtrack. Download filenames use the `avtrack-` prefix. Use the same web app in iPhone Safari and on a computer; all connected browsers share one SQLite database. No offline mode or App Store installation is required.
 
@@ -15,9 +15,9 @@ python3 -m venv .venv
 .venv/bin/python app.py
 ```
 
-On Windows, open a terminal in the extracted project folder and run `py -m pip install -r requirements.txt`, then `py app.py`. On Mac/Linux, replace `/path/to/avtrack` above with the actual downloaded folder path. GitHub Codespaces created from the renamed repository normally use `/workspaces/avtrack`; existing Codespaces keep their previous folder name.
+On Windows, open a terminal in the extracted project folder and run `py -m pip install -r requirements.txt`, then `py app.py`. On Mac/Linux, replace `/path/to/avtrack` above with the actual downloaded folder path. After the GitHub rename, new Codespaces normally use `/workspaces/avtrack`; existing Codespaces keep their previous folder name.
 
-GitHub ZIP downloads use the folder name `avtrack-main`. Existing local folders can be renamed to `avtrack`: stop the server, keep the complete `data` folder with the project, and reopen the terminal in the renamed folder. Recreate a virtual environment after moving a folder because its launch scripts can contain absolute paths. The folder name does not affect saved records. For an existing Git checkout, update its remote with `git remote set-url origin https://github.com/gabriewlw/avtrack.git`; GitHub also redirects the previous repository URL.
+After the GitHub rename, ZIP downloads will use the folder name `avtrack-main`. Existing local folders can be renamed to `avtrack`: stop the server, keep the complete `data` folder with the project, and reopen the terminal in the renamed folder. Recreate a virtual environment after moving a folder because its launch scripts can contain absolute paths. The folder name does not affect saved records. After renaming the GitHub repository, update an existing checkout’s remote with `git remote set-url origin https://github.com/gabriewlw/avtrack.git`; GitHub will also redirect the previous repository URL.
 
 The default bind address is `127.0.0.1`, port `8000`. For a computer or private server reachable by your iPhone on the same network:
 
