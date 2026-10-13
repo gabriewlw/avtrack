@@ -101,17 +101,21 @@ with tempfile.TemporaryDirectory() as temporary:
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
             assert page.get_by_label('Location, row 3',exact=True).locator('option').all_text_contents()==['Leave blank','Locker A','Locker B']
-            assert page.get_by_label('Quantity, row 3',exact=True).locator('option').count()==51
+            assert page.get_by_label('Quantity, row 3',exact=True).get_attribute('type')=='number'
             page.get_by_label('Brand, row 3',exact=True).fill('Sony');page.get_by_role('checkbox',name='Select row 3',exact=True).check()
-            page.locator('#inventory-import-review-save').click();page.locator('#inventory-import-review').wait_for(state='hidden')
+            page.locator('#inventory-import-review-save').click()
+            page.wait_for_function("() => document.getElementById('inventory-import-review-title').textContent==='Review Locker B'")
+            assert 'Unusual location' in page.locator('#inventory-import-review-rows').inner_text()
+            page.locator('#inventory-import-review-all').check();page.locator('#inventory-import-review-save').click()
             page.locator('#import-summary-panel').wait_for(state='visible');page.locator('#close-import-summary').click()
             page.wait_for_function("() => document.getElementById('equipment-records').textContent==='3'")
             assert page.locator('#equipment-location-buttons button').count()==2
             located=page.locator('#equipment-rows .ip-confirm').first
-            assert located.inner_text()=='Not located';located.click()
+            assert located.inner_text()=='To be found';located.click()
             page.wait_for_function("() => document.querySelector('#equipment-rows .ip-confirm').textContent==='Located'")
             page.get_by_role('button',name='Edit equipment S1',exact=True).click()
-            assert page.locator('#equipment-quantity').evaluate('(node)=>node.tagName')=='SELECT'
+            assert page.locator('#equipment-quantity').evaluate('(node)=>node.tagName')=='INPUT'
+            assert page.locator('#equipment-quantity').get_attribute('type')=='number'
             page.locator('#equipment-form').get_by_role('button',name='New location',exact=True).click()
             page.get_by_label('New storage location',exact=True).fill('Locker C')
             page.locator('#equipment-form').get_by_role('button',name='Add location',exact=True).click()

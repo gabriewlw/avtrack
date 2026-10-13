@@ -617,12 +617,16 @@ main, dialog {
 }
 
 /* A desktop review sheet shows several records with shared column boundaries. */
-#inventory-import-review { width: min(1440px,calc(100vw - 48px)); max-width: calc(100vw - 48px); }
+#inventory-import-review { width: min(1600px,calc(100vw - 24px)); max-width: calc(100vw - 24px); }
+#inventory-import-review:not([hidden]) { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; }
+#inventory-import-review .dialog-heading h2 { margin-bottom: 0; }
+#inventory-import-review .dialog-intro { margin: 6px 0; }
 .batch-review-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .batch-row-selection { display: flex; flex-direction: row; align-items: center; gap: 8px; font-size: 12px; }
 .batch-row-selection input { width: 18px; height: 18px; min-height: 18px; margin: 0; accent-color: var(--accent); }
-.batch-review-toolbar > span, .batch-review-hint { font-size: 12px; color: var(--muted); line-height: 1.6; }
-.batch-review-scroll { max-height: 56vh; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+.batch-review-toolbar > span, .batch-review-hint { font-size: 11px; color: var(--muted); line-height: 1.35; }
+.batch-review-hint { margin: 5px 0 7px; }
+.batch-review-scroll { flex: 1 1 auto; min-height: 0; max-height: none; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
 .batch-review-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .batch-review-table th { position: sticky; top: 0; z-index: 1; background: #1c2027; color: #c4c7cf; font: 600 11px/18px var(--mono); text-align: left; }
 .batch-review-table th, .batch-review-table td { width: 170px; padding: 10px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); vertical-align: top; }
@@ -634,7 +638,7 @@ main, dialog {
 .batch-row-flags { font-size: 11px; line-height: 1.6; color: #efc289; overflow-wrap: anywhere; margin: 8px 0 0; }
 .batch-row-result { font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 .batch-row-done { background: #14231e; }
-#inventory-import-review .dialog-actions { position: sticky; bottom: -28px; padding: 16px 0; background: var(--panel); }
+#inventory-import-review .dialog-actions { flex: 0 0 auto; padding: 9px 0 0; background: var(--panel); }
 #import-complete-options { margin: 16px 0; padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
 #import-complete-options small { display: block; margin-top: 8px; line-height: 1.6; }
 .equipment-stats.without-status { grid-template-columns: repeat(3,minmax(0,1fr)); }
@@ -690,6 +694,9 @@ main, dialog {
 
 /* The import stays in one workspace as its steps change. */
 #import-workspace{width:min(1260px,calc(100vw - 48px));max-width:1260px;max-height:94vh;padding:28px;overflow:auto}
+#import-workspace[data-panel="inventory-import-review"]{width:min(1600px,calc(100vw - 24px));max-width:calc(100vw - 24px);height:calc(100dvh - 24px);max-height:calc(100dvh - 24px);padding:12px 16px;overflow:hidden;display:flex;flex-direction:column}
+#import-workspace[data-panel="inventory-import-review"] .import-workspace-top,
+#import-workspace[data-panel="inventory-import-review"] .import-steps{display:none}
 #import-workspace .import-step{width:100%;max-width:none;margin:0}
 #import-workspace [hidden]{display:none!important}
 .import-workspace-top{display:flex;justify-content:space-between;gap:24px;align-items:center;border-bottom:1px solid var(--border);padding-bottom:16px}
@@ -700,6 +707,7 @@ main, dialog {
 .import-steps li.current{color:var(--accent-text);border-color:var(--accent-text)}.import-steps li.finished{color:#9bd3ad;border-color:#609874}
 #import-workspace #column-mappings{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 20px}
 #import-workspace .dialog-actions{position:sticky;bottom:-28px;background:var(--panel);padding:18px 0;border-top:1px solid var(--border);z-index:5}
+#import-workspace[data-panel="inventory-import-review"] .dialog-actions{position:static;padding:8px 0 0;border-top:0}
 .import-history{padding:24px;margin:24px 0}.import-history h2{font-size:20px}.import-history p{font-size:13px;color:var(--muted)}
 .import-history-row{display:flex;justify-content:space-between;gap:16px;align-items:center;border-top:1px solid var(--border);padding:12px 0;font-size:13px}
 #import-draft-summary{margin:18px 0}#import-sheet-selection{margin:18px 0}#import-duplicate-list,#import-excluded-list{font-size:12px;line-height:1.7}
@@ -707,6 +715,7 @@ main, dialog {
 .batch-review-table th.batch-sticky{z-index:4}.batch-review-table .batch-identity{position:sticky;left:150px;z-index:2;background:#171b21;min-width:150px}
 .batch-review-table th.batch-identity{z-index:4}.batch-review-table .batch-row-result{position:sticky;right:0;z-index:2;background:#171b21;min-width:150px}
 #import-workspace .batch-review-table th,#import-workspace .batch-review-table td{width:auto;min-width:120px;max-width:210px;padding:8px}
+#import-workspace .batch-review-table th,#import-workspace .batch-review-table td{padding:4px 6px;height:36px}#import-workspace .batch-review-table input,#import-workspace .batch-review-table select{min-height:28px;height:28px;padding-top:3px;padding-bottom:3px}#import-workspace .batch-review-table textarea{min-height:28px;height:28px;padding:4px 6px}.batch-row-flags{font-size:10px;line-height:1.25;margin:3px 0 0}.batch-review-table .batch-notes-button{height:28px;min-height:28px}
 #import-workspace .batch-review-table .batch-sticky{min-width:150px;width:150px;max-width:150px}#import-workspace .batch-review-table .batch-row-result{max-width:180px}
 #import-workspace .batch-review-table .choice-buttons{flex-wrap:wrap}.batch-notes-button{max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .batch-review-table .batch-field-confirmation{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;color:#e7bd72}
@@ -727,3 +736,5 @@ main, dialog {
 #paste-layout-dialog .dialog-intro { margin:10px 0; }
 #paste-layout-dialog .paste-layout-scroll { margin:14px 0; }
 #paste-layout-dialog .paste-preview-settings { margin-top:14px; }
+.paste-preview-settings h3{font-size:15px;margin:0 0 12px}.paste-analysis-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}.paste-analysis-card{border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:#171b21}.paste-analysis-card strong{display:block;font-size:12px;margin-bottom:4px}.paste-analysis-card span{font-size:11px;line-height:1.5;color:var(--muted)}.paste-choice-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px;border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:14px}.paste-choice-options label{align-items:flex-start}.batch-review-table td.batch-cell-missing{background:rgba(231,189,114,.12);box-shadow:inset 0 0 0 1px rgba(231,189,114,.35)}.batch-review-table td.batch-cell-missing:after{content:'Missing — fill later or import blank';display:block;margin-top:5px;font-size:10px;color:#e7bd72}
+@media(max-width:800px){.paste-analysis-grid,.paste-choice-options{grid-template-columns:1fr}}

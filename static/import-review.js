@@ -49,6 +49,10 @@ function reviewEquipmentBatch(entries, index, total, inventory, fields, filename
           };cell.append(notesButton);
         }
         control.setAttribute('aria-label',`${label.replace(' (optional)','')}, row ${entry.number}`);
+        if(column?.important&&key!=='orientation'){
+          const showMissing=()=>cell.classList.toggle('batch-cell-missing',!String(control.value ?? '').trim());
+          control.addEventListener('input',showMissing);control.addEventListener('change',showMissing);showMissing();
+        }
         if(column?.require_confirmation){
           const label=element('label','batch-field-confirmation');const confirm=element('input');confirm.type='checkbox';confirm.setAttribute('aria-label',`Confirm ${column.label}, row ${entry.number}`);
           label.append(confirm,document.createTextNode('Checked'));cell.append(label);confirmations.set(key,confirm);confirm.onchange=updateSelection;

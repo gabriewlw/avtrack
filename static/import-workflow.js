@@ -9,6 +9,7 @@ window.importWorkflow = (() => {
   const target=()=>currentTab==='equipment'?`equipment:${(spreadsheetInventory || pasteInventory)?.id}`:currentTab;
   function showPanel(panel){
     panels.forEach(id=>{byId(id).hidden=id!==panel.id;});active=panel;
+    byId('import-workspace').dataset.panel=panel.id;
     const stage=panel.id==='paste-inventory-dialog'?0:['paste-confirmation-dialog','paste-layout-dialog','paste-field-dialog','spreadsheet-dialog'].includes(panel.id)?1:panel.id==='inventory-import-review'?2:3;
     byId('import-workspace-steps').querySelectorAll('li').forEach((li,index)=>{li.classList.toggle('current',index===stage);li.classList.toggle('finished',index<stage);if(index===stage)li.setAttribute('aria-current','step');else li.removeAttribute('aria-current');});
     byId('import-workspace').setAttribute('aria-labelledby',panel.getAttribute('aria-labelledby') || 'import-workspace-title');
@@ -25,7 +26,7 @@ window.importWorkflow = (() => {
       panel.append(...old.childNodes);old.replaceWith(panel);shell.append(panel);panel.hidden=true;
       Object.defineProperty(panel,'open',{get:()=>!panel.hidden && shell.open});
       panel.showModal=()=>showPanel(panel);
-      panel.close=()=>{panel.hidden=true;if(active===panel){active=null;shell.close();}};
+      panel.close=()=>{panel.hidden=true;if(active===panel){active=null;delete shell.dataset.panel;shell.close();}};
     });
     shell.addEventListener('cancel',event=>{event.preventDefault();if(!active)return;const panel=active,request=new Event('cancel',{cancelable:true});panel.dispatchEvent(request);if(!request.defaultPrevented && active===panel)panel.close();});
   }

@@ -97,10 +97,10 @@ class InventoryTemplateTests(unittest.TestCase):
         self.assertFalse(report['complete']);self.assertEqual(report['summary']['needs_review'],1)
         self.assertIn('Original Total: 9; calculated: 5',report['rows'][0]['issues'])
 
-    def test_spare_quantity_limits_and_scala_location_count(self):
+    def test_spare_numeric_quantity_and_scala_location_count(self):
         inventory=self.create('spare_parts')
-        self.assertEqual(self.request('/api/equipment','POST',dict(inventory_id=inventory['id'],description='Spare',quantity=51))[0],400)
-        app.save_equipment(dict(inventory_id=inventory['id'],description='Spare',quantity=50,location='Locker'))
+        self.assertEqual(self.request('/api/equipment','POST',dict(inventory_id=inventory['id'],description='Spare',quantity='not a number'))[0],400)
+        app.save_equipment(dict(inventory_id=inventory['id'],description='Spare',quantity=51,location='Locker'))
         scala=self.create('scala');app.save_equipment(dict(inventory_id=scala['id'],location='Lobby',custom_values={'asset_id':'SC1'}))
         self.assertEqual(app.workspace_overview()['inventory_locations'],1)
         self.assertFalse(scala['layout']['show_status'])

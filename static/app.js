@@ -834,18 +834,20 @@ function orderEquipmentReview(entries) {
   const rowIdentifier=row=>profile.stock_mode==='tv_counts'&&row.brand&&row.model?JSON.stringify([row.brand.trim().toLowerCase(),row.model.trim().toLowerCase()]):profile.identifier?String(inventoryValue(row,profile.identifier)).trim().toLowerCase():'';
   entries.forEach(({row}) => { const key = (row.serial_number || '').trim().toLowerCase(); if (key) serialCounts.set(key, (serialCounts.get(key) || 0) + 1); });
   entries.forEach(({row})=>{const value=rowIdentifier(row);if(value)identifierCounts.set(value,(identifierCounts.get(value)||0)+1);});
-  const groups = new Map();
+  const groups = new Map(),locationCounts=new Map();
+  entries.forEach(({row})=>{const location=(row.location||'').trim();if(location)locationCounts.set(location,(locationCounts.get(location)||0)+1);});
   entries.forEach(entry => {
     entry.issues = equipmentIssues(entry.row,profile);
     profile.columns.filter(col=>col.require_confirmation).forEach(col=>entry.issues.push(`Confirm ${col.label} during review`));
     if(identifierCounts.get(rowIdentifier(entry.row))>1)entry.issues.push('Repeated item identifier in this file');
     if (serialCounts.get((entry.row.serial_number || '').trim().toLowerCase()) > 1) entry.issues.push('Repeated serial number in this file');
     const location = entry.row.location || '';
+    if(location&&locationCounts.get(location)===1&&locationCounts.size>1)entry.issues.push('Unusual location: appears once in this paste');
     if (!groups.has(location)) groups.set(location, []);
     groups.get(location).push(entry);
   });
   const ordered = [];
-  [...groups].filter(([location]) => location).concat([...groups].filter(([location]) => !location)).forEach(([location, rows], groupIndex) => {
+  [...groups].sort((a,b)=>!a[0]-!b[0]||b[1].length-a[1].length).forEach(([location, rows], groupIndex) => {
     rows.sort((a,b) => Boolean(a.issues.length) - Boolean(b.issues.length));
     rows.forEach((entry,index) => { entry.locationProgress = `${location || 'Unassigned location'} · Location ${groupIndex + 1} of ${groups.size} · Item ${index + 1} of ${rows.length} · ${entry.issues.length ? 'Flagged rows' : 'Complete rows'}`; ordered.push(entry); });
   });
@@ -918,11 +920,15 @@ function mappedRows(applyVenueEdits = true) {
       }
       return [field, value];
     }));
+    const sourceIssues=[];
     if (currentTab === 'equipment') {
       const values={};
       Object.keys(mapped).forEach(key=>{if(!inventoryBaseFields.has(key)){values[key]=mapped[key];delete mapped[key];}});
       mapped.custom_values=values;
       inventoryBaseFields.forEach(key=>{if(mapped[key]==null)mapped[key]='';});
+      const quantityOriginal=String(mapped.quantity ?? '').trim(),quantityMatch=quantityOriginal.match(/^(\d+)\s+(.+)$/);
+      if(quantityMatch){mapped.quantity=quantityMatch[1];mapped.notes=[mapped.notes,`Quantity detail: ${quantityOriginal}`].filter(Boolean).join(' · ');sourceIssues.push(`Quantity contained extra text: ${quantityOriginal}`);}
+      else if(quantityOriginal&&!/^\d+$/.test(quantityOriginal))sourceIssues.push(`Quantity is not numeric: ${quantityOriginal}`);
       const extras = ['name','storage_position','condition','unit','quantity_original','source_sheet','source_row'];
       const read = name => { const index = spreadsheetData.headers.findIndex(header => header.trim().toLowerCase() === name); return index < 0 ? '' : String(row[index] ?? '').trim(); };
       if (!mapped.description && importFields().some(([key])=>key==='description') && $('map-description').value!=='') mapped.description = read('name');
@@ -946,17 +952,19 @@ function mappedRows(applyVenueEdits = true) {
     if (currentTab === 'iptv') mapped.channel_source = channelSourceFromName(mapped.name);
     const field = currentTab === 'equipment' ? 'location' : 'venue';
     if (applyVenueEdits && venueEdits.has(mapped[field])) mapped[field] = venueEdits.get(mapped[field]);
-    if(currentTab==='equipment'){const profile=spreadsheetInventory?.layout || window.equipmentUI.profile();const calculated=inventoryCalculate(mapped,profile);calculated.source_issues=[];profile.columns.filter(col=>col.type==='calculated').forEach(col=>{const aliases=[col.label,...(col.aliases || [])].map(normalizedHeader);const index=spreadsheetData.headers.findIndex(header=>aliases.includes(normalizedHeader(header)));const original=index>=0?String(row[index] || '').trim():'';if(original!==''&&String(inventoryValue(calculated,col.key))!==original)calculated.source_issues.push(`Original ${col.label}: ${original}; calculated: ${inventoryValue(calculated,col.key) || 'unknown'}`);});return calculated;}return mapped;
+    if(currentTab==='equipment'){const profile=spreadsheetInventory?.layout || window.equipmentUI.profile();const calculated=inventoryCalculate(mapped,profile);calculated.source_issues=[...sourceIssues];profile.columns.filter(col=>col.type==='calculated').forEach(col=>{const aliases=[col.label,...(col.aliases || [])].map(normalizedHeader);const index=spreadsheetData.headers.findIndex(header=>aliases.includes(normalizedHeader(header)));const original=index>=0?String(row[index] || '').trim():'';if(original!==''&&String(inventoryValue(calculated,col.key))!==original)calculated.source_issues.push(`Original ${col.label}: ${original}; calculated: ${inventoryValue(calculated,col.key) || 'unknown'}`);});return calculated;}return mapped;
   });
 }
 function combineTVEntries(entries) {
   const profile=spreadsheetInventory?.layout || window.equipmentUI.profile();
-  if(profile.stock_mode!=='tv_counts')return entries;
+  if(!(profile.merge_duplicate_models??profile.stock_mode==='tv_counts'))return entries;
   const groups=new Map();
-  entries.forEach(entry=>{const key=entry.row.brand&&entry.row.model?JSON.stringify([entry.row.brand.trim().toLowerCase(),entry.row.model.trim().toLowerCase()]):'row:'+entry.number;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(entry);});
+  entries.forEach(entry=>{const row=entry.row,key=!row.serial_number&&row.model?JSON.stringify([row.brand.trim().toLowerCase(),row.model.trim().toLowerCase(),row.location.trim().toLowerCase()]):'row:'+entry.number;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(entry);});
   return [...groups.values()].map(group=>{if(group.length===1)return group[0];const row={...group[0].row,custom_values:{...group[0].row.custom_values}};
-    profile.columns.filter(col=>col.type==='count').forEach(col=>{const counts=group.map(entry=>String(inventoryValue(entry.row,col.key)).trim());const total=counts.every(value=>/^\d+$/.test(value))?String(counts.reduce((sum,value)=>sum+Number(value),0)):'';if(inventoryBaseFields.has(col.key))row[col.key]=total;else row.custom_values[col.key]=total;});
-    const numbers=group.map(entry=>entry.number);row.source_issues=group.flatMap(entry=>(entry.row.source_issues || []).map(issue=>'Source row '+entry.number+': '+issue));row.notes=[...new Set(group.map(entry=>entry.row.notes).filter(Boolean)),'Combined source rows: '+numbers.join(', '),...row.source_issues].join(' · ');
+    for(const key of ['description','brand','model','location'])if(!row[key])row[key]=group.map(entry=>entry.row[key]).find(Boolean)||'';
+    const sumKeys=new Set(profile.columns.filter(col=>col.type==='count').map(col=>col.key));if(profile.columns.some(col=>col.key==='quantity'))sumKeys.add('quantity');
+    sumKeys.forEach(key=>{const counts=group.map(entry=>String(inventoryValue(entry.row,key)).trim());const total=counts.every(value=>/^\d+$/.test(value))?String(counts.reduce((sum,value)=>sum+Number(value),0)):'';if(inventoryBaseFields.has(key))row[key]=total;else row.custom_values[key]=total;});
+    const numbers=group.map(entry=>entry.number),descriptions=new Set(group.map(entry=>entry.row.description).filter(Boolean).map(normalizedHeader));row.source_issues=group.flatMap(entry=>(entry.row.source_issues||[]).map(issue=>'Source row '+entry.number+': '+issue));if(descriptions.size>1)row.source_issues.push('Merged model has different source descriptions; check Description');row.notes=[...new Set(group.map(entry=>entry.row.notes).filter(Boolean)),'Combined source rows: '+numbers.join(', '),...row.source_issues].join(' · ');
     return {...group[0],row:inventoryCalculate(row,profile),number:numbers.join(', '),sourceNumbers:numbers};
   });
 }
@@ -1111,7 +1119,7 @@ async function loadSpreadsheet(options={}) {
     spreadsheetData = data;
     $('header-row').value=data.header_row;
     $('header-row').disabled=!!spreadsheetFile.pasted;
-    $('import-confirmation-choice').replaceChildren(new Option('No confirmation','none'),new Option('Confirm IP','ip'),...(currentTab==='equipment'?[new Option('Located / Not located','storage')]:[]));
+    $('import-confirmation-choice').replaceChildren(new Option('No confirmation','none'),new Option('Confirm IP','ip'),...(currentTab==='equipment'?[new Option('To be found / Located','storage')]:[]));
     $('import-confirmation-choice').value=spreadsheetFile.confirmation_mode || 'none';
     $('import-header-list').replaceChildren(...(data.header_candidates || []).slice(0,12).map(candidate=>{
       const row=element('div','import-history-row'),button=element('button','secondary',`Use row ${candidate.number}`);button.type='button';button.onclick=()=>{$('header-row').value=candidate.number;$('header-row').dataset.manual='true';loadSpreadsheet({manualHeader:true});};
@@ -1331,7 +1339,7 @@ $('spreadsheet-form').onsubmit = async event => {
       if(stopSpreadsheetReview){stopped=true;break;}
       const location=tab==='equipment'?entries[index].row.location:entries[index].row.venue || '';
       let end=index;
-      while(end<entries.length && end<index+8 && (tab==='equipment'?entries[end].row.location:entries[end].row.venue || '')===location)end++;
+      while(end<entries.length && (tab==='equipment'?entries[end].row.location:entries[end].row.venue || '')===location)end++;
       const batch=entries.slice(index,end),remaining=[];
       for(const entry of batch){
         const complete=profile && $('import-complete-rows').checked && !profile.columns.some(column=>column.require_confirmation) && !entry.issues.length && profile.columns.filter(column=>column.key!=='orientation'&&column.type!=='calculated').every(column=>($('map-'+column.key).value!=='' || column.key==='brand'&&profile.stock_mode==='tv_counts' || column.key==='location'&&(spreadsheetFile.default_location || spreadsheetFile.sheet_location)) && String(inventoryValue(entry.row,column.key)).trim()!=='');
@@ -1503,6 +1511,7 @@ async function startSpreadsheetImport(file,inventory) {
   spreadsheetFile=file;spreadsheetInventory=inventory;spreadsheetData=null;pastedFieldSetup=null;
   $('confirm-import').disabled=true;$('spreadsheet-error').hidden=true;
   await window.importWorkflow.begin(file,inventory);
+  if(file.pasted&&spreadsheetInventory)spreadsheetInventory=window.pasteWorkflow.prepareInventory(spreadsheetInventory);
   delete $('header-row').dataset.manual;$('import-sheet-choices').replaceChildren();
   spreadsheetData=null;venueEdits=new Map();skippedImportLocations.clear();$('import-venue-editor').hidden=true;
   $('import-venue-list').replaceChildren();$('header-row').value='1';$('sheet-choice').replaceChildren();$('sheet-choice').disabled=/\.csv$/i.test(file.filename);
@@ -1562,7 +1571,7 @@ $('paste-inventory-form').onsubmit=async event=>{
 let pendingPasteConfirmation=null;
 function openPasteConfirmation(file,inventory){
   pendingPasteConfirmation={file,inventory,tab:currentTab};
-  const options=[['none','No confirmation needed'],['ip','Confirm IP — check the network address afterward'],...(inventory?[['storage','Storage — Located / Not located afterward']]:[])];
+  const options=[['none','No confirmation needed'],['ip','Confirm IP — check the network address afterward'],...(inventory?[['storage','Storage — To be found / Located afterward']]:[])];
   $('paste-confirmation-mode').replaceChildren(...options.map(([value,label])=>new Option(label,value)));
   $('paste-confirmation-mode').value=inventory?(inventory.layout?.confirmation_mode || (inventory.layout?.show_status===false?'none':'storage')):currentTab==='device'?'ip':'none';
   $('paste-confirmation-target').textContent='Import into: '+(inventory?.name || (currentTab==='iptv'?'IPTV Channels':'AV Devices'));

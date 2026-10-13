@@ -40,6 +40,7 @@ with tempfile.TemporaryDirectory() as temporary:
             m1=page.locator('tr[data-source-row="4"]');m2=page.locator('tr[data-source-row="5"]');m3=page.locator('tr[data-source-row="6"]');m4=page.locator('tr[data-source-row="7"]')
             assert m2.get_by_role('checkbox').is_checked()
             assert not m1.get_by_role('checkbox').is_checked()
+            assert m1.locator('td.batch-cell-missing').count()>=1
             m3.get_by_role('checkbox').check()
             page.locator('#inventory-import-review-save').click()
             page.wait_for_function("() => document.querySelector('tr[data-source-row=\"6\"] .batch-row-result').classList.contains('error')")
@@ -59,9 +60,9 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#inventory-import-review-stop').click()
             page.locator('#spreadsheet-dialog').wait_for(state='hidden')
             assert len(app.equipment_inventory(inventory['id']))==6
-            assert page.locator('#equipment-import-report').is_visible()
-            page.locator('#equipment-import-report summary').click()
-            assert 'Skipped by user' in page.locator('#equipment-import-report').inner_text()
+            page.locator('#import-summary-panel').wait_for(state='visible')
+            assert '1 skip' in page.locator('#import-summary-groups').inner_text()
+            page.locator('#close-import-summary').click()
             page.locator('#equipment-rows button[data-value="Vertical"]').first.click()
             page.wait_for_function("() => document.querySelector('#equipment-rows button[data-value=Vertical]').getAttribute('aria-pressed')==='true'")
             page.reload();page.locator('#equipment-rows tr').first.wait_for()
@@ -87,20 +88,22 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#inventory-import-review-rows tr').count()==2
             assert len(app.equipment_inventory(1))==2
             page.locator('#inventory-import-review-stop').click();page.locator('#spreadsheet-dialog').wait_for(state='hidden')
-            # Larger locations use eight-row screens, with bulk selection on each screen.
+            # Larger locations keep every row together in one dense, scrollable review table.
             many=('Item,Brand,Model,Serial number,Quantity,Location,Notes\n'+''.join(f'Camera,Sony,X,BULK-{index},,Store,note\n' for index in range(10))).encode()
             page.locator('#import-file').set_input_files({'name':'many.csv','mimeType':'text/csv','buffer':many})
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             page.locator('#confirm-import').click();dialog.wait_for(state='visible')
-            assert page.locator('#inventory-import-review-rows tr').count()==8
+            assert page.locator('#inventory-import-review-rows tr').count()==10
+            assert '10 rows on this screen' in page.locator('#inventory-import-review-progress').inner_text()
+            assert page.locator('#import-workspace').evaluate('(dialog)=>dialog.getBoundingClientRect().height') >= 950
+            review_height=page.locator('.batch-review-scroll').evaluate('(region)=>region.getBoundingClientRect().height')
+            assert review_height >= 650,review_height
             page.locator('#inventory-import-review-rows input[type=number]').evaluate_all('(inputs)=>inputs.forEach(input=>{input.value="1";input.dispatchEvent(new Event("input",{bubbles:true}));})')
             page.locator('#inventory-import-review-all').check()
             page.locator('#inventory-import-review-save').click()
-            page.wait_for_function("() => document.querySelectorAll('#inventory-import-review-rows tr').length===2")
-            assert len(app.equipment_inventory(1))==10
-            page.locator('#inventory-import-review-all').check();page.locator('#inventory-import-review-skip').click()
-            page.locator('#spreadsheet-dialog').wait_for(state='hidden')
-            assert len(app.equipment_inventory(1))==10
+            page.locator('#import-summary-panel').wait_for(state='visible')
+            saved_count=len(app.equipment_inventory(1))
+            assert saved_count==12,saved_count
             assert not errors,errors
             browser.close()
     finally:

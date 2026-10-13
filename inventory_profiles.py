@@ -41,7 +41,7 @@ def validate_profile(value):
         column=dict(key=key,label=label.strip(),type=kind,important=col.get('important',False),filter=filtering,options=options)
         if 'allow_custom' in col:
             if type(col['allow_custom']) is not bool: raise ValueError('Choose whether other dropdown values are allowed.')
-            column['allow_custom']=col['allow_custom'] if kind=='select' else False
+            column['allow_custom']=col['allow_custom'] if kind in ('select','buttons') else False
         if 'require_confirmation' in col:
             if type(col['require_confirmation']) is not bool: raise ValueError('Choose whether import confirmation is required.')
             column['require_confirmation']=col['require_confirmation']
@@ -77,7 +77,7 @@ def validate_profile(value):
         if type(value['show_status']) is not bool:
             raise ValueError('Choose whether to show location status.')
         result['show_status'] = value['show_status']
-    for key in ('stock_check_history','show_record_check'):
+    for key in ('stock_check_history','show_record_check','merge_duplicate_models'):
         if key in value:
             if type(value[key]) is not bool:raise ValueError('Table check settings must be true or false.')
             result[key]=value[key]

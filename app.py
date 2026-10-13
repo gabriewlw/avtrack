@@ -643,9 +643,9 @@ def equipment_import_confirmation(value):
         return 0
     if type(status) in (bool, int) and status in (0, 1):
         return int(status)
-    if isinstance(status, str) and status.strip().lower() in ('0', '1', 'true', 'false', 'located', 'not located', 'found', 'to find', 'pending'):
+    if isinstance(status, str) and status.strip().lower() in ('0', '1', 'true', 'false', 'located', 'not located', 'found', 'to find', 'to be found', 'pending'):
         return int(status.strip().lower() in ('1', 'true', 'located', 'found'))
-    raise ValueError('Located status must be Located or Not located.')
+    raise ValueError('Status must be Located or To be found.')
 
 def manage_equipment_location(payload):
     if not isinstance(payload, dict):
@@ -756,7 +756,7 @@ def equipment_csv(rows=None, layout=None):
         writer=csv.writer(output)
         writer.writerow([label for label,key in columns]+(['Status'] if layout.get('show_status',True) else []))
         for row in equipment_inventory() if rows is None else rows:
-            values=[row.get(key) or '' if key=='last_checked_at' else column_value(row,key) for label,key in columns]+([('IP confirmed' if row.get('item_confirmed') else 'Confirm IP') if layout.get('confirmation_mode')=='ip' else ('Located' if row.get('item_confirmed') else 'Not located')] if layout.get('show_status',True) else [])
+            values=[row.get(key) or '' if key=='last_checked_at' else column_value(row,key) for label,key in columns]+([('IP confirmed' if row.get('item_confirmed') else 'Confirm IP') if layout.get('confirmation_mode')=='ip' else ('Located' if row.get('item_confirmed') else 'To be found')] if layout.get('show_status',True) else [])
             writer.writerow(["'"+str(v) if str(v).startswith(('=', '+', '-', '@', '\t', '\r', '\n')) else v for v in values])
         return output.getvalue().encode('utf-8-sig')
     writer = csv.DictWriter(output, fieldnames=fields, extrasaction='ignore')

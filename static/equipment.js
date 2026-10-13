@@ -12,7 +12,7 @@
   const recordChecksEnabled = () => layout().show_record_check ?? !isTVInventory();
   const ipConfirmation = () => layout().confirmation_mode === 'ip';
   const confirmedLabel = () => ipConfirmation() ? 'IP confirmed' : 'Located';
-  const pendingLabel = () => ipConfirmation() ? 'Confirm IP' : 'Not located';
+  const pendingLabel = () => ipConfirmation() ? 'Confirm IP' : 'To be found';
   const showLocatedStatus = () => layout().show_status !== false;
   const importReports = new Map();
   const crossChecks = new Map();
@@ -565,7 +565,7 @@
   $('equipment-import').onclick = openPastedImport;
   $('equipment-show-zero').onchange=renderEquipment;
   for (const id of ['equipment-search','equipment-location-filter','equipment-review-filter']) $(id).addEventListener(id.endsWith('search') ? 'input' : 'change', renderEquipment);
-  for (const [value, text] of [['','All items'], ['found','Located'], ['pending','Not located']]) {
+  for (const [value, text] of [['','All items'], ['found','Located'], ['pending','To be found']]) {
     const button = element('button', 'choice-button', text); button.type = 'button';
     button.dataset.value = value; button.setAttribute('aria-pressed', String(value === ''));
     button.onclick = () => {

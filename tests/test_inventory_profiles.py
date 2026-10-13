@@ -56,10 +56,12 @@ class InventoryProfileTests(unittest.TestCase):
 
     def test_checkbox_buttons_validation_and_hidden_data_preserved(self):
         profile=copy.deepcopy(SCALA_PROFILE)
-        profile['columns'].extend([dict(key='custom_online',label='Online',type='checkbox',important=True,filter='buttons',options=[]),dict(key='custom_zone',label='Zone',type='buttons',important=False,filter='dropdown',options=['A','B'])])
+        profile['columns'].extend([dict(key='custom_online',label='Online',type='checkbox',important=True,filter='buttons',options=[]),dict(key='custom_zone',label='Zone',type='buttons',important=False,filter='dropdown',options=['A','B'],allow_custom=True)])
         inventory=self.request('/api/equipment/inventories','POST',dict(name='Custom',layout=profile))[1]['id']
         saved=self.request('/api/equipment','POST',self.row(inventory,custom_online='true',custom_zone='A'))[1]
         self.assertEqual(saved['custom_values']['custom_online'],'Yes')
+        custom=self.request('/api/equipment','POST',self.row(inventory,'SC-3',custom_zone='C'))[1]
+        self.assertEqual(custom['custom_values']['custom_zone'],'C')
         profile['columns']=profile['columns'][:-2]
         self.request(f'/api/equipment/inventories/{inventory}','PUT',dict(name='Custom',layout=profile))
         self.assertEqual(app.equipment_inventory(inventory)[0]['custom_values']['custom_zone'],'A')

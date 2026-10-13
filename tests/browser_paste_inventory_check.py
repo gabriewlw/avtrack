@@ -108,13 +108,41 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#confirm-import').inner_text()=='Apply setup & review 2 rows'
             assert 'Locker C' in page.locator('#spreadsheet-preview').inner_text()
             assert 'Locker D' in page.locator('#spreadsheet-preview').inner_text()
-            page.locator('#confirm-import').click();page.locator('#spreadsheet-dialog').wait_for(state='hidden')
+            page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
+            first_location=page.locator('#inventory-import-review-title').inner_text()
+            assert first_location in ('Review Locker C','Review Locker D')
+            assert 'Unusual location' in page.locator('#inventory-import-review-rows').inner_text()
+            page.locator('#inventory-import-review-all').check();page.locator('#inventory-import-review-save').click()
+            page.wait_for_function('(title)=>document.getElementById("inventory-import-review-title").textContent!==title',arg=first_location)
+            assert page.locator('#inventory-import-review-title').inner_text() in ('Review Locker C','Review Locker D')
+            page.locator('#inventory-import-review-all').check();page.locator('#inventory-import-review-save').click()
+            page.locator('#import-summary-panel').wait_for(state='visible')
             page.wait_for_function("() => document.getElementById('equipment-records').textContent==='3'")
             saved=app.equipment_inventory(parts['id'])
             assert {row['serial_number'] for row in saved}=={'S2','S3','S4'}
             assert next(row for row in saved if row['serial_number']=='S3')['location']=='Locker C'
             assert next(row for row in saved if row['serial_number']=='S4')['location']=='Locker D'
             assert 'Source sheet: Locker C worksheet' in next(row for row in saved if row['serial_number']=='S3')['notes']
+            page.locator('#close-import-summary').click()
+            # Repeated stock models can be merged deliberately; quantities with comments stay reviewable.
+            page.locator('#equipment-paste').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
+            page.locator('#paste-inventory-text').fill('Description\tBrand\tModel\tSerial Number\tQuantity\tLocation\tNotes\nReceiver\tAtlona\tRX-1\t\t2 USED\tLocker E\tFirst\nReceiver\tAtlona\tRX-1\t\t3\tLocker E\tSecond\n')
+            page.locator('#continue-paste-inventory').click();page.locator('#paste-layout-dialog').wait_for(state='visible')
+            page.wait_for_function("() => !document.getElementById('paste-start-review').disabled")
+            assert 'Numeric field · 1 value has extra text to review' in page.locator('#paste-field-analysis').inner_text()
+            assert not page.locator('#paste-merge-models').is_checked()
+            page.locator('#paste-merge-models').check()
+            assert '1 item' in page.locator('#paste-preview-counts').inner_text()
+            page.locator('#paste-preview-auto').uncheck();page.locator('#paste-start-review').click()
+            page.locator('#inventory-import-review').wait_for(state='visible')
+            assert page.locator('#inventory-import-review-rows tr').count()==1
+            assert page.get_by_label('Quantity, row 2, 3',exact=True).input_value()=='5'
+            notes=page.get_by_role('button',name='Edit notes for row 2, 3',exact=True)
+            assert all(text in notes.get_attribute('title') for text in ['First','Second','Quantity detail: 2 USED'])
+            page.locator('#inventory-import-review-all').check();page.locator('#inventory-import-review-save').click()
+            page.locator('#import-summary-panel').wait_for(state='visible')
+            merged=next(row for row in app.equipment_inventory(parts['id']) if row['model']=='RX-1')
+            assert merged['quantity']==5 and not merged['serial_number']
             assert not errors,errors
             browser.close()
     finally:server.shutdown();server.server_close()

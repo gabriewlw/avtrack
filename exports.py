@@ -89,13 +89,13 @@ def equipment_xlsx(rows, inventory_name='Equipment inventory', layout=None):
     if layout:
         from inventory_profiles import column_value
         columns=[(col['label'],col['key'],28) for col in layout['columns']]+([('Status','found',16)] if layout.get('show_status',True) else [])
-        values=[dict({col['key']:column_value(row,col['key']) for col in layout['columns']},found=('IP confirmed' if row.get('item_confirmed') else 'Confirm IP') if layout.get('confirmation_mode')=='ip' else ('Located' if row.get('item_confirmed') else 'Not located')) for row in rows]
+        values=[dict({col['key']:column_value(row,col['key']) for col in layout['columns']},found=('IP confirmed' if row.get('item_confirmed') else 'Confirm IP') if layout.get('confirmation_mode')=='ip' else ('Located' if row.get('item_confirmed') else 'To be found')) for row in rows]
         if layout.get('stock_check_history',layout.get('template')=='tv' or layout.get('stock_mode')=='tv_counts'):
             columns.append(('Last checked (UTC)','last_checked_at',26))
             for value,row in zip(values,rows): value['last_checked_at']=row.get('last_checked_at') or ''
         title=re.sub(r'[\\/*?:\[\]]','-',inventory_name)[:31].strip("'") or 'Inventory'
         return workbook([(title,columns,values)])
-    rows = [dict(row, found='Located' if row.get('item_confirmed') else 'Not located') for row in rows]
+    rows = [dict(row, found='Located' if row.get('item_confirmed') else 'To be found') for row in rows]
     sheet_name = 'Equipment' if inventory_name == 'Equipment inventory' else re.sub(r'[\\/*?:\[\]]', '-', clean_text(inventory_name))[:31].strip("'") or 'Equipment'
     return workbook([(sheet_name, [('Item','description',40), ('Brand','brand',24), ('Model','model',24),
                                    ('Serial number','serial_number',24),
@@ -146,7 +146,7 @@ def pdf_report(title, sections, repeat_section=False):
     def report_cell(label, value):
         if label == 'SYSTEM' and value in tag_colors:
             return paragraph(value, ParagraphStyle('HubTag', parent=body, textColor=colors.HexColor(tag_colors[value][1])))
-        if label in ('CONFIRMATION', 'LOCATED') and value in ('Confirmed', 'Pending', 'Located', 'Not located'):
+        if label in ('CONFIRMATION', 'LOCATED') and value in ('Confirmed', 'Pending', 'Located', 'To be found'):
             confirmed = value in ('Confirmed', 'Located')
             return paragraph(value, ParagraphStyle('HubConfirmation', parent=body,
                 fontName='HubBold' if confirmed else 'HubText',
@@ -262,7 +262,7 @@ def equipment_pdf(rows, inventory_name='Equipment inventory', layout=None):
         from inventory_profiles import column_value
         columns=layout['columns']
         labels=[col['label'] for col in columns]+(['Status'] if layout.get('show_status',True) else [])
-        values=[[column_value(row,col['key']) for col in columns]+([('IP confirmed' if row.get('item_confirmed') else 'Confirm IP') if layout.get('confirmation_mode')=='ip' else ('Located' if row.get('item_confirmed') else 'Not located')] if layout.get('show_status',True) else []) for row in rows]
+        values=[[column_value(row,col['key']) for col in columns]+([('IP confirmed' if row.get('item_confirmed') else 'Confirm IP') if layout.get('confirmation_mode')=='ip' else ('Located' if row.get('item_confirmed') else 'To be found')] if layout.get('show_status',True) else []) for row in rows]
         if layout.get('stock_check_history',layout.get('template')=='tv' or layout.get('stock_mode')=='tv_counts'):
             labels.append('Last checked (UTC)')
             for value,row in zip(values,rows): value.append(row.get('last_checked_at') or '')
@@ -273,6 +273,6 @@ def equipment_pdf(rows, inventory_name='Equipment inventory', layout=None):
     for row in sorted(rows, key=lambda row: (row['location'].casefold(), row['description'].casefold(), row['brand'].casefold(), row['model'].casefold())):
         locations.setdefault(row['location'], []).append([
             row['description'], row['brand'], row['model'], row['serial_number'], row['quantity'],
-            'Located' if row.get('item_confirmed') else 'Not located', row['notes']])
+            'Located' if row.get('item_confirmed') else 'To be found', row['notes']])
     sections = [(f'Location: {location or "Unassigned location"}', labels, widths, records) for location, records in locations.items()]
     return pdf_report(inventory_name, sections or [('Equipment', labels, widths, [])], repeat_section=True)

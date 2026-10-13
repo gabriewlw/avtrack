@@ -35,6 +35,13 @@ function inventoryInput(column,value = '', {allowClear = true, locations = []} =
   } else if (column.type === 'buttons') {
     control.type='hidden';const group=element('div','choice-buttons');group.setAttribute('role','group');group.setAttribute('aria-label',column.label);
     (allowClear ? ['',...column.options] : column.options).forEach(value=>{const button=element('button','choice-button',value || 'Clear');button.type='button';button.dataset.value=value;button.setAttribute('aria-pressed',String(value===control.value));button.onclick=()=>{control.value=value;group.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));control.dispatchEvent(new Event('change',{bubbles:true}));};group.append(button);});wrapper.append(group);
+    if(column.allow_custom){
+      const other=element('button','choice-button','Other…');other.type='button';const editor=element('div','inventory-other-choice');editor.hidden=true;
+      const input=element('input');input.type='text';input.maxLength=120;input.placeholder=column.key==='brand'?'Enter another brand':'Enter another value';input.setAttribute('aria-label',column.key==='brand'?'Other brand':`Other ${column.label}`);
+      const apply=element('button','secondary',column.key==='brand'?'Use brand':'Use value');apply.type='button';
+      other.onclick=()=>{editor.hidden=false;input.focus();};apply.onclick=()=>{const value=input.value.trim();if(!value){input.focus();return;}let button=[...group.querySelectorAll('[data-value]')].find(item=>item.dataset.value.toLowerCase()===value.toLowerCase());if(!button){button=element('button','choice-button',value);button.type='button';button.dataset.value=value;group.insertBefore(button,other);button.onclick=()=>{control.value=value;group.querySelectorAll('button').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));control.dispatchEvent(new Event('change',{bubbles:true}));};}button.click();input.value='';editor.hidden=true;};
+      input.onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();apply.click();}};group.append(other);editor.append(input,apply);wrapper.append(editor);
+    }
   } else { control.type=column.key==='quantity'?'number':'text';if(column.key==='quantity'){control.min='0';control.max='1000000';} }
   if(column.type==='calculated'){control.readOnly=true;control.setAttribute('aria-description','Calculated from deck counts');wrapper.classList.add('inventory-calculated');}
   if(control.tagName==='TEXTAREA')control.rows=1;

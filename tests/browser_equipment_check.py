@@ -32,18 +32,19 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#import-file').set_input_files(str(csv_file))
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             assert page.locator('#map-description').input_value() == '0'
+            page.locator('#import-complete-rows').uncheck()
             page.locator('#confirm-import').click()
-            for index in range(3):
-                page.locator('#row-review-dialog').wait_for(state='visible')
-                progress = page.locator('#row-review-progress').inner_text()
-                page.locator('#accept-review-row').click()
-                if index < 2:
-                    page.wait_for_function('previous => document.getElementById("row-review-progress").textContent !== previous', arg=progress)
-                else:
-                    page.locator('#spreadsheet-dialog').wait_for(state='hidden')
+            page.locator('#inventory-import-review').wait_for(state='visible')
+            assert page.locator('#inventory-import-review-title').inner_text()=='Review Main lounge'
+            assert page.locator('#inventory-import-review-rows tr').count()==2
+            page.locator('#inventory-import-review-all').check();page.locator('#inventory-import-review-save').click()
+            page.wait_for_function("() => document.getElementById('inventory-import-review-title').textContent==='Review Broadcast center'")
+            page.locator('#inventory-import-review-all').check();page.locator('#inventory-import-review-save').click()
+            page.locator('#import-summary-panel').wait_for(state='visible');page.locator('#close-import-summary').click()
             page.wait_for_function("() => document.querySelectorAll('#equipment-rows tr').length === 3")
             assert all(row['item_confirmed'] == 0 for row in app.equipment_inventory())
-            assert page.locator('#equipment-table th').all_text_contents() == ['Item','Brand','Model','Serial number','Quantity','Location','Located','Notes','Actions']
+            headers=page.locator('#equipment-table th').all_text_contents()
+            assert headers == ['Item','Brand','Model','Serial number','Quantity','Location','Notes','Record check','Status','Actions'],headers
             page.locator('#equipment-location-filter').select_option('Main lounge')
             assert page.locator('#equipment-rows tr').count() == 2
             microphone = page.locator('#equipment-rows tr').filter(has_text='Handheld microphone')
@@ -54,7 +55,7 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#equipment-refresh').click()
             page.wait_for_function("() => !document.getElementById('equipment-refresh').disabled")
             assert microphone.locator('.equipment-confirm').is_checked()
-            page.locator('#equipment-status-buttons').get_by_role('button', name='Not located', exact=True).click()
+            page.locator('#equipment-status-buttons').get_by_role('button', name='To be found', exact=True).click()
             assert page.locator('#equipment-rows tr').count() == 1
             assert 'Audio cable' in page.locator('#equipment-rows').inner_text()
             page.locator('#equipment-status-buttons').get_by_role('button', name='Located', exact=True).click()
@@ -63,8 +64,9 @@ with tempfile.TemporaryDirectory() as temp:
             page.wait_for_function("() => document.getElementById('equipment-found').textContent === '0'")
             assert page.locator('#equipment-no-results').is_visible()
             page.locator('#equipment-clear').click()
+            page.locator('#equipment-status-buttons').get_by_role('button', name='All items', exact=True).click()
             page.locator('#equipment-location-filter').select_option('Main lounge')
-            microphone.get_by_role('button', name='Edit equipment Shure SM58', exact=True).click()
+            microphone.get_by_role('button', name='Edit equipment MIC-01', exact=True).click()
             page.locator('#equipment-form [name=notes]').fill('Located beside the stage')
             page.locator('#save-equipment').click()
             page.locator('#equipment-dialog').wait_for(state='hidden')
@@ -98,12 +100,12 @@ with tempfile.TemporaryDirectory() as temp:
                 text = subprocess.run(['pdftotext','-','-'],input=pdf,capture_output=True,check=True).stdout.decode()
                 assert 'Location: Main lounge' in text
                 assert 'Broadcast center' not in text
-                assert 'Located' in text and 'Not located' in text
+                assert 'Located' in text and 'To be found' in text
             page.reload()
             page.locator('#equipment-tab').click()
             page.wait_for_function("() => !document.getElementById('equipment-refresh').disabled")
             assert microphone.locator('.equipment-confirm').is_checked()
-            microphone.get_by_role('button', name='Edit equipment Shure SM58', exact=True).click()
+            microphone.get_by_role('button', name='Edit equipment MIC-01', exact=True).click()
             page.locator('#equipment-form [name=location]').fill('Broadcast center')
             page.locator('#save-equipment').click()
             page.locator('#equipment-dialog').wait_for(state='hidden')

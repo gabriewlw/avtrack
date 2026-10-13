@@ -31,7 +31,7 @@ with tempfile.TemporaryDirectory() as temporary:
             def delete(name):page.get_by_role('button',name=f'Exclude location {name} and skip its items',exact=True).first.click()
             upload()
             delete('Locker A')
-            assert '2 items skipped from deleted locations' in page.locator('#equipment-import-audit').inner_text()
+            assert '2 items skipped from excluded locations' in page.locator('#equipment-import-audit').inner_text()
             assert page.locator('#confirm-import').inner_text()=='Apply setup & review 3 rows'
             assert page.locator('#spreadsheet-preview strong').all_text_contents()==['Row 4','Row 5','Row 6']
             assert page.locator('#import-venue-list .choice-button').count()==2
@@ -44,13 +44,16 @@ with tempfile.TemporaryDirectory() as temporary:
             assert 'Locker B' in page.locator('#inventory-import-review-title').inner_text()
             page.get_by_label('Brand, row 5',exact=True).fill('Sony')
             page.get_by_role('checkbox',name='Select row 5',exact=True).check()
-            page.locator('#inventory-import-review-save').click();page.locator('#inventory-import-review').wait_for(state='hidden')
+            page.locator('#inventory-import-review-save').click()
+            page.wait_for_function("() => document.getElementById('inventory-import-review-title').textContent==='Review Locker C'")
+            assert 'Unusual location' in page.locator('#inventory-import-review-rows').inner_text()
+            page.locator('#inventory-import-review-all').check();page.locator('#inventory-import-review-save').click()
+            page.locator('#import-summary-panel').wait_for(state='visible')
             page.wait_for_function("() => document.getElementById('equipment-records').textContent==='4'")
             saved=app.equipment_inventory(inventory['id'])
             assert next(row for row in saved if row['id']==existing['id'])['location']=='Locker A'
             assert {row['serial_number'] for row in saved}=={'OLD','DUP','B2','C1'}
             assert next(row for row in saved if row['serial_number']=='DUP')['location']=='Locker B'
-            page.locator('#import-summary-panel').wait_for(state='visible')
             report=page.locator('#import-summary-groups').inner_text()
             assert 'Locker A' in report and '2 excluded' in report
             page.locator('#close-import-summary').click()

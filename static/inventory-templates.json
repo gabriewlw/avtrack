@@ -40,7 +40,7 @@
         {
           "key": "quantity",
           "label": "Quantity",
-          "type": "count",
+          "type": "text",
           "important": true,
           "filter": "none",
           "options": []
@@ -70,6 +70,7 @@
       ],
       "primary_search": "serial_number",
       "identifier": "",
+      "merge_duplicate_models": false,
       "show_status": true,
       "location_role": "storage",
       "template": "spare_parts"

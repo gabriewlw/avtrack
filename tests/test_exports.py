@@ -71,8 +71,8 @@ class ExportTests(unittest.TestCase):
         self.assertEqual(book.sheetnames, ['Equipment'])
         values = list(book.active.values)
         self.assertEqual(values[0], ('Item','Brand','Model','Serial number','Quantity','Location','Located','Notes'))
-        self.assertIn(('Spare','Sony','X','SER-1',0,'Store','Not located','After inspection'), values)
-        self.assertIn(('Unknown spare',None,None,None,None,None,'Not located',None), values)
+        self.assertIn(('Spare','Sony','X','SER-1',0,'Store','To be found','After inspection'), values)
+        self.assertIn(('Unknown spare',None,None,None,None,None,'To be found',None), values)
 
     @unittest.skipUnless(shutil.which('pdftotext'), 'PDF text validation needs optional pdftotext')
     def test_equipment_reports_group_by_location_and_include_found_status(self):
@@ -88,7 +88,7 @@ class ExportTests(unittest.TestCase):
         self.assertLess(headings.index('ITEM'), headings.index('BRAND'))
         self.assertLess(headings.index('MODEL'), headings.index('SERIAL NUMBER'))
         self.assertIn('Located', text)
-        self.assertIn('Not located', text)
+        self.assertIn('To be found', text)
         self.assertIn('by broadcastgab.com', text)
         book = self.xlsx(True)
         row = next(cells for cells in list(book.active)[1:] if cells[0].value == 'First item')
