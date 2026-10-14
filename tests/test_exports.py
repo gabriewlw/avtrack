@@ -9,6 +9,7 @@ from urllib.request import urlopen
 from openpyxl import load_workbook
 
 import app
+import exports
 import test_app
 
 
@@ -89,7 +90,8 @@ class ExportTests(unittest.TestCase):
         self.assertLess(headings.index('MODEL'), headings.index('SERIAL NUMBER'))
         self.assertIn('Located', text)
         self.assertIn('To be found', text)
-        self.assertIn('by broadcastgab.com', text)
+        self.assertIn('broadcastgab.com', text)
+        self.assertNotIn('by broadcastgab.com', text)
         book = self.xlsx(True)
         row = next(cells for cells in list(book.active)[1:] if cells[0].value == 'First item')
         self.assertEqual(row[6].value, 'Located')
@@ -119,6 +121,18 @@ class ExportTests(unittest.TestCase):
             self.assertIn(b'%%EOF', raw)
         self.assertEqual(app.inventory(), [])
         self.assertEqual(app.equipment_inventory(), [])
+
+    @unittest.skipUnless(shutil.which('pdftotext'), 'PDF text validation needs optional pdftotext')
+    def test_pdf_uses_simple_dates_location_tints_and_clean_website_credit(self):
+        raw = exports.pdf_report('TV inventory', [('Inventory',
+            ['MODEL','LOCATION','STATUS','LAST CHECKED (UTC)'], [.25,.25,.2,.3],
+            [['24LV760M-UA','Deck 6 Locker','Located','2026-10-10T16:00:00Z'],
+             ['HG24F800FNF','Deck 2 Port','To be found','']])])
+        text = subprocess.run(['pdftotext','-','-'], input=raw, stdout=subprocess.PIPE, check=True).stdout.decode()
+        self.assertIn('Oct 10 2026 @ 4pm', text)
+        self.assertIn('broadcastgab.com', text)
+        self.assertNotIn('by broadcastgab.com', text)
+        self.assertNotEqual(exports.location_pdf_tint('Deck 6 Locker'), exports.location_pdf_tint('Deck 2 Port'))
 
     def test_scoped_exports_use_only_requested_records_and_latest_saved_values(self):
         camera = self.request('/api/devices', 'POST', dict(name='Selected camera', ip='10.20.0.1', venue='Theatre', discipline='Video'))[1]
