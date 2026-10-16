@@ -861,14 +861,32 @@ const networkImportFields = [
   ['port', 'Port (IPTV)', ['port','udp port','stream port','port number']]
 ];
 const equipmentCheckFields = ['description','brand','model','serial_number','quantity','location'];
-const serialKey = value => String(value || '').replace(/\s+/g,'').toLowerCase();
+const splitEquipmentSerials = value => String(value || '').split(/[\r\n,|;]+/).map(part=>part.replace(/\s+/g,'')).filter(Boolean);
+const uniqueEquipmentSerials = value => {
+  const seen=new Set();
+  return splitEquipmentSerials(value).filter(serial=>{
+    const key=serial.toLowerCase();
+    if(seen.has(key))return false;
+    seen.add(key);
+    return true;
+  });
+};
+const serialKey = value => uniqueEquipmentSerials(value).map(serial=>serial.toLowerCase()).join(',');
 function equipmentIssues(row,profile=window.equipmentUI?.profile() || defaultInventoryLayout) {
   const important=profile.columns.filter(col=>col.important&&col.key!=='orientation');
   const issues=[...(row.source_issues || []),...important.filter(col=>String(inventoryValue(row,col.key)).trim()==='').map(col=>`Missing ${col.label}`)];
 
   profile.columns.filter(col=>['select','buttons'].includes(col.type)&&!col.allow_custom).forEach(col=>{const value=String(inventoryValue(row,col.key));if(value&&!col.options.some(option=>option.toLowerCase()===value.toLowerCase()))issues.push(`Check ${col.label}: ${value}`);});
   profile.columns.filter(col=>col.type==='count').forEach(col=>{const value=String(inventoryValue(row,col.key)).trim();if(value&&(!/^\d+$/.test(value)||Number(value)<(col.minimum ?? 1)||Number(value)>50))issues.push(`Check ${col.label}: choose ${(col.minimum ?? 1)}–50`);});
-  if (/[|;,\n]/.test(row.serial_number || '')) issues.push('Multiple serial numbers in one record');
+  if(profile.columns.some(col=>col.key==='serial_number')){
+    const serials=splitEquipmentSerials(row.serial_number);
+    const uniqueSerials=uniqueEquipmentSerials(row.serial_number);
+    const quantity=Number(row.quantity);
+    if(serials.length!==uniqueSerials.length)issues.push('Duplicate serial numbers in one record');
+    if(uniqueSerials.length&&Number.isInteger(quantity)&&quantity>0&&uniqueSerials.length!==quantity){
+      issues.push(`Serial count ${uniqueSerials.length} does not match quantity ${quantity}`);
+    }
+  }
   if (/separate inventory|not an itemized|reference to/i.test(row.notes || '')) issues.push('Inventory reference: check itemized source');
   return issues;
 }

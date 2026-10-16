@@ -19,8 +19,32 @@ def norm(value):
     return re.sub(r'\s+', ' ', str(value or '').strip()).casefold()
 
 
+def split_serials(value):
+    return [re.sub(r'\s+', '', part) for part in re.split(r'[,|;\r\n]+', str(value or '')) if re.sub(r'\s+', '', part)]
+
+
+def serial_values(value):
+    values, seen = [], set()
+    for serial in split_serials(value):
+        key = serial.casefold()
+        if key not in seen:
+            seen.add(key)
+            values.append(serial)
+    return values
+
+
 def serial_norm(value):
-    return re.sub(r'\s+', '', str(value or '')).casefold()
+    return ','.join(serial.casefold() for serial in serial_values(value))
+
+
+def serial_quantity_issues(value, quantity):
+    serials, unique = split_serials(value), serial_values(value)
+    issues = []
+    if len(serials) != len(unique):
+        issues.append('Duplicate serial numbers in one source row')
+    if unique and quantity is not None and len(unique) != quantity:
+        issues.append(f'Serial count {len(unique)} does not match quantity {quantity}')
+    return issues
 
 
 def meaningful(value):
@@ -66,8 +90,7 @@ def original_records(payload):
             issues = [f'Missing {field.replace("_", " ")}' for field in ('brand','model','serial_number','quantity','location') if row[field] is None or row[field] == '']
             if raw_quantity and row['quantity'] is None:
                 issues.append(f'Non-numeric original quantity: {raw_quantity}')
-            if re.search(r'[|;,\n]', row['serial_number']):
-                issues.append('Multiple serial numbers in one source row')
+            issues.extend(serial_quantity_issues(row['serial_number'], row['quantity']))
             if re.search(r'\bsee\b.*invent|separate inventory', ' '.join(str(v) for v in row.values()), re.I):
                 issues.append('Reference to another inventory; not an itemized stock entry')
             records.append({'sheet':sheet, 'row_number':number, 'record':row, 'details':details, 'issues':issues})
@@ -186,6 +209,9 @@ def reconcile_profile(payload, inventory, profile):
                     if col['type']=='calculated' and values[col['key']] and norm(values[col['key']])!=norm(column_value(row,col['key'])):
                         issues.append(f'Original {col["label"]}: {values[col["key"]]}; calculated: {column_value(row,col["key"]) or "unknown"}')
             except ValueError as exc:issues.append(str(exc))
+            column_keys={col['key'] for col in profile['columns']}
+            if {'serial_number','quantity'} <= column_keys:
+                issues.extend(serial_quantity_issues(row['serial_number'], row['quantity']))
             entries.append({'sheet':sheet,'row_number':number,'record':row,'issues':issues,'details':{}})
             if len(entries)>10000:raise ValueError('Cross-check supports up to 10,000 source rows.')
     key=profile.get('identifier') or profile['primary_search']

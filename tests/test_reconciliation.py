@@ -32,6 +32,20 @@ class ReconciliationTests(unittest.TestCase):
         self.assertEqual(report['summary']['matched'],1)
         self.assertTrue(report['complete'])
 
+    def test_multiple_serials_are_valid_when_they_match_quantity(self):
+        source = payload(b'brand,model,description,serial_number,quantity,location\nSony,X,Camera,"S1, S2, S3",3,Store\n')
+        report = reconcile(source,[item(serial_number='S1 | S2 ; S3', quantity=3)])
+        self.assertEqual(report['summary']['matched'],1)
+        self.assertEqual(report['rows'][0]['issues'],[])
+        self.assertTrue(report['complete'])
+
+    def test_serial_count_mismatch_and_duplicates_need_review(self):
+        records,_ = original_records(payload(b'brand,model,description,serial_number,quantity,location\nSony,X,Camera,"S1, S2, S3",2,Store\n'))
+        self.assertIn('Serial count 3 does not match quantity 2', records[0]['issues'])
+        records,_ = original_records(payload(b'brand,model,description,serial_number,quantity,location\nSony,X,Camera,"S1, S1, S2",3,Store\n'))
+        self.assertIn('Duplicate serial numbers in one source row', records[0]['issues'])
+        self.assertIn('Serial count 2 does not match quantity 3', records[0]['issues'])
+
     def test_repeated_or_blank_serial_never_proves_two_source_rows(self):
         for serial in ('S1',''):
             source = payload(f'brand,model,description,serial_number,quantity,location\nSony,X,Camera,{serial},1,Store\nSony,X,Camera,{serial},1,Store\n'.encode())
