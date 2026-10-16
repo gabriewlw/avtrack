@@ -47,6 +47,12 @@ with tempfile.TemporaryDirectory() as temporary:
             terminal.fill('clear');terminal.press('Enter')
             assert page.locator('#command-output p').count()==0
             assert terminal.evaluate('(node)=>node===document.activeElement')
+            storage_logo=page.locator('.storage-core img')
+            storage_logo.scroll_into_view_if_needed()
+            assert storage_logo.get_attribute('src')=='/favicon.svg'
+            assert storage_logo.get_attribute('alt')=='AVTrack logo'
+            assert storage_logo.evaluate('(node)=>node.complete && node.naturalWidth>0')
+            assert page.locator('.storage-core strong').count()==0
             closing=page.locator('.closing');closing.scroll_into_view_if_needed()
             closing_box=closing.bounding_box();closing_action=closing.locator('.hero-actions .button.primary')
             assert closing_action.count()==1
