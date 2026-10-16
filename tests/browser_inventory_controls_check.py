@@ -31,7 +31,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#equipment-status-buttons button').all_text_contents()==['All items','Located','To be found']
             assert page.locator('#equipment-location-buttons button').all_text_contents()==['Store room']
             assert page.locator('#equipment-location-filter option').first.inner_text()=='All locations'
-            for query in ['studio','viewbrand','modelq','abc123','7','store','remote','tag-44','to be found','check record']:
+            for query in ['studio','viewbrand','modelq','abc123','7','store','remote','tag-44','to be found','confirm stock']:
                 page.locator('#equipment-search').fill(query)
                 assert page.locator('#equipment-rows tr').count()==1,query
             page.locator('#equipment-search').fill('no such item')

@@ -121,12 +121,12 @@
     const flaggedLink=element('a','',`${flaggedCount} flagged`);
     flaggedLink.href='#equipment-table';flaggedLink.onclick=showFlaggedEquipment;
     $('equipment-review-summary').replaceChildren(
-      document.createTextNode(`${items.filter(i => !i.data_checked).length} records not checked · `),
+      document.createTextNode(`${items.filter(i => !i.data_checked).length} awaiting stock confirmation · `),
       flaggedCount ? flaggedLink : document.createTextNode('0 flagged'),
       document.createTextNode(showLocatedStatus() ? ` · ${items.filter(i => !i.item_confirmed).length} ${ipConfirmation()?'IPs':'locations'} not confirmed` : ''));
     const results = items.filter(item => (layout().stock_mode!=='tv_counts'||$('equipment-show-zero').checked||item.quantity!==0) && ([...fields.map(field=>item[field]),...Object.values(item.custom_values || {}),
       ...(showLocatedStatus() ? [item.item_confirmed ? confirmedLabel() : pendingLabel()] : []),
-      item.data_checked ? 'Record checked' : equipmentIssues(item).length ? 'Check flagged record' : 'Check record'
+      item.data_checked ? 'Stock confirmed' : 'Confirm stock'
     ].some(value => String(value ?? '').toLowerCase().includes(query)) || (serialQuery && serialKey(item.serial_number).includes(serialQuery))) &&
       [...customFilterValues].every(([key,value]) => !value || String(inventoryValue(item,key)) === value) &&
       (!$('equipment-location-filter').value || item.location === $('equipment-location-filter').value) &&
@@ -231,17 +231,17 @@
           const review = element('td', 'equipment-review'); review.dataset.label = 'Stock check';
           const issues = recordIssues;
           const checkedDate=item.data_checked_at?new Date(item.data_checked_at):null;
-          const button = element('button', item.data_checked ? 'quiet record-checked' : 'quiet', checkedDate?checkedDate.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):issues.length ? 'Check flagged record' : 'Never checked');
+          const button = element('button', item.data_checked ? 'quiet record-checked' : 'quiet', checkedDate?checkedDate.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):'Confirm stock');
           button.type = 'button'; button.disabled = pendingConfirmations.has(item.id);
-          button.title = checkedDate?`Last confirmed ${checkedDate.toLocaleString()}. Click to view history or confirm again.`:'Click to confirm this inventory record';
-          button.setAttribute('aria-label', `Review record ${displayName(item)}`);
+          button.title = checkedDate?`Stock confirmed ${checkedDate.toLocaleString()}. Click to view history or confirm again.`:'Confirm this item against the inventory record';
+          button.setAttribute('aria-label', `Confirm stock for ${displayName(item)}`);
           button.onclick = async () => {
             $('equipment-record-review-details').textContent = recordReviewDetails(item);
             $('equipment-record-review-issues').textContent = issues.length ? issues.join(' · ') + '. Use Edit to correct the record, or acknowledge these blanks after checking the source.' : 'Check these details against the old inventory file.';
             $('equipment-record-review-error').hidden = true;
             let history=$('equipment-record-review-history');if(!history){history=element('div','stock-check-history');history.id='equipment-record-review-history';$('equipment-record-review-error').before(history);}
             history.replaceChildren(element('p','dialog-intro','Loading confirmation history…'));
-            api(`/api/equipment/${item.id}/record-checks`).then(({checks})=>{if(!checks.length)history.replaceChildren(element('p','dialog-intro','No previous confirmations.'));else{const list=element('ul');checks.forEach(check=>list.append(element('li','',new Date(check.checked_at).toLocaleString())));history.replaceChildren(element('strong','','Confirmation history'),list);}}).catch(error=>history.replaceChildren(element('p','error','Could not load confirmation history: '+error.message)));
+            api(`/api/equipment/${item.id}/record-checks`).then(({checks})=>{if(!checks.length)history.replaceChildren(element('p','dialog-intro','No previous stock confirmations.'));else{const list=element('ul');checks.forEach(check=>list.append(element('li','',new Date(check.checked_at).toLocaleString())));history.replaceChildren(element('strong','','Stock confirmation history'),list);}}).catch(error=>history.replaceChildren(element('p','error','Could not load stock confirmation history: '+error.message)));
             $('edit-equipment-record-review').onclick = () => { $('equipment-record-review-dialog').close(); openEquipment(item); };
             $('save-equipment-record-review').onclick = async () => {
               const control = $('save-equipment-record-review'); control.disabled = true;
