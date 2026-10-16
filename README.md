@@ -1,226 +1,307 @@
 # AVTrack
 
-AVTrack is the official project and product name. The GitHub repository is currently [gabriewlw/broadcasthub](https://github.com/gabriewlw/broadcasthub), pending its rename to `gabriewlw/avtrack`. The connected integration cannot edit repository settings; the owner can change **Settings → General → Repository name** to `avtrack`. Downloads, startup messages and documentation assets use the AVTrack name. The lowercase **avtrack** wordmark remains the visual brand. The original recovered IPTV feature commit is preserved on `recovery/iptv-udp-44f349a`.
+AVTrack is a local workspace for cruise ship broadcast operations. It brings AV device addresses, IPTV channel endpoints, equipment inventories, and configuration backups into one simple application.
 
-A responsive broadcasting workspace for equipment inventory, AV network addresses, and IPTV channel lineups. The site matches broadcastgab.com: **Space Grotesk** for headings, **DM Sans** for body text, and **JetBrains Mono** for navigation, labels, and network values. Fonts are bundled locally so they load without internet access, with system fonts as fallbacks. Font sources and SIL Open Font Licenses are documented in `static/fonts/README.md`. The lowercase **avtrack** wordmark appears at the top left, in PDF reports, and in the footer. Page titles, home-screen labels, and import messages use avtrack. Download filenames use the `avtrack-` prefix. Use the same web app in iPhone Safari and on a computer; all connected browsers share one SQLite database. No offline mode or App Store installation is required.
+## Why I created it
 
-## Run
+I designed AVTrack from my experience working as a broadcast technician on cruise ships. Our work involves many devices, IP addresses, television channels, spare parts, storage locations, and configuration files. That information is often spread across spreadsheets, notes, and folders, which makes it slower to find during day-to-day work and much harder to use during an emergency.
 
-Requires Python 3.12 or newer. Install the pinned Excel and PDF dependencies once; no frontend build is needed.
+I wanted one practical tool that could help me:
+
+- find an AV device and copy its IP address quickly when I need to access or configure it;
+- keep the IP address and port for every onboard IPTV channel in one place;
+- make physical inventory checks less repetitive and make equipment easier to locate;
+- preserve known-good equipment backups so recovery files are ready when something is lost or reset.
+
+AVTrack is built around those jobs. It runs locally, uses a single SQLite database, and does not require a frontend build process or a cloud account.
+
+## What AVTrack manages
+
+### AV Devices
+
+Store each device’s name, venue, IP address or DHCP assignment, VLAN, system, category, and notes. Search the full directory, filter it by venue or system, copy an IP address with one click, and record when an address has been manually confirmed.
+
+AVTrack validates address formatting and prevents new duplicate fixed IP addresses. **IP confirmed** means that a user verified the device; AVTrack does not continuously ping or monitor devices.
+
+### IPTV
+
+Keep onboard and satellite channels together with their IP addresses, UDP ports, sources, and notes. Search the lineup, filter it by source, and copy a complete UDP address when troubleshooting or testing a channel.
+
+AVTrack stores and validates the channel endpoint. It does not play the stream or automatically measure whether a channel is currently on air.
+
+### Inventory
+
+Create separate inventories for spare parts, Scala players, televisions, AMX equipment, Planar displays, TVRO, Daktronics, laptops, projectors, STBs, or a custom equipment type.
+
+Paste cells directly from Excel or import CSV/XLSX files. AVTrack reads the headings, suggests field matches, identifies incomplete rows, groups review work by location, and lets you confirm several records at once. Locations, stock-check history, serial numbers, custom columns, notes, and Located/To be found status can be configured for each inventory.
+
+Use the source comparison tools after an import to check that spreadsheet records reached AVTrack. Blank values remain available for later inspection instead of blocking the entire import.
+
+### AV Backups
+
+Save known-good files for Videohubs, ATEM switchers, satellite receivers, OBS profiles, and other AV systems. Each record includes the device name, equipment type, date, notes, and an optional card icon.
+
+The actual files are stored in a normal local folder, so they remain easy to copy or synchronize. AVTrack stores their descriptions and file references in SQLite. Each uploaded backup can be up to 25 MB.
+
+## Quick start
+
+AVTrack requires **Python 3.12 or newer**. No Node.js installation or frontend compilation is required.
+
+### Windows PowerShell
+
+Open PowerShell in the downloaded AVTrack folder and run:
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe app.py
+```
+
+If the `py` command is unavailable, use `python` instead:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe app.py
+```
+
+Using `.venv\Scripts\python.exe` directly avoids PowerShell execution-policy problems and does not require activating the virtual environment.
+
+### macOS or Linux
+
+Open a terminal in the AVTrack folder and run:
 
 ```sh
-cd /path/to/avtrack
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python app.py
 ```
 
-On Windows, open a terminal in the extracted project folder and run `py -m pip install -r requirements.txt`, then `py app.py`. On Mac/Linux, replace `/path/to/avtrack` above with the actual downloaded folder path. After the GitHub rename, new Codespaces normally use `/workspaces/avtrack`; existing Codespaces keep their previous folder name.
+When the terminal displays:
 
-After the GitHub rename, ZIP downloads will use the folder name `avtrack-main`. Existing local folders can be renamed to `avtrack`: stop the server, keep the complete `data` folder with the project, and reopen the terminal in the renamed folder. Recreate a virtual environment after moving a folder because its launch scripts can contain absolute paths. The folder name does not affect saved records. After renaming the GitHub repository, update an existing checkout’s remote with `git remote set-url origin https://github.com/gabriewlw/avtrack.git`; GitHub will also redirect the previous repository URL.
+```text
+AVTrack listening on 127.0.0.1:8000
+```
 
-The default bind address is `127.0.0.1`, port `8000`. For a computer or private server reachable by your iPhone on the same network:
+open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
+
+Keep the terminal open while using AVTrack. Press **Ctrl+C** in that terminal to stop the server.
+
+## First use
+
+The home page shows four workspace cards. Use **Add** to open the correct form immediately, or **Open workspace** to see the complete section.
+
+A useful starting order is:
+
+1. Add one AV device manually and confirm that its layout fits your workflow.
+2. Paste a small section from an existing spreadsheet and review the suggested columns.
+3. Create the inventory types you need and import one location at a time.
+4. Add known-good recovery files under AV Backups.
+5. Export a report and copy the `data` folder to safe storage.
+
+## Importing spreadsheets
+
+**Paste from Excel** is the quickest import method. Copy a rectangular group of cells in Excel, including the heading row, and paste it into AVTrack. The first pasted row is always treated as the column-heading row, and headings containing multiple words remain together when they come from one Excel cell.
+
+AVTrack then:
+
+1. previews the pasted table;
+2. suggests matches between the source headings and AVTrack fields;
+3. asks for the confirmation and stock-check behavior needed by that table;
+4. shows complete and flagged rows for review;
+5. imports accepted records and retains an import report for comparison.
+
+File upload remains available for `.csv` and `.xlsx` files, including workbooks with multiple worksheets. Excel files preserve worksheets and cell structure better; CSV is smaller and easier to inspect manually.
+
+Spreadsheet layouts can differ from one job to another. Always review the detected headings, destination inventory, quantities, and locations before applying a large import.
+
+## Search, confirmation, and reports
+
+- AV Devices searches names, IP addresses, venues, systems, VLANs, categories, and notes.
+- IPTV searches channel names, IP addresses, ports, sources, and notes.
+- Inventory searches every visible and custom field, including model and all stored serial numbers.
+- Confirmation buttons save a manual check. They do not perform automatic network or physical verification.
+- Inventory stock checks retain dated history when enabled for that inventory.
+- Exports support JSON, CSV, XLSX, and PDF. You can export the current filtered view, selected rows, or the complete active list.
+
+JSON is the best format for restoring AVTrack records. CSV and XLSX are convenient for spreadsheet work. PDF is intended for a clear printable or shareable report.
+
+## Where the data is stored
+
+By default, AVTrack uses:
+
+```text
+data/inventory.sqlite3   Main database
+data/backups/            Uploaded AV backup files and icons
+```
+
+The SQLite database stores AV devices, IPTV channels, inventories, import history, confirmation history, and AV Backup metadata. The `data/backups` folder stores the actual equipment backup files.
+
+To make a complete manual backup:
+
+1. stop AVTrack with **Ctrl+C**;
+2. copy the entire `data` folder;
+3. store the copy on another drive or approved synchronized location.
+
+To move AVTrack to another computer, copy the whole project folder, including `data`, and recreate `.venv` using the installation commands above. Virtual environments should be recreated after moving a folder because their launch files may contain paths from the previous computer.
+
+### Custom storage locations
+
+Set `AVTRACK_DB` to place the SQLite database elsewhere and `AVTRACK_BACKUP_DIR` to choose another folder for equipment backup files.
+
+PowerShell example:
+
+```powershell
+$env:AVTRACK_DB='D:\AVTrack-Data\inventory.sqlite3'
+$env:AVTRACK_BACKUP_DIR='D:\AVTrack-Data\backups'
+.\.venv\Scripts\python.exe app.py
+```
+
+macOS/Linux example:
+
+```sh
+AVTRACK_DB=/path/to/AVTrack-Data/inventory.sqlite3 \
+AVTRACK_BACKUP_DIR=/path/to/AVTrack-Data/backups \
+.venv/bin/python app.py
+```
+
+Keep both locations backed up. Copying only the SQLite file does not include the uploaded equipment backup files.
+
+## Opening AVTrack from another device
+
+AVTrack listens only to the local computer by default. To make it available to another device on the same trusted network, bind it to all network interfaces.
+
+PowerShell:
+
+```powershell
+$env:HOST='0.0.0.0'
+$env:PORT='8000'
+.\.venv\Scripts\python.exe app.py
+```
+
+macOS/Linux:
 
 ```sh
 HOST=0.0.0.0 PORT=8000 .venv/bin/python app.py
 ```
 
-Open the server's actual IP address or hostname and port in Safari, for example `http://YOUR-SERVER-IP:8000`. On an iPhone, Safari → Share → Add to Home Screen provides quick access. Localhost on your phone points to the phone, not the server. The server must remain running and both clients need network access to it. Ship network VLAN isolation may prevent phone-to-server access; coordinate routing/firewall rules with the ship's network team.
+On the other device, open `http://COMPUTER-IP:8000`, replacing `COMPUTER-IP` with the address of the computer running AVTrack. `localhost` always refers to the device on which the browser is running.
 
-This first version has no user authentication. Run it on a trusted private network for evaluation. Before Internet deployment, place it behind HTTPS and an authenticated reverse proxy/access gateway. The included Python HTTP server is intended for development or private evaluation, not direct public hosting. Cross-origin writes are rejected, but this does not replace access control.
+The operating-system firewall and shipboard VLAN rules must allow the connection. AVTrack currently has no user login, so expose it only on a trusted private network. Do not publish the built-in server directly to the Internet; an Internet deployment needs HTTPS and an authenticated reverse proxy or access gateway.
 
-When running in GitHub Codespaces, open port **8000** through **Ports → Open in Browser** and complete GitHub sign-in if prompted. Keep port visibility Private. The `CODESPACES=true` environment or an `.app.github.dev` forwarded hostname enables a narrowly scoped browser connection to GitHub's `https://github.dev/pf-signin` endpoint for private-port authentication; other deployments retain same-origin connections. If the page stays on Loading while local API checks return 200, inspect the browser Console for blocked sign-in requests and reopen the forwarded address in a standalone browser tab. Terminal checks bypass the forwarding login. If an old page or worker still blocks sign-in, open `/recover` on the forwarded host: this uncached page lets top-level GitHub sign-in complete, unregisters AVTrack's worker, clears only its offline caches, and returns to the app. It preserves server data and browser preferences. Codespaces does not install a new offline worker, avoiding stale authenticated port sessions; local hosting retains the offline BroadcastGab cache. Read requests time out after 20 seconds, and the overview loads independently of optional channel references and the AV list. Write requests are not automatically retried. Server commands occupy their terminal: use a second terminal for diagnostics, and Ctrl+C before updating and restarting the server.
+## GitHub Codespaces
 
-## Workflow
-
-Use the **Export** dropdown beside Import data to download JSON, CSV, XLSX, or PDF files. It closes after choosing a format, clicking outside, pressing Escape, or switching tabs.
-
-- Use the **Equipment inventory** tab for physical stock, the **AV Devices** page for networked equipment and the **IPTV channels** tab for channel addresses. Existing inventory remains in AV devices.
-- Add whatever device details you have: name, category, venue, system, IPv4 address or DHCP, VLAN, and notes. Missing fields stay blank and can be completed through Edit. A record needs at least one detail.
-- Click the small copy icon immediately after a fixed IP address to copy just the IP for pasting into a browser. This is available in AV Devices and IPTV rows. Clipboard API failures fall back to browser copying; if both fail, the IP text is selected for manual copying. Blank addresses and DHCP have no copy icon. These controls appear only on the website; PDF, Excel, CSV, and JSON exports contain plain address values.
-- In IPTV, click **Add channel**, enter its name, IPv4 address, and stream port (1–65535), and choose **Onboard** or **Satellite** when known. Any missing channel details can remain blank. Filter the lineup by source or search. IPTV does not use venue, VLAN, or manual confirmation. Each fixed IP/port endpoint is unique; one IP can use multiple ports. Existing channels are preserved without inventing a port; use Edit to fill any missing channel details. Channel addresses may be unicast or multicast (for example `239.1.1.10`); ordinary AV devices still require unicast. This tracks addresses, not stream playback or reception. The yellow/green manual confirmation applies only to AV devices.
-- Use **Sort by** to order the AV or IPTV list by numeric IP address or name, ascending or descending. AV devices can also be grouped alphabetically by system; IPTV channels by source. DHCP and blank IP addresses stay after numeric IPs in both directions; missing names/systems/sources stay last. Each tab keeps its selected order while switching tabs or refreshing. Clear resets filters while retaining the order. Sorting only changes the on-screen list.
-- The AV directory shows **Device → Venue → IP → VLAN → System → Notes**, with a fixed heading row inside the scrolling directory. Compact buttons, cell padding, and a resizable single-line notes field keep rows close to their content height. The Venue and System dropdowns beside search filter the list; system buttons stay synchronized with the System dropdown. Colored venue buttons in rows also filter the list. The **Confirm IP** button sits beside the address. VLAN has its own column immediately after IP; notes use a narrower final column. Device names have no decorative icons. On a phone, swipe horizontally to view all columns. The system dropdown opens colored options for Video, Audio, Lighting, Control, Network, and Other; Clear system restores a blank value. Keyboard arrows navigate the options and Escape closes the menu.
-- Search device names, addresses, categories, venues, systems, VLANs, or notes. Tap venue and system buttons to combine filters with category and VLAN. In the device form, select a system from the dropdown and choose a saved venue button or type a new venue.
-- After import, AV devices with a blank system automatically receive a system matched from their name. Matching is case insensitive and uses the first matching keyword in your requested rule order; names with no match stay blank. Explicit systems in JSON imports are preserved, and existing assignments skipped during import retain their saved system. This applies to newly imported AV devices, including edited names accepted during spreadsheet review; manual entry and IPTV/equipment imports are unchanged. Adjust the result directly from each AV device’s dropdown. Edit notes in the device or IPTV list; notes save when you leave the field, including when clearing it. System and note edits preserve IP confirmation and other fields. Use Edit for other details, or delete records with confirmation.
-- Each AV device with a fixed IP address starts with a yellow **Confirm IP** button. Records with a blank IP or DHCP assignment have no confirmation button until a fixed address is added. Click it after verifying that the device is reachable on the network to save a green **IP confirmed** status. This records your reachability check; the app does not automatically ping the device. Confirmation persists in the database. Editing the IP address or VLAN resets it to yellow; other edits preserve it. Existing databases upgrade automatically, and newly imported records start unconfirmed even if the export contains confirmation metadata.
-- Use **Fill ATEM example** on an empty inventory to populate the form with `10.24.176.66`, Liquid Lounge, Video switcher, Video, VLAN `1500`. This does not insert sample data until you click Save.
-- IP validation checks IPv4 format and rejects loopback, unspecified, and limited broadcast addresses. Multicast is supported for IPTV channels only. VLANs are optional; when provided they must be integers from 1 to 4094. Each fixed AV IP address must be unique, even across VLANs. Enter DHCP (case insensitive) when the device uses a dynamic assignment; it is stored as DHCP without inventing an address. All DHCP records in the active network tab share one DHCP filter button, which combines with venue, system, and other filters. DHCP markers can repeat without duplicate-IP warnings and have no manual IP confirmation. Older duplicate addresses are preserved and flagged below the device list so you can review them; new duplicates are blocked.
-- Validation does not ping devices, infer subnets, verify a gateway, or detect directed broadcast/network addresses without a subnet mask. A stored device may be powered off or unreachable.
-
-Automatic AV system matching uses these keywords:
-
-| System | Keywords in device names |
-| --- | --- |
-| Audio | audio, DSP, Yamaha, Behringer, Shure, BGM, Dante, IEM |
-| Control | AMX, Scheduler |
-| Video | Clickshare, Pixera, TV, Video, LED, CAM / Camera / Cam, Decoder, Encoder, Multiview, Scala, Blackmagic, Castus, CCTV |
-| Lighting | Light |
-| Network | Switch |
-
-Matching checks for text anywhere in the name, regardless of capitalization. For competing matches, the rule order is audio, AMX, Scheduler, DSP, Yamaha, Behringer, Shure, Clickshare, Pixera, TV, Video, LED, Light, CAM/Camera/Cam, BGM, Decoder, Encoder, Multiview, Scala, Blackmagic, Castus, Switch, Dante, CCTV, IEM. For example, **Blackmagic Switcher** selects Video; **LED lighting panel** selects Video; **Dante Switch** selects Network. Automatic selection adds no extra fields to spreadsheet review.
-
-## Page navigation
-
-Use **AV Devices**, **IPTV**, and **Inventory** in the top menu. The current page is highlighted; on mobile these links appear in the navigation menu. Each link has its own URL fragment, so reload and browser Back/Forward preserve the page. The old tab row now contains a short summary: **IPs validated** counts AV records with saved confirmation and a fixed address; **channels running** counts saved IPTV channels; **items across locations** counts records and nonempty locations in the selected equipment inventory. Search and filters do not reduce these summary counts.
-
-The homepage also includes **Your workspace at a glance**, with three cards linking to AV Devices, IPTV, and Inventory. The AV page heading is **AV Devices**. These show validated AV IPs alongside the device total, saved IPTV channels with Onboard/Satellite counts, and equipment records across all named inventories with distinct location and inventory totals. Location counts exclude blank locations. This overview uses global totals; the Inventory page summary continues to describe only the selected inventory. Refresh and saved changes update the overview.
-
-## Equipment inventory
-
-Use **New inventory** to create separate named inventories such as **TVs**, **Scalas**, and **Spare parts**. Choose one in the **Inventory** selector before importing a file or adding items. Each inventory has its own records, location choices, search, Located checks, totals, and exports. Switching clears filters and row selections; the last chosen inventory is remembered in this browser. **Rename** changes its name without changing its records. Existing equipment is safely retained in **Equipment inventory**, which can also be renamed.
-
-Location controls: use **Manage locations** to merge alternate spellings into an existing location in the current inventory, or delete a location label while retaining equipment. Matching stock entries combine quantities and notes. If either quantity is unknown, the total remains blank.
-
-The **Equipment inventory** tab lists **Item, Brand, Model, Serial number, Quantity, Location, Located, and Notes**, with add/edit/delete controls. Item uses the existing Description field; previously saved descriptions are preserved. All equipment fields can stay blank until known; each record needs at least one detail. A supplied quantity must be a whole number from 0 to 1,000,000. A missing quantity stays blank, separate from zero; total units count only known quantities. Zero quantity represents stock that is currently unavailable. Summary counters show inventory records, total units, locations, and located items. Search every field or filter by location. Each equipment field has its own labeled input and a distinct table column; on mobile, each appears in its own labeled block. On iPhone, the table becomes labeled item cards.
-
-Use **Paste from Excel** first, or **Import data** to upload CSV/XLSX. Each source independently detects its heading row and offers sample values, editable source matches and a preview. Column and confirmation choices stay drafts until **Apply setup and start import**. Review every remaining item for the current location in one compact, scrollable table, import or skip selected rows, and stop with progress saved. Nonempty serial numbers must be unique within the selected inventory; existing assignments are skipped without overwriting them. Preview location names can be changed, and **Exclude location** skips its items with an option to Restore. Saved import history can resume pending rows or reopen completed reports after reload.
-
-The **Location** filter appears first. Combine it with Search equipment and **All items / Located / To be found** buttons to narrow the results further. Choose **Export → Current view** to download only that location’s matching items. All rows in the selected inventory remain on one page. **All in this inventory** includes all its items, regardless of the active filters; **Selected rows** includes only checked rows. Imports are pinned to the inventory chosen when the file is opened; the review shows that destination. The desktop table includes the configured details, Status, and actions across the available width; at 900px and below, each item displays its fields in a card without horizontal scrolling.
-
-Click **To be found** when you locate an item. It saves immediately and changes to **Located**; click it again to reset the item. Status persists after refresh and reload, and is independent of the row selection checkboxes used for exports. Editing brand, model, Item, serial number, quantity, or location clears its confirmation; editing Notes preserves it. Stale confirmation requests are rejected if another browser changed the item. Spreadsheet imports start as To be found. JSON and CSV exports preserve `item_confirmed`; backup JSON imports can restore it without changing existing records. Exports wait for outstanding status saves. A [sample CSV](docs/examples/equipment-inventory.csv) shows the supported column order.
-
-Equipment PDF titles, Excel worksheets, and download filenames identify the chosen inventory. Equipment PDFs group items alphabetically by **Location**, including an Unassigned location group for blank locations. Each section repeats its location heading and column headings across pages. Status is printed as Located or To be found, with green located cells. Choose Current view to export only the selected location or status. Excel and CSV use the inventory’s configured column order.
-
-Equipment JSON/CSV downloads export the physical inventory only, while the AV/IPTV downloads export network/channel records. Import equipment JSON in the Equipment inventory tab. All named equipment inventories and the AV/IPTV records persist in the same SQLite file, so a database backup captures all of them. JSON imports use the selected inventory as the destination, including when the file was exported from another inventory. Existing AV/IPTV records are preserved when the equipment table is created automatically on startup.
-
-The AV directory shows **Device | Venue | IP | VLAN | System | Notes**, with aligned selection checkboxes in the Device column. Check rows, then choose **Delete selected** to remove several AV devices or IPTV channels together. The confirmation lists the selected visible records. Cancel keeps them; confirming permanently deletes only those records. The header checkbox selects all visible records, so you can filter first to delete a specific group.
-
-## Files and backup
-
-**Export** offers three content choices for every format:
-
-- **Current view** (default): only records in the active tab that match its venue/location, system/source, and search filters, in the displayed sort order. For example, choose **Liquid Lounge** and **Video** to export only its video devices.
-- **Selected rows**: check individual rows or the table-header checkbox to select all visible rows. Selections apply only to visible search/filter results. Rows hidden by a new filter are deselected, so searching for **decoder** and selecting all visible rows exports only those results; **Clear selection** removes them. AV devices, IPTV channels, and equipment keep separate selections.
-- **All in this tab**: every record in the active tab, regardless of filters. AV devices, IPTV channels, and Equipment inventory each export separately. Use this choice to save a complete JSON backup from each of the three tabs.
-
-The dropdown shows record counts. An empty current view exports an empty file with headers; it never falls back to all records.
-
-**AV Backups** stores uploaded equipment configuration files in `data/backups` beside the local SQLite database. Each upload can include an optional PNG, JPEG, or WebP card icon up to 1 MB; icons are stored in the same local folder and removed with their backup. The page shows the exact folder and **Open backup folder** launches Finder, File Explorer, or the Linux file manager when AVTrack is opened through localhost. Each backup file can be up to 25 MB; total capacity is the free space on that disk. Deleting a backup in AVTrack removes its metadata and stored files. Existing backups previously held inside SQLite move into this folder automatically after updating.
-
-Set `AVTRACK_BACKUP_DIR` to use another local or synchronized folder:
+In a Codespace, use:
 
 ```sh
-AVTRACK_BACKUP_DIR=/path/to/AVTrack-Backups .venv/bin/python app.py
+cd /workspaces/avtrack
+git pull --ff-only origin main
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+HOST=0.0.0.0 PORT=8000 .venv/bin/python app.py
 ```
 
-On Windows PowerShell, use `$env:AVTRACK_BACKUP_DIR='C:\AVTrack-Backups'; py app.py`. A Dropbox, OneDrive, or Google Drive desktop-sync folder can provide a future cloud copy while AVTrack continues to work locally. Keep the SQLite database with the project or in its own backed-up location; the backup folder contains equipment files, while their names, notes, dates, and categories remain in SQLite.
+Open port **8000** from the Codespaces **Ports** panel and keep its visibility **Private**. Leave the server running in that terminal and use a second terminal for Git or diagnostic commands.
 
-**JSON ↓** exports the chosen content in the app's version-1 transfer format. On either phone or computer, **Import data** restores records from that export. Imports validate the complete file before inserting; existing AV IP addresses and IPTV IP/port endpoints are skipped and never overwritten. Repeated AV IPs inside a file are skipped with a warning, keeping the first record. Invalid records or repeated IPTV endpoints reject the whole file. IDs are assigned by the receiving database. Imports accept at most 10,000 records and 5 MB per file.
+If a forwarded Codespaces page remains stuck on Loading even though the API returns status 200, open `/recover` on the forwarded AVTrack address. The recovery page clears AVTrack’s browser cache and service worker without deleting the server database.
 
-**Import data** also accepts Excel **.xlsx** and UTF-8 **.csv** files from your phone or computer. Choose a worksheet and header row (1–50), then click **Reload preview**. The **AV Devices** spreadsheet import contains only **VENUE**, **DEVICE NAME**, **IP Address** (including **IP Adress**), and **VLAN**. Category, inventory type, channel source, port, system, and notes columns are ignored in AV imports. Systems are inferred from device names after import. Adjust systems and enter notes using the controls in the device list. Exact headers take priority over aliases such as Location, Equipment, IP, and VLAN ID. Choose **Leave blank** for unmapped fields. Missing columns and empty cells remain blank. Blank rows and rows with no mapped data are skipped without errors or clarification prompts; even an empty selection can be submitted successfully with zero records added. No defaults are filled in. Use **Edit** after import to complete each record with the information that fits. A leading **RD ** is removed from every AV venue (for example, **RD MAIN LOUNGE** becomes **MAIN LOUNGE**). Unique venue buttons are created in first-appearance order, with a distinct color for each venue. The same venue color is used in the import preview, filters, and device form. Before importing, click a venue button in the preview to focus its editable name, then rename it in the adjacent field. The preview updates immediately; each matching row uses the edited name when you accept it in the review popup. This also works for equipment locations, including a spreadsheet column named VENUE. Clearing a name leaves that venue or location blank. Nonnumeric VLAN cells are ignored and saved as blank; numeric values must be whole numbers from 1 to 4094. Columns named **Device ID** (including Device_ID or Device-ID), **o.O**, or **o.O value** are excluded from column matching. A cell containing only **o.O** is treated as blank (case insensitive). Rows containing only ignored columns or placeholders are skipped. Other data, including numeric zero and longer notes containing o.O, is preserved. The first three mapped rows are shown before confirmation. Previewing never writes to the database. Click **Review rows** to open a popup for each nonblank row. In AV devices, **Venue | Device name | IP Address | VLAN** appear on one line with editable inputs. On narrow phone screens, swipe across that line to see all fields. The popup shows the original spreadsheet row number and review progress. **Yes** validates and saves that row immediately, then advances; **SKIP** leaves it out and advances. A supplied invalid value leaves the popup open for correction or skipping. Blank values are accepted. **Stop review** or Escape leaves accepted rows saved and stops before importing any remaining rows. Text in the IP Address column prompts you to replace it with an IPv4 address, select **DHCP**, click **Clear** to leave it blank, or skip the row. Existing DHCP values are recognized automatically and display a selected DHCP button. Multiple DHCP assignments are kept separately and appear under one DHCP filter button after import. The same review process applies to Excel files, IPTV channels, and equipment imports, using their own mapped fields. Venue and VLAN are ignored for IPTV. Existing assignments are skipped; repeated AV IP addresses, including repeats with different VLANs, are reported below the final device list with source row numbers. The first record is kept. The latest import report remains visible while using the page and its Refresh button; after a page reload, warnings for duplicates still in the database are recalculated. A repeated IPTV endpoint is skipped during row review. JSON imports continue to validate atomically; invalid rows and repeated IPTV endpoints reject the complete JSON import.
+## Updating AVTrack
 
-Save older **.xls** files as **.xlsx** in Excel first. Password-protected files are unsupported. The chosen header row contains column names, with device rows below it. Leading blank rows are skipped until a header is found; empty CSV files and empty worksheets can be submitted without importing records. Limits: 5 MB upload, 10,000 devices, 50 columns, and 30 MB expanded workbook size. Excel formulas are never evaluated; only Excel's cached values are read. Recalculate and save the workbook in Excel if formula-derived cells are empty. Uploaded spreadsheets are parsed in memory and not retained as files.
-
-**PDF ↓** and **XLSX ↓** export the latest saved information from either phone or computer. Network downloads contain the chosen AV devices or IPTV channels; equipment downloads contain the chosen physical inventory. Each report includes only the active tab, including when exporting all records. AV reports contain no IPTV or equipment section; IPTV reports contain no AV or equipment section, even when empty. AV Excel columns start with Venue, Device name, IP Address, VLAN, System, and Notes, followed by IP confirmation and Category. Each workbook has only its tab’s **AV devices**, **IPTV channels**, or **Equipment** sheet, filters, frozen headers, wrapped notes, and colored system/status cells. Equipment workbooks contain all seven inventory fields plus Located status. Blank values remain blank, numeric quantities/ports/VLANs stay numeric, and formula-like text is exported as literal text. Excel headers use JetBrains Mono, cells use DM Sans, and workbook metadata identifies avtrack. Excel can substitute fonts if they are not installed on the viewing computer; PDF fonts are embedded. Notes and system changes already being saved are completed before the download starts. These are readable reports; use JSON for the complete transfer format.
-
-PDF reports follow the website's dark palette, avtrack branding and embedded website fonts, directory columns, colored system labels, and green/yellow confirmation text. AV PDF columns are Venue, Device, IP, VLAN, Confirmation, System, and Notes, with a narrower Device column. IPTV uses separate IP and Port columns. Each IPv4 address is a clickable, underlined link to its `http://` address; blank and DHCP values have no link. The PDF viewer controls whether external links open a new browser tab/window. They use landscape pages and repeat table headings when content spans pages; long notes can continue on another page. Every page has a styled **REPORT GENERATED BY AVTRACK** footer, a clickable **broadcastgab.com** link, and its page number. PDF confirmation indicates your saved reachability check; it is not a live network measurement. Generating reports does not modify the database.
-
-To update an existing Windows installation, replace `app.py`, add `exports.py`, replace `requirements.txt` and the complete `static` folder, and keep your `data` folder. Run `py -m pip install -r requirements.txt`, restart `py app.py`, and refresh with Ctrl+F5. Excel/PDF generation uses the pinned dependencies; no external office application, browser print dialog, or system fonts are required. PDF reports use the page’s avtrack wordmark and embedded Space Grotesk, DM Sans, and JetBrains Mono fonts from `static/fonts`. Confirmed IP cells have bold text on a solid green background.
-
-**CSV ↓** exports the chosen content for spreadsheet use and can also be imported through column mapping. Formula-like text is escaped for spreadsheet safety. Choose **All in this tab** to include every record from the active tab, regardless of filters. JSON and CSV include `record_type` (`device` or `iptv`) , `channel_source` (`Onboard` or `Satellite` for IPTV), and `port` (IPTV only). Old JSON exports default to AV devices. AV spreadsheet imports always create AV device records. The **IPTV channels** spreadsheet importer shows **Channel Name**, **Multicast IP**, **Port**, and **Notes**. Existing **MCAST IP [S]** and **MCAST PORT [S]** spreadsheet headers remain supported and take priority over broader aliases such as IP Address and Port. CSV and Excel imports use the same one-by-one review as AV devices: edit the values, choose **Yes** to save the channel immediately, or **SKIP** to move on without saving it. The IPTV tab supplies the channel inventory type; spreadsheet category, source, inventory type, venue, VLAN, and system are ignored. Missing values remain blank. Choose Onboard/Satellite using the **Type** dropdown during each import review or through Edit afterward. Channel names containing CLTV, Carnival, Map, Crew, Scala, Casino, or Safety automatically suggest Onboard; ESPN, National Geographic, and Nat Geo suggest Satellite. Matching ignores case, and Onboard wins if both sets match. Satellite channel names are also matched against a bundled 63-entry reference catalog, including international news, sports, and entertainment networks. Matching accepts listed aliases, capitalization/punctuation differences, and HD/SD suffixes. [Catalog contents and references](docs/satellite-channel-reference.md) document its source and limitations. Unrecognized names stay blank. You can override or clear any suggestion before saving; later name edits preserve your manual choice. Notes can be edited during or after import. IPTV imports append **H.264** for port **2000**, and **H.265** for port **1234** when the same IP has a port-2000 stream elsewhere in the spreadsheet or saved IPTV inventory. Pair detection does not depend on row order. Existing notes are kept, codec labels are not repeated, and the suggestions can be edited or cleared in row review. Locally stored logos are limited to the 22 Galaxy 31 entries supplied from LyngSat: 20 entries have logos using 18 shared PNG files. Logos appear immediately after the channel name and match its text height; Rai Italia Nord America and the CruiseSat test card display text only. Channels outside this logo scope retain their text names and Satellite source suggestions where recognized. No other channel logos are stored or fetched automatically. The IPTV filter row shows **Search channels** on the left and **All sources / Onboard / Satellite** buttons on the right. The Clear button is hidden in IPTV; clear the search box and choose All sources to reset its filters. Each IPTV table row includes a read-only **UDP** field and a copy button, formatted as `udp://@IP:PORT`. Incomplete endpoints leave it blank. IPTV has no manual IP confirmation button; supplied addresses and ports still receive format/range checks. JSON transfers continue to restore every exported field in both inventories. Legacy IPTV exports with missing ports can be imported and completed later. Imports skip existing AV IP addresses and IPTV IP/port endpoints. Identical IP addresses can exist in separate inventories. Blank AV IPs, DHCP assignments, incomplete IPTV endpoints, and equipment without a known identity are kept separately rather than treated as duplicates; repeatedly importing these incomplete records may add another copy. JSON and CSV exports preserve all blank fields.
-
-The database defaults to `data/inventory.sqlite3`, excluded from Git. Set `AVTRACK_DB` to a persistent database location when hosting. Legacy `BROADCASTHUB_DB` and `IPTRACKING_DB` settings remain supported as fallbacks, in that order; `AVTRACK_DB` takes priority. Rebranding keeps the same default SQLite file and accepts existing version-1 JSON exports. Do not use temporary container storage for your only copy. For a consistent live backup, use SQLite's backup API rather than copying an active WAL database:
+For a Git checkout:
 
 ```sh
-python3 - <<'PY'
-import sqlite3
-from app import connect
-with connect() as source, sqlite3.connect('/tmp/avtrack-backup.sqlite3') as backup:
-    source.backup(backup)
-PY
+git pull --ff-only origin main
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python app.py
 ```
 
-Download the backup to safe storage or routinely export JSON with **All in this tab** from AV/IPTV and **All in this inventory** from each named equipment inventory. Startup is idempotent and does not seed or erase inventory.
+PowerShell equivalent:
 
-## Validation
+```powershell
+git pull --ff-only origin main
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe app.py
+```
+
+Stop the existing server before updating and restarting it. Keep the complete `data` folder. Database upgrades run automatically when AVTrack starts.
+
+If you update from a downloaded ZIP instead of Git, copy your existing `data` folder into the new AVTrack folder before starting it.
+
+## Troubleshooting
+
+### PowerShell says that running scripts is disabled
+
+Use the virtual environment’s Python executable directly:
+
+```powershell
+.\.venv\Scripts\python.exe app.py
+```
+
+Activation is optional. If you prefer activation for the current PowerShell window:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+```
+
+### The browser cannot open AVTrack
+
+Confirm that the terminal still displays `AVTrack listening on ...`. Use the exact address shown, normally `http://127.0.0.1:8000`. If the terminal was closed or the computer restarted, start `app.py` again.
+
+### Port 8000 is already in use
+
+Choose another port:
+
+```powershell
+$env:PORT='8001'
+.\.venv\Scripts\python.exe app.py
+```
+
+Then open `http://127.0.0.1:8001`.
+
+### The page shows old code after an update
+
+Restart the server and refresh the browser with **Ctrl+F5**. If the problem continues, open [http://127.0.0.1:8000/recover](http://127.0.0.1:8000/recover).
+
+### Package installation fails
+
+Check the Python version:
 
 ```sh
-.venv/bin/python -m unittest discover -s tests -v
-node --check static/app.js
-node --check static/equipment.js
-.venv/bin/python tests/browser_equipment_check.py
+python --version
 ```
 
-Backend and spreadsheet tests cover HTTP CRUD, persistence, invalid IPs/VLANs, duplicate assignments, atomic import, export round trips, CSV formula escaping, static routes, cross-origin write rejection, multi-sheet Excel parsing, header rows, numeric VLANs, CSV parsing, spreadsheet preview/import, confirmation persistence, assignment resets, legacy database migration, IPTV source validation, multicast support, mixed-inventory transfers, IPTV port ranges and endpoint uniqueness, migration of legacy channels without ports, equipment CRUD and quantities, serial/stock duplicates, equipment transfer round trips, rejected imports, cleaned venue names, nonnumeric VLAN handling, duplicate IP warnings across VLANs, confirmation with blank VLANs, preservation of legacy duplicate records, partial AV/IPTV/equipment records, later editing, blank-IP deduplication, blank-field transfers, and migration preserving existing equipment quantities, ignored blank imports, successful empty CSV previews, independent system/notes updates that preserve other fields and IP confirmation, repeated DHCP assignments, marker export round trips, DHCP confirmation rejection, and migration of previous IP uniqueness constraints, PDF/XLSX downloads, saved field/status exports, literal Excel text, empty exports, PDF pagination, long notes, all name-to-system rules, case-insensitive matching, rule priority, preserved explicit systems, later dropdown overrides, separate PDF address columns, and IPv4 link annotations. PDF text extraction checks use optional pdftotext when installed. Node is only needed for the optional JavaScript syntax check.
+Use Python 3.12 or newer, recreate `.venv`, and run the dependency installation command again.
 
-Optional browser check (requires Python Playwright and Chromium):
+## Project structure
+
+```text
+app.py                 Local HTTP server, API, and SQLite storage
+static/                Browser interface, styles, fonts, and offline assets
+data/                  Local database and uploaded AV backup files
+docs/                  Examples, screenshots, and workflow documentation
+tests/                 Backend and browser checks
+requirements.txt       Pinned Python dependencies
+```
+
+Useful references:
+
+- [Sample equipment inventory CSV](docs/examples/equipment-inventory.csv)
+- [Import usability review](docs/import-usability-review.md)
+- [IPTV satellite channel reference](docs/satellite-channel-reference.md)
+
+## Development checks
+
+Run the backend test suite from the project folder:
 
 ```sh
-.venv/bin/python tests/browser_guided_import_check.py
-.venv/bin/python tests/layout_browser_check.py
-.venv/bin/python tests/browser_inventory_controls_check.py
-.venv/bin/python tests/browser_project_identity_check.py
-.venv/bin/python tests/browser_network_paste_check.py
-.venv/bin/python tests/browser_paste_quick_setup_check.py
-.venv/bin/python tests/browser_paste_inventory_check.py
-.venv/bin/python tests/browser_pasted_heading_setup_check.py
-.venv/bin/python tests/browser_worksheet_check.py
-.venv/bin/python tests/browser_scala_columns_check.py
-.venv/bin/python tests/browser_equipment_check.py
-.venv/bin/python tests/browser_equipment_inventories_check.py
-.venv/bin/python tests/browser_ip_copy_check.py
+PYTHONPATH=tests .venv/bin/python -m unittest discover -s tests -p 'test_*.py'
 ```
 
-Install Playwright in the virtual environment (`.venv/bin/python -m pip install playwright`) and use system Chromium or install it through Playwright.
+Browser checks in `tests/browser_*.py` require Playwright and Chromium in the development environment.
 
-Excel worksheet names load before row preview, so a cover sheet or wrong header row cannot leave the worksheet selector empty. Select the correct worksheet and the row containing column names, then reload the preview. CSV imports explain that they have no worksheets. The worksheet browser check verifies this recovery flow and a successful import.
+## Current scope
 
-The desktop layout check covers the home, AV, IPTV and inventory views at 1024, 1280, 1440 and 1920 pixels. It checks column boundaries, shared header and row heights, filter alignment, inventory form fields and column setup cards. Standard inventory columns fit together at desktop widths; additional custom columns can scroll within the table.
+AVTrack is designed first for a trusted local or private-network workflow. It currently does not provide user accounts, permissions, automatic device polling, continuous IPTV stream monitoring, or cloud synchronization. Those capabilities can be added later without changing the purpose of the project: keeping broadcast information organized, searchable, and ready when it is needed.
 
-Orientation is optional during import review. Its Vertical/Horizontal choices remain editable directly in the inventory table afterward, including existing text-based Orientation columns. The flagged count and import report's Flagged for review link clear other filters and jump to flagged records in the current inventory.
-
-Open Columns & filters, choose Delete column, then Save columns to remove a field from the inventory layout without erasing stored item values. Scala inventories omit Serial number and Status in their tables, filters, forms and CSV/XLSX/PDF exports, including existing inventories using the old column layout. Stock inventories keep their serial and status controls.
-
-All named inventory types use the same spreadsheet workflow. For pasted tables, the first row is always treated as the headings, including multiword Excel cells such as Serial Number. AVTrack inspects each matched column, shows its likely field type, highlights blank important cells, and suggests Brand or Location choices when values repeat. Stock tables use Description, Brand, Model, Serial Number, Quantity, Location and Notes order. Repeated models without serial numbers can be merged deliberately when their Brand and location match; quantities are added and source Notes are retained. Quantity comments such as `2 USED` keep `2` as the numeric quantity and preserve the original value in Notes for review.
-
-Complete matched rows are imported automatically when every configured column is mapped and filled, except optional Orientation. Turn this off to review every row manually. Review uses a nearly full-screen desktop table with every remaining row for the current location together; its compact controls and scrolling body keep the header and bulk actions available. Select any number of rows to import or skip together. Flagged rows start unselected, and one-off locations appear after repeated locations for closer inspection. Errors stay beside the affected row for correction and retry, while successful imports remain saved. Finish the current location before moving to the next. Scala uses its configured ID and has no serial-number requirement. The guided import and template browser checks cover inventory layouts, automatic/manual import, selection, edits, validation/retry, skips, stopping, location ordering and persistence.
-
-Delete inventory appears beside Rename. Its confirmation names the inventory and item count; deletion removes its items and column setup atomically, while keeping other inventories and AV/IPTV records. Deleting the final inventory creates a new empty Equipment inventory. Inventory search covers every base and custom field plus status and record-check labels. Location buttons show individual locations. Status choices appear as All items, Located, To be found. The inventory controls browser check covers these behaviors and persistence after reload.
-
-The guided desktop browser check verifies draft cancellation, batch IP edits and Notes, reload/resume without duplicate rows, changed paste headings and column order, resetting suggestions, different worksheet mappings, saved comparisons and report downloads. Dedicated browser checks cover template imports, heading setup, repeated pastes, custom layouts, location exclusions, TV brands and stock-check dates. Legacy per-row import scripts describe the previous workflow and should use the guided check for the current import interface. Tests run against isolated temporary databases using system Chromium; mobile viewport checks are not physical iPhone/Safari tests.
-
-The example device/equipment card includes a locally bundled photo-style ATEM 1 M/E Advanced Panel 10 illustration (`static/example-switcher.png`), rather than a manufacturer product photograph. The IPTV channel example hides this device illustration. The shared network icon is used on the card and as the site icon.
-
-
-## Inventory record review and offline BroadcastGab
-
-Inventory uses a compact scrolling directory with a sticky heading and 30 px controls, including on phones. Search ranks exact serial matches first, followed by serial matches, model matches, and other fields. Check old records with **Record checked** before visiting locations. **Location confirmed** remains a separate physical check. Editing record details resets record review, and changing identity or location resets physical confirmation. Blank item, brand, model, serial, quantity and location fields are flagged until acknowledged or completed; notes are optional. Multiple serials and references to separate inventories are flagged too.
-
-CSV/XLSX row review groups populated locations by row count, followed by unassigned locations. Complete rows in each location come first, then flagged rows, before advancing to the next location. Repeated serials in a file are flagged; existing records remain unchanged, and skipped rows appear in the session import discrepancy report. Saved import history and downloadable reports preserve the results across reloads; imported incomplete records remain discoverable through the review filter. For the provided spare-parts format, blank descriptions fall back to `name`, and storage position, condition, unit, original quantity and source worksheet/row are appended to Notes. Spreadsheet imports begin physically unconfirmed as To be found.
-
-The top-menu BroadcastGab link opens a labeled saved homepage, with a link to the live website. The bundled snapshot is dated October 9, 2026. A service worker saves the app shell and snapshot with same-site images (about 5 MB); after installation completes, the link indicates offline availability. This requires HTTPS or localhost and a browser supporting service workers. Browser storage eviction/clearing removes the offline copy; open the app online again to restore it. External portrait imagery, videos, forms and linked pages are not mirrored. Inventory API responses and writes are never cached; inventory editing requires a connection to the app server. The snapshot must be refreshed in a future app release, and the service worker cache version incremented when its assets change.
-
-After import, **Cross-check original file** reads all worksheets in an XLSX (or one CSV table), detects inventory header rows, and compares each source row against the selected inventory without writing records. The original workbook’s duplicate LOCATION columns are interpreted as storage position followed by room; Tools drawer positions are retained as storage details. Results are grouped by location and categorized as Matched, Needs review, Differences, Missing, or Ambiguous, with original sheet/row numbers and a downloadable JSON report. Unsupported worksheets remain visible as errors; they are never silently counted as verified. Blank/repeated serials require review and matches are one-to-one. The report is a snapshot and should be rerun after edits. Inventory **Status** retains Located/To be found values.
-
-The inventory navigation uses `/inventory` (the previous `/equipment` path redirects there). Its toolbar places Location first, Status second, then Search equipment. Clear is inside the search field and clears only the search text, preserving location, status and record-review selections. Manage locations and Cross-check original file sit below the filters.
-
-
-## Custom inventories
-
-Every new inventory starts with its own column setup: enter a name, then type the column names, reorder them and choose a Text box, Checkbox, Dropdown or Button choices. Mark key columns Important to flag blanks, select a primary search column, and optionally choose a unique item identifier. Each column independently supports no filter, a dropdown filter or filter buttons. **Columns & filters** edits the saved setup later. Hidden/removed columns keep existing stored values.
-
-**Paste from Excel** comes first, before upload. The first pasted row is always the headings; multiword titles stay together within their Excel cells. The preview combines sample rows, editable source matches and table-check options. Go directly to review, or use optional heading-by-heading setup and advanced matching. **Import data** offers file upload in the same workspace. Each column you named has its own source-column dropdown, including Leave blank. CSV/XLSX row review uses the selected control types. Checkbox inputs accept Yes/No, True/False and 1/0; blank means unknown. Choice inputs validate against your configured options. Repeated unique identifiers are skipped, never used to overwrite saved records. Location buttons are created only when that inventory enables them.
-
-All profiles and record values persist in SQLite. Custom columns are included in JSON, CSV, XLSX and PDF exports, and source-file reconciliation uses configured column names and identifiers. Checkbox, dropdown and choice-button columns support direct edits in the compact table. These edits reset record and physical verification; Status remains a separate physical location confirmation.
-
-When creating an inventory, choose an editable template: Spare Parts, Scala, TV, AMX, Planar, TVRO, Daktronics, Presentation Laptop Inventories, Projectors or STBs. Adjust the suggested columns before matching them to spreadsheet columns. Existing inventory layouts are retained.
-
-Spare Parts uses quantity choices 1–50, imported storage-location choices, location filter buttons and clickable Located status. Scala includes ID, geographical location, monitor brand/model, size and optional orientation, without serial numbers or Located status; its locations do not contribute to storage-location counts. TV tracks one brand/model per row with Deck 6, Deck 2 Port and Deck 2 Stbd counts. Zero means none on that deck; a blank means unknown. Total count is calculated, complete zero-stock rows are skipped on import, and original totals that disagree with deck counts are flagged. Add equipment creates another TV model; Show zero-stock models allows editing saved empty models. Cross-checking accounts for intentionally skipped zero-stock source rows.
-
-**Paste from Excel** accepts copied Excel ranges, Markdown tables from messages, and CSV text. Paste headings and rows, optionally name the worksheet and supply a location for missing location cells, then check sample rows and source matches in one preview before saving. The same screen asks about item confirmation or IP validation, stock-check history, record checks and automatically adding complete rows. Inventory check settings are remembered per table, while IP-list confirmation choices are remembered per list. Repeat for each worksheet/location in the same inventory. Recognized TV brands are suggested from Description when there is no Brand column; original descriptions and Deck 4 Limelight values are kept in Notes. Repeated TV brand/model rows in one paste are combined by summing deck counts, retaining notes and source row numbers; total discrepancies and unknown counts stay in review.
-
-In import setup, **Exclude location** skips every complete or flagged item there without deleting stored inventory. **Restore** brings it back before importing. The preview, review queue and import report reflect the exclusions; each new file or paste starts with its locations included.
-
-Inventory Notes uses a compact View/Add button. Click it to open a floating editor, then Apply or Cancel. Saving notes preserves other item fields and physical location confirmation; changing notes resets the record check. Conflicting note edits require reopening the latest notes.
-
-Enter multiple serial numbers with commas. AVTrack removes spaces inside serial numbers while retaining letters, numbers, and punctuation such as hyphens, slashes, and dots. Search, duplicate detection, and source comparison also ignore serial-number spaces. Worksheet names and source-row tracking stay in import history and reports instead of being appended to finished inventory Notes.
-
-
-## Guided import workspace
-
-Paste → Preview and table checks → Review by location → Import summary share one desktop workspace. Paste preview lets you change matching columns above the samples and apply setup directly; field-by-field questions and advanced matching are optional for existing layouts. New custom inventories still configure their headings once. File uploads retain their existing header detection, mapping and worksheet-selection workflow. Every new paste is parsed independently: saved matches apply by heading name and duplicate occurrence, with no assumption about column order or missing/new fields. The preview identifies changes and offers **Reset suggested matches**. Saved choices are editable suggestions. Workbook checkboxes queue multiple sheets, each with its own mapping and header selection.
-
-Settings remain drafts until **Apply setup and start import**; cancelling does not change saved columns or confirmation settings. AV Devices and IPTV share inventory's multi-row review, compact floating Notes editor, and pinned identity/result cells. Import history is saved in SQLite, alongside per-source-row receipts, pending edits and exclusions. Reloading can resume unfinished work without repeating accepted rows. Deleted inventories keep read-only reports. Database backups preserve the source and history; the app server must be reachable.
-
-The final summary groups outcomes by location and distinguishes source rows from records added or combined. Each action explains its effect: start another location, download the JSON audit report, compare this import source, or upload the original workbook for a full comparison. **Close import** returns to the inventory without deleting imported records or the saved report in Import history. A pasted-source comparison only covers the pasted rows; use the original workbook for a full check. Saved comparisons are snapshots and should be rerun after inventory edits. Excluded or ambiguous rows remain visible for review. TV **Last checked** stays enabled by default. Other inventory tables can enable it in paste setup. Explicit stock checks save the current timestamp and count snapshot; open Last checked to view the dated history. Turning history off hides the control and preserves its earlier checks. Imports never set a stock-check date. Existing dates from before history was added remain available as Last checked; earlier count snapshots cannot be reconstructed. See [the implemented usability review](docs/import-usability-review.md) for scope and limitations.
+AVTrack was created for real broadcast work at sea, where fast access to the right address, item, or recovery file can save valuable time.
