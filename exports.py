@@ -57,11 +57,6 @@ def location_pdf_tint(value):
     return '#{:02X}{:02X}{:02X}'.format(round(red * 255), round(green * 255), round(blue * 255))
 
 
-def blend_hex(first, second, amount):
-    channels = lambda value: tuple(int(value[index:index + 2], 16) for index in (1, 3, 5))
-    return '#{:02X}{:02X}{:02X}'.format(*(round(a + (b - a) * amount) for a, b in zip(channels(first), channels(second))))
-
-
 def workbook(sections):
     book = Workbook()
     book.properties.creator = 'avtrack'
@@ -163,41 +158,33 @@ def pdf_report(title, sections, repeat_section=False):
     document = SimpleDocTemplate(output, pagesize=landscape(A4), leftMargin=26, rightMargin=26,
                                  topMargin=18, bottomMargin=64, title=f'avtrack - {title}',
                                  author='avtrack')
-    body = ParagraphStyle('HubBody', fontName='HubText', fontSize=8, leading=11, wordWrap='CJK', textColor=colors.HexColor('#EEEEE9'))
-    tinted_body = ParagraphStyle('HubTintedBody', parent=body, textColor=colors.HexColor('#171A20'))
+    body = ParagraphStyle('HubBody', fontName='HubText', fontSize=8, leading=11, wordWrap='CJK', textColor=colors.HexColor('#171A20'))
     header = ParagraphStyle('HubHeader', parent=body, fontName='HubMonoMedium', fontSize=7, leading=9,
-                            textColor=colors.HexColor('#C4C7CF'))
+                            textColor=colors.HexColor('#3F4650'))
     report_info = ParagraphStyle('HubInfo', parent=body, fontName='HubMono', fontSize=7, leading=9)
     heading = ParagraphStyle('HubHeading', fontName='HubDisplay', fontSize=18, leading=24,
-                             textColor=colors.HexColor('#EEEEE9'))
-    section_style = ParagraphStyle('HubSection', parent=heading, fontSize=9, leading=12, spaceBefore=6, spaceAfter=4, textColor=colors.HexColor('#FF7278'))
+                             textColor=colors.HexColor('#171A20'))
+    section_style = ParagraphStyle('HubSection', parent=heading, fontSize=9, leading=12, spaceBefore=6, spaceAfter=4, textColor=colors.HexColor('#C92F38'))
 
     def paragraph(value, style=body):
         return Paragraph(escape(clean_text(value if value is not None else '')).replace('\n', '<br/>'), style)
-
-    tag_colors = {'Video':('#211E2B','#C2B8F6'), 'Audio':('#182720','#9ED3B8'),
-                  'Lighting':('#292317','#E5C587'), 'Control':('#1B2539','#96BCFF'),
-                  'Network':('#162A2D','#85DCE0'), 'Other':('#2B212D','#D2B4CB')}
 
     def report_cell(label, value, style=body):
         normalized_label = str(label).strip().casefold()
         if normalized_label in ('stock check', 'last checked (utc)', 'last checked'):
             value = pdf_timestamp(value)
-        if normalized_label == 'system' and value in tag_colors:
-            return paragraph(value, ParagraphStyle('HubTag', parent=style, textColor=colors.HexColor(tag_colors[value][1] if style is body else '#171A20')))
         if normalized_label in ('confirmation', 'located', 'status') and value in ('Confirmed', 'Pending', 'Located', 'To be found', 'IP confirmed', 'Confirm IP'):
             confirmed = value in ('Confirmed', 'Located', 'IP confirmed')
             return paragraph(value, ParagraphStyle('HubConfirmation', parent=style,
                 fontName='HubBold' if confirmed else 'HubText',
-                textColor=colors.HexColor(('#174C2D' if confirmed else '#6B5319') if style is tinted_body else ('#F0FFF5' if confirmed else '#E5C587'))))
+                textColor=colors.HexColor('#176638' if confirmed else '#7A5412')))
         if normalized_label == 'ip' and value not in ('', 'DHCP', None):
             try:
                 address = str(ipaddress.IPv4Address(value))
             except (ValueError, TypeError):
                 return paragraph(value)
             # Standard external PDF links; the viewer chooses its tab/window behavior.
-            link_color = '#A20E29' if style is tinted_body else '#FF7278'
-            return Paragraph(f'<link href="http://{address}" color="{link_color}"><u>{address}</u></link>', style)
+            return Paragraph(f'<link href="http://{address}" color="#A20E29"><u>{address}</u></link>', style)
         return paragraph(value, style)
 
     class BrandHeading(Flowable):
@@ -209,21 +196,21 @@ def pdf_report(title, sections, repeat_section=False):
             canvas = self.canv
             canvas.saveState()
             canvas.setFont('HubDisplay', 24)
-            canvas.setFillColor(colors.HexColor('#EEEEE9'))
+            canvas.setFillColor(colors.HexColor('#171A20'))
             canvas.drawString(0, 4, 'avtrack')
             canvas.restoreState()
 
     story = [BrandHeading(), paragraph(title, report_info), Spacer(1, 3)]
     if repeat_section:
         total_records=sum(len(records) for _,_,_,records in sections)
-        credit=Paragraph('<link href="https://broadcastgab.com" color="#FF7278">broadcastgab.com</link>',report_info)
+        credit=Paragraph('<link href="https://broadcastgab.com" color="#C92F38">broadcastgab.com</link>',report_info)
         overview=Table([[paragraph(f'Inventory · {total_records} record{"s" if total_records != 1 else ""}',section_style),credit]],colWidths=[document.width*.76,document.width*.24])
         overview.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE'),('ALIGN',(1,0),(1,0),'RIGHT'),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),('TOPPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),0)]))
         story.append(overview)
     for name, labels, widths, records in sections:
         section_title = f'{name} · {len(records)} record{"s" if len(records) != 1 else ""}'
         if not repeat_section:
-            credit=Paragraph('<link href="https://broadcastgab.com" color="#FF7278">broadcastgab.com</link>',report_info)
+            credit=Paragraph('<link href="https://broadcastgab.com" color="#C92F38">broadcastgab.com</link>',report_info)
             section_heading=Table([[paragraph(section_title,section_style),credit]],colWidths=[document.width*.76,document.width*.24])
             section_heading.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE'),('ALIGN',(1,0),(1,0),'RIGHT'),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),('TOPPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),0)]))
             story.append(section_heading)
@@ -233,72 +220,40 @@ def pdf_report(title, sections, repeat_section=False):
             table_rows.insert(0, [paragraph(section_title, section_style)] + [paragraph('')] * (len(labels) - 1))
         normalized_labels=[str(label).strip().casefold() for label in labels]
         location_column=next((normalized_labels.index(label) for label in ('location','where') if label in normalized_labels),None)
-        grouped_location=name.removeprefix('Location: ').strip() if name.startswith('Location: ') else None
-        record_locations=[(record[location_column] if location_column is not None else grouped_location) or 'Unassigned location' for record in records]
-        location_rows=location_column is not None or grouped_location is not None
-        table_rows += [[report_cell(label, value, tinted_body if location_rows else body) for label, value in zip(labels, row)] for row in records]
+        record_locations=[(record[location_column] if location_column is not None else '') or 'Unassigned location' for record in records]
+        table_rows += [[report_cell(label, value) for label, value in zip(labels, row)] for row in records]
         if not records:
             table_rows.append([paragraph('No records')] + [paragraph('')] * (len(labels) - 1))
         table = LongTable(table_rows, colWidths=[document.width * width for width in widths],
                           repeatRows=header_rows, splitInRow=1, hAlign='LEFT')
         table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,header_rows-1), colors.HexColor('#1C2027')),
-            ('ROWBACKGROUNDS', (0,header_rows), (-1,-1), [colors.HexColor('#14171B'), colors.HexColor('#171A20')]),
-            ('GRID', (0,0), (-1,-1), .35, colors.HexColor('#373B44')),
+            ('BACKGROUND', (0,0), (-1,header_rows-1), colors.HexColor('#F1F3F5')),
+            ('BACKGROUND', (0,header_rows), (-1,-1), colors.white),
+            ('GRID', (0,0), (-1,-1), .35, colors.HexColor('#C9CDD3')),
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
             ('LEFTPADDING', (0,0), (-1,-1), 7), ('RIGHTPADDING', (0,0), (-1,-1), 7),
             ('TOPPADDING', (0,0), (-1,-1), 7), ('BOTTOMPADDING', (0,0), (-1,-1), 7),
             ('TOPPADDING', (0,0), (-1,header_rows-1), 4), ('BOTTOMPADDING', (0,0), (-1,header_rows-1), 4)]))
         if repeat_section:
             table.setStyle(TableStyle([('SPAN', (0,0), (-1,0))]))
-        if location_rows:
+        if location_column is not None:
             for index, location in enumerate(record_locations, header_rows):
-                table.setStyle(TableStyle([('BACKGROUND',(0,index),(-1,index),colors.HexColor(location_pdf_tint(location)))]))
-        if 'SYSTEM' in labels:
-            column = labels.index('SYSTEM')
-            for index, record in enumerate(records, header_rows):
-                if record[column] in SYSTEM_COLORS:
-                    # A tinted chip matches the colored selection in the website.
-                    background, _ = tag_colors[record[column]]
-                    table.setStyle(TableStyle([('BACKGROUND', (column,index), (column,index), colors.HexColor(background))]))
-        status_column=next((normalized_labels.index(label) for label in ('status','located','confirmation') if label in normalized_labels),None)
-        if status_column is not None:
-            for index, record in enumerate(records, header_rows):
-                if record[status_column] in ('Confirmed', 'Located', 'IP confirmed'):
-                    status_shade='#CBEAD5' if location_rows else '#216E43'
-                    table.setStyle(TableStyle([('BACKGROUND', (status_column,index), (status_column,index), colors.HexColor(status_shade))]))
-        date_column=next((normalized_labels.index(label) for label in ('stock check','last checked (utc)','last checked') if label in normalized_labels),None)
-        if status_column is not None and date_column is not None:
-            now=datetime.now(timezone.utc)
-            for index,record in enumerate(records,header_rows):
-                if str(record[status_column]).casefold() not in ('located','confirmed','ip confirmed'):continue
-                try:
-                    checked=datetime.fromisoformat(str(record[date_column]).replace('Z','+00:00'))
-                    if checked.tzinfo is None:checked=checked.replace(tzinfo=timezone.utc)
-                    days=max(0,(now-checked).days)
-                except (TypeError,ValueError):continue
-                if location_rows:
-                    base=location_pdf_tint(record_locations[index-header_rows])
-                    amount=.42 if days<=30 else .32 if days<=90 else .24 if days<=180 else .16 if days<=365 else .08
-                    shade=blend_hex(base,'#B8E8C6',amount)
-                else:
-                    shade='#245B3D' if days<=30 else '#214B36' if days<=90 else '#1D3D30' if days<=180 else '#192F28' if days<=365 else '#172520'
-                table.setStyle(TableStyle([('BACKGROUND',(0,index),(-1,index),colors.HexColor(shade))]))
+                table.setStyle(TableStyle([('BACKGROUND',(location_column,index),(location_column,index),colors.HexColor(location_pdf_tint(location)))]))
         story.append(table)
 
     def footer(canvas, doc):
         canvas.saveState()
         width, height = landscape(A4)
-        canvas.setFillColor(colors.HexColor('#0B0D0F'))
+        canvas.setFillColor(colors.white)
         canvas.rect(0, 0, width, height, stroke=0, fill=1)
-        canvas.setStrokeColor(colors.HexColor('#272A30'))
+        canvas.setStrokeColor(colors.HexColor('#D7DADE'))
         canvas.line(26, 46, width - 26, 46)
         canvas.setFillColor(colors.HexColor('#EF4444'))
         canvas.circle(30, 29, 2, stroke=0, fill=1)
-        canvas.setFillColor(colors.HexColor('#EEEEE9'))
+        canvas.setFillColor(colors.HexColor('#171A20'))
         canvas.setFont('HubMonoMedium', 7)
         canvas.drawString(40, 26, 'REPORT GENERATED BY AVTRACK')
-        canvas.setFillColor(colors.HexColor('#A0A2AC'))
+        canvas.setFillColor(colors.HexColor('#666D76'))
         canvas.setFont('HubMono', 7)
         canvas.drawString(40, 13, 'Broadcast operations · Saved inventory')
         canvas.drawRightString(width - 26, 13, f'PAGE {doc.page}')
@@ -338,12 +293,11 @@ def equipment_pdf(rows, inventory_name='Equipment inventory', layout=None):
             labels.append('Last checked (UTC)')
             for value,row in zip(values,rows): value.append(row.get('last_checked_at') or '')
         return pdf_report(inventory_name,[('Inventory',labels,[1/len(labels)]*len(labels),values)])
-    labels = ['ITEM','BRAND','MODEL','SERIAL NUMBER','QNT','LOCATED']
-    widths = [.29,.14,.16,.18,.08,.15]
-    locations = {}
+    labels = ['ITEM','BRAND','MODEL','SERIAL NUMBER','QNT','LOCATION','LOCATED']
+    widths = [.24,.12,.14,.16,.07,.14,.13]
+    values = []
     for row in sorted(rows, key=lambda row: (row['location'].casefold(), row['description'].casefold(), row['brand'].casefold(), row['model'].casefold())):
-        locations.setdefault(row['location'], []).append([
-            row['description'], row['brand'], row['model'], row['serial_number'], row['quantity'],
+        values.append([
+            row['description'], row['brand'], row['model'], row['serial_number'], row['quantity'], row['location'] or 'Unassigned location',
             'Located' if row.get('item_confirmed') else 'To be found'])
-    sections = [(f'Location: {location or "Unassigned location"}', labels, widths, records) for location, records in locations.items()]
-    return pdf_report(inventory_name, sections or [('Equipment', labels, widths, [])], repeat_section=True)
+    return pdf_report(inventory_name, [('Inventory', labels, widths, values)])

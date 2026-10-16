@@ -3,6 +3,7 @@ import csv
 import re
 import shutil
 import subprocess
+import tempfile
 import unittest
 from urllib.request import urlopen
 
@@ -76,18 +77,19 @@ class ExportTests(unittest.TestCase):
         self.assertIn(('Unknown spare',None,None,None,None,None,'To be found',None), values)
 
     @unittest.skipUnless(shutil.which('pdftotext'), 'PDF text validation needs optional pdftotext')
-    def test_equipment_reports_group_by_location_and_include_found_status(self):
+    def test_equipment_reports_sort_by_location_and_include_found_status(self):
         for location, item_name, serial in [('Z Store','Last item','Z-1'), ('A Theater','First item','A-1'), ('','Unassigned item','U-1')]:
             item = self.request('/api/equipment', 'POST', dict(description=item_name, brand='Sony', model='X', serial_number=serial, location=location))[1]
             if location == 'A Theater':
                 self.request(f"/api/equipment/{item['id']}/confirm", 'POST', dict(item, item_confirmed=True))
         raw = self.request('/api/equipment/export.pdf', 'POST', dict(ids=[1,2,3]))[1]
         text = subprocess.run(['pdftotext','-layout','-','-'],input=raw,stdout=subprocess.PIPE,check=True).stdout.decode()
-        self.assertLess(text.index('Location: Unassigned location'), text.index('Location: A Theater'))
-        self.assertLess(text.index('Location: A Theater'), text.index('Location: Z Store'))
+        self.assertLess(text.index('Unassigned location'), text.index('A Theater'))
+        self.assertLess(text.index('A Theater'), text.index('Z Store'))
         headings = next(line for line in text.splitlines() if 'SERIAL NUMBER' in line)
         self.assertLess(headings.index('ITEM'), headings.index('BRAND'))
         self.assertLess(headings.index('MODEL'), headings.index('SERIAL NUMBER'))
+        self.assertIn('LOCATION', headings)
         self.assertIn('Located', text)
         self.assertIn('To be found', text)
         self.assertIn('broadcastgab.com', text)
@@ -98,7 +100,7 @@ class ExportTests(unittest.TestCase):
         self.assertEqual(row[6].fill.fgColor.rgb, '00D1EAD7')
 
     @unittest.skipUnless(shutil.which('pdftotext'), 'PDF text validation needs optional pdftotext')
-    def test_equipment_pdf_repeats_location_on_continuation_pages(self):
+    def test_equipment_pdf_repeats_location_column_on_continuation_pages(self):
         rows = [dict(description=f'Inventory item {index}', serial_number=f'SN-{index}', location='Main lounge',
                      notes='Long inspection note ' * 80 if index == 0 else '', item_confirmed=index % 2)
                 for index in range(45)]
@@ -108,7 +110,8 @@ class ExportTests(unittest.TestCase):
         pages = [page for page in text.split('\f') if page.strip()]
         self.assertGreater(len(pages), 1)
         for page in pages:
-            self.assertIn('Location: Main lounge', page)
+            self.assertIn('LOCATION', page)
+            self.assertIn('Main lounge', page)
             self.assertIn('SERIAL NUMBER', page)
         self.assertIn('Inventory item 44', text)
 
@@ -133,6 +136,24 @@ class ExportTests(unittest.TestCase):
         self.assertIn('broadcastgab.com', text)
         self.assertNotIn('by broadcastgab.com', text)
         self.assertNotEqual(exports.location_pdf_tint('Deck 6 Locker'), exports.location_pdf_tint('Deck 2 Port'))
+
+    @unittest.skipUnless(shutil.which('pdftoppm'), 'PDF print-color validation needs optional pdftoppm')
+    def test_pdf_print_layout_colors_only_location_cells(self):
+        from PIL import Image
+        raw = exports.pdf_report('Print test', [('Inventory',
+            ['ITEM','LOCATION','STATUS'], [.4,.3,.3],
+            [['Camera','Deck 6','Located'],['Cable','Deck 2','To be found']])])
+        with tempfile.TemporaryDirectory() as directory:
+            output = directory + '/page'
+            subprocess.run(['pdftoppm','-f','1','-singlefile','-png','-r','72','-',output],
+                           input=raw, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+            image = Image.open(output + '.png').convert('RGB')
+            self.assertEqual(image.getpixel((10,300)), (255,255,255))
+            for y in (100,125):
+                self.assertEqual(image.getpixel((100,y)), (255,255,255))
+                self.assertEqual(image.getpixel((700,y)), (255,255,255))
+                self.assertNotEqual(image.getpixel((450,y)), (255,255,255))
+            self.assertNotEqual(image.getpixel((450,100)), image.getpixel((450,125)))
 
     def test_scoped_exports_use_only_requested_records_and_latest_saved_values(self):
         camera = self.request('/api/devices', 'POST', dict(name='Selected camera', ip='10.20.0.1', venue='Theatre', discipline='Video'))[1]

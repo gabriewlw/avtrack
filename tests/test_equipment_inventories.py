@@ -121,7 +121,8 @@ class EquipmentInventoryTests(unittest.TestCase):
                     elif shutil.which('pdftotext'):
                         text = subprocess.run(['pdftotext','-','-'], input=result, capture_output=True, check=True).stdout.decode()
                         self.assertIn('TVs', text)
-                        self.assertIn('Location: Broadcast center', text)
+                        self.assertIn('LOCATION', text)
+                        self.assertIn('Broadcast center', text)
                         self.assertNotIn('Excluded spare', text)
         self.request(f'/api/equipment/inventories/{tvs}', 'PUT', {'name':"[TVs] / Lounge: HD "*5})
         self.assertEqual(self.request(f'/api/equipment/export.xlsx?inventory_id={tvs}')[0], 200)
