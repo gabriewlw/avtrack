@@ -157,6 +157,26 @@ class AppTests(unittest.TestCase):
             self.assertEqual(self.request(path)[0], 200)
         self.assertEqual(self.request('/../app.py')[0], 404)
 
+    def test_workspace_uses_broadcastgab_color_tokens(self):
+        style = self.request('/style.css')[1].decode()
+        expected = {
+            '--background': 'oklch(0.16 0.008 260)',
+            '--card': 'oklch(0.20 0.01 260)',
+            '--secondary': 'oklch(0.24 0.012 260)',
+            '--surface-accent': 'oklch(0.27 0.014 260)',
+            '--border': 'oklch(0.30 0.012 260)',
+            '--foreground': 'oklch(0.93 0.01 90)',
+            '--muted-foreground': 'oklch(0.62 0.015 260)',
+            '--primary': 'oklch(0.63 0.24 25)',
+            '--primary-foreground': 'oklch(0.14 0.01 260)',
+        }
+        for token, value in expected.items():
+            with self.subTest(token=token):
+                self.assertIn(f'{token}: {value};', style)
+        self.assertIn('body { margin: 0; background: var(--background); color: var(--foreground); }', style)
+        self.assertIn('.primary { background: var(--primary); color: var(--primary-foreground); }', style)
+        self.assertIn("const CACHE = 'avtrack-offline-v44'", self.request('/service-worker.js')[1].decode())
+
     def test_batch_delete_only_selected_ids_and_retry(self):
         first = self.request('/api/devices', 'POST', EXAMPLE)[1]
         second = self.request('/api/devices', 'POST', dict(name='Camera', venue='Theatre', ip='10.24.176.67'))[1]
