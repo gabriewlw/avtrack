@@ -18,6 +18,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.on('pageerror',lambda error:errors.append(str(error)))
             page.goto(f'http://127.0.0.1:{server.server_port}/')
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
+            page.locator('#device-tab').click()
             def paste(text,equipment=False):
                 page.locator('#equipment-paste' if equipment else '#network-paste').click()
                 page.locator('#paste-inventory-text').fill(text);page.locator('#continue-paste-inventory').click()

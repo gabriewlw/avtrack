@@ -640,7 +640,7 @@ function ipCopyButton(device, addressText) {
   return button;
 }
 function render() {
-  if (currentTab === 'equipment') return;
+  if (currentTab === 'equipment' || currentTab === 'backups') return;
   closeSystemMenu();
   const iptvDirectory = currentTab === 'iptv';
   $('device-directory').classList.toggle('iptv-directory', iptvDirectory);

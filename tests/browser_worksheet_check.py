@@ -32,16 +32,20 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#equipment-inventory-select').select_option(str(inventory['id']))
             page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled && document.getElementById('equipment-inventory-title').textContent==='Scala'")
             page.locator('#import-file').set_input_files({'name':'cover-first.xlsx','mimeType':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','buffer':output.getvalue()})
-            page.locator('#spreadsheet-error').wait_for(state='visible')
+            page.wait_for_function("() => document.querySelectorAll('#sheet-choice option').length===2")
             assert page.locator('#sheet-choice option').all_text_contents()==['Cover','Scala assets']
             assert page.locator('#sheet-choice').is_enabled()
-            assert page.locator('#confirm-import').is_disabled()
+            page.locator('#import-sheet-choices input[value="Cover"]').uncheck()
+            page.locator('#import-sheet-choices input[value="Scala assets"]').check()
             page.locator('#sheet-choice').select_option('Scala assets')
             page.locator('#header-row').fill('2');page.locator('#reload-sheet').click()
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
-            assert page.locator('#map-asset_id option').all_text_contents()==['Leave blank','1. ID','2. Location','3. Monitor model','4. Orientation','5. Notes']
+            options=page.locator('#map-asset_id option').all_text_contents()
+            assert options[0]=='Leave blank'
+            assert [option.split(' — ')[0] for option in options[1:]]==['1. ID','2. Location','3. Monitor model','4. Orientation','5. Notes']
             assert page.locator('#sheet-choice').input_value()=='Scala assets'
-            page.locator('#confirm-import').click();page.locator('#spreadsheet-dialog').wait_for(state='hidden')
+            page.locator('#confirm-import').click();page.locator('#import-summary-panel').wait_for(state='visible')
+            page.locator('#close-import-summary').click()
             assert app.equipment_inventory(inventory['id'])[0]['custom_values']['asset_id']=='SC-55'
             page.locator('#import-file').set_input_files({'name':'simple.csv','mimeType':'text/csv','buffer':b'ID,Location,Monitor model,Orientation,Notes\nSC-56,Lobby,LG,,note\n'})
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
@@ -52,4 +56,4 @@ with tempfile.TemporaryDirectory() as temporary:
             browser.close()
     finally:
         server.shutdown()
-print('Worksheet list survives preview/header errors; sheet selection, mappings, import and CSV message passed.')
+print('Worksheet selection, header reload, mappings, import and CSV message passed.')

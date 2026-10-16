@@ -986,8 +986,14 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Security-Policy', f"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src {connect_sources}; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
         if filename:
             self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            # The browser may abandon a timed-out import while the server is
+            # finishing it. The transaction result remains durable and a retry
+            # is idempotent; there is no response socket left to write to.
+            return
 
     def body(self):
         # Reject cross-origin writes, including simple requests from other websites.

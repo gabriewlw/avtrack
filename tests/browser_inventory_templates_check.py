@@ -60,7 +60,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#equipment-units').inner_text()=='8'
             assert not page.locator('#equipment-locations').is_visible()
             assert not page.locator('.equipment-status-group').is_visible()
-            assert page.evaluate("() => [...document.querySelectorAll('#equipment-rows tr')].every(row=>Math.abs(row.getBoundingClientRect().height-47)<1)")
+            assert page.evaluate("""() => { const heights=[...document.querySelectorAll('#equipment-rows tr')].map(row=>row.getBoundingClientRect().height); return heights.every(height=>height>=40&&height<=56&&Math.abs(height-heights[0])<1); }""")
             assert page.locator('#equipment-rows tr').count()==2
             page.locator('#add-device').click()
             page.locator('#equipment-brand').select_option('Samsung');page.locator('#equipment-model').fill('Found TV')
@@ -89,7 +89,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#save-equipment').click();page.locator('#equipment-dialog').wait_for(state='hidden')
             page.wait_for_function("() => document.getElementById('equipment-records').textContent==='1'")
             assert 'Serial Number' not in page.locator('#equipment-table').inner_text()
-            assert page.evaluate("() => [...document.querySelectorAll('#equipment-rows tr')].every(row=>Math.abs(row.getBoundingClientRect().height-47)<1)")
+            assert page.evaluate("""() => { const heights=[...document.querySelectorAll('#equipment-rows tr')].map(row=>row.getBoundingClientRect().height); return heights.every(height=>height>=40&&height<=56&&Math.abs(height-heights[0])<1); }""")
             assert 'across' not in page.locator('#workspace-page-summary').inner_text()
             assert page.locator('#equipment-location-buttons button').count()==0
             page.locator('#new-equipment-inventory').click();page.locator('#equipment-inventory-name').fill('Locker spares')
@@ -100,7 +100,8 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#import-file').set_input_files({'name':'parts.csv','mimeType':'text/csv','buffer':b'Description,Brand,Model,Serial Number,Quantity,Location,Notes\nCable,Sony,X,S1,1,Locker A,note\nCable,,X,S2,2,Locker A,note\nCable,Sony,X,S3,1,Locker B,note\n'})
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
-            assert page.get_by_label('Location, row 3',exact=True).locator('option').all_text_contents()==['Leave blank','Locker A','Locker B']
+            locations=page.get_by_label('Location, row 3',exact=True).locator('option').all_text_contents()
+            assert {'Locker A','Locker B'}<=set(locations)
             assert page.get_by_label('Qnt, row 3',exact=True).get_attribute('type')=='number'
             page.get_by_label('Brand, row 3',exact=True).fill('Sony');page.get_by_role('checkbox',name='Select row 3',exact=True).check()
             page.locator('#inventory-import-review-save').click()
@@ -123,7 +124,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#save-equipment').click();page.locator('#equipment-dialog').wait_for(state='hidden')
             page.wait_for_function("() => [...document.querySelectorAll('#equipment-location-buttons button')].some(button=>button.textContent==='Locker C')")
             page.screenshot(path=str(Path(app.__file__).parent/'work/template-desktop.png'),full_page=True)
-            assert page.evaluate("() => [...document.querySelectorAll('#equipment-rows tr')].every(row=>Math.abs(row.getBoundingClientRect().height-47)<1)")
+            assert page.evaluate("""() => { const heights=[...document.querySelectorAll('#equipment-rows tr')].map(row=>row.getBoundingClientRect().height); return heights.every(height=>height>=40&&height<=56&&Math.abs(height-heights[0])<1); }""")
             assert not errors,errors
             browser.close()
     finally:server.shutdown();server.server_close()

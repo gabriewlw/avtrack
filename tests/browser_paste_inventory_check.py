@@ -87,7 +87,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#close-import-summary').click()
             # Excel tabs feed the same stages, including location deletion.
             choose(parts)
-            paste('Description\tBrand\tModel\tSerial Number\tQuantity\tLocation\tNotes\nCable\tSony\tX\tS1\t1\tLocker A\tnote\nCable\tSony\tY\tS2\t2\tLocker B\tnote\n','Locker B')
+            paste('Description\tBrand\tModel\tSerial Number\tQuantity\tLocation\tNotes\nCable\tSony\tX\tS1\t1\tLocker A\tnote\nCable\tSony\tY\tS2\t1\tLocker B\tnote\n','Locker B')
             page.locator('#confirm-import').click();page.locator('#spreadsheet-dialog').wait_for(state='hidden')
             page.wait_for_function("() => document.getElementById('equipment-records').textContent==='2'")
             assert {row['location'] for row in app.equipment_inventory(parts['id'])}=={'Locker B'}
