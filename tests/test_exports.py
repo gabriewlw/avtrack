@@ -149,11 +149,11 @@ class ExportTests(unittest.TestCase):
                            input=raw, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
             image = Image.open(output + '.png').convert('RGB')
             self.assertEqual(image.getpixel((10,300)), (255,255,255))
-            for y in (100,125):
+            for y in (85,105):
                 self.assertEqual(image.getpixel((100,y)), (255,255,255))
                 self.assertEqual(image.getpixel((700,y)), (255,255,255))
                 self.assertNotEqual(image.getpixel((450,y)), (255,255,255))
-            self.assertNotEqual(image.getpixel((450,100)), image.getpixel((450,125)))
+            self.assertNotEqual(image.getpixel((450,85)), image.getpixel((450,105)))
 
     def test_scoped_exports_use_only_requested_records_and_latest_saved_values(self):
         camera = self.request('/api/devices', 'POST', dict(name='Selected camera', ip='10.20.0.1', venue='Theatre', discipline='Video'))[1]
