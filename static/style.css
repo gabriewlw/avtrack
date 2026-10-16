@@ -534,6 +534,12 @@ nav a,.eyebrow,.network-card-top,.stats span,.filters label>span,.button-filter 
 #equipment-table .equipment-actions button.equipment-edit-action:hover,#equipment-table .equipment-actions button.equipment-edit-action:focus-visible{border-color:var(--border);background:var(--surface-accent);color:var(--foreground);transform:translateY(-1px)}
 #equipment-table .equipment-actions button.equipment-delete-action{border-color:color-mix(in oklab,var(--primary) 34%,transparent);background:color-mix(in oklab,var(--primary) 8%,transparent);color:color-mix(in oklab, var(--primary) 72%, var(--foreground))}
 #equipment-table .equipment-actions button.equipment-delete-action:hover,#equipment-table .equipment-actions button.equipment-delete-action:focus-visible{border-color:var(--primary);background:color-mix(in oklab,var(--primary) 18%,transparent);color:var(--foreground);transform:translateY(-1px)}
+.device-directory .device-row>.row-actions{gap:6px;justify-content:center}
+.device-directory .row-actions button.row-action-icon{position:relative;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;min-width:32px;min-height:32px;padding:0;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--foreground);transition:border-color .15s,background-color .15s,color .15s,transform .15s}
+.device-directory .row-action-icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.device-directory .row-actions button.row-edit-action:hover,.device-directory .row-actions button.row-edit-action:focus-visible{border-color:var(--border);background:var(--surface-accent);color:var(--foreground);transform:translateY(-1px)}
+.device-directory .row-actions button.row-delete-action{border-color:color-mix(in oklab,var(--primary) 34%,transparent);background:color-mix(in oklab,var(--primary) 8%,transparent);color:color-mix(in oklab,var(--primary) 72%,var(--foreground))}
+.device-directory .row-actions button.row-delete-action:hover,.device-directory .row-actions button.row-delete-action:focus-visible{border-color:var(--primary);background:color-mix(in oklab,var(--primary) 18%,transparent);color:var(--foreground);transform:translateY(-1px)}
 
 .cross-check-location{margin:12px 0;padding:12px;border:1px solid var(--border);border-radius:6px}.cross-check-location summary{cursor:pointer}.cross-check-location li{padding:8px 0;overflow-wrap:anywhere}.cross-check-location p{margin:5px 0}
 

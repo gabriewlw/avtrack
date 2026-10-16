@@ -762,8 +762,13 @@ function render() {
       system.append(systemDropdown(device));
     }
     const actions = element('div', 'row-actions');
-    const edit = element('button', 'quiet', 'Edit'); edit.setAttribute('aria-label', `Edit ${deviceLabel(device)}`); edit.onclick = () => openForm(device);
-    const remove = element('button', 'quiet', 'Delete'); remove.setAttribute('aria-label', `Delete ${deviceLabel(device)}`);
+    const edit = element('button', 'quiet row-action-icon row-edit-action');
+    edit.type = 'button'; edit.title = iptv ? 'Edit channel' : 'Edit device'; edit.setAttribute('aria-label', `Edit ${deviceLabel(device)}`);
+    edit.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m15.5 4.5 4 4L8 20H4v-4Z"/><path d="m13.5 6.5 4 4"/></svg>';
+    edit.onclick = () => openForm(device);
+    const remove = element('button', 'quiet row-action-icon row-delete-action');
+    remove.type = 'button'; remove.title = iptv ? 'Delete channel' : 'Delete device'; remove.setAttribute('aria-label', `Delete ${deviceLabel(device)}`);
+    remove.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5"/></svg>';
     remove.onclick = () => { deleting = device; $('delete-description').textContent = `${device.name} · ${device.ip} · ${iptv ? 'Port ' + (device.port || 'not set') : 'VLAN ' + device.vlan}`; $('delete-error').hidden = true; $('delete-dialog').showModal(); $('cancel-delete').focus(); };
     actions.append(edit,remove);
     row.append(identity);
