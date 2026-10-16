@@ -182,7 +182,7 @@ class AppTests(unittest.TestCase):
                 self.assertIn(f'{token}: {value};', style)
         self.assertIn('body { margin: 0; background: var(--background); color: var(--foreground); }', style)
         self.assertIn('.primary { background: var(--primary); color: var(--primary-foreground); }', style)
-        self.assertIn("const CACHE = 'avtrack-offline-v51'", self.request('/service-worker.js')[1].decode())
+        self.assertIn("const CACHE = 'avtrack-offline-v52'", self.request('/service-worker.js')[1].decode())
 
     def test_batch_delete_only_selected_ids_and_retry(self):
         first = self.request('/api/devices', 'POST', EXAMPLE)[1]
