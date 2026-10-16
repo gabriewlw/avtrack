@@ -26,11 +26,12 @@ with tempfile.TemporaryDirectory() as temp:
             assert page.get_by_role("heading", name="Your AV workspace is ready for its first record.").is_visible()
             heading_box = page.locator("#home-empty-title").bounding_box()
             assert heading_box and heading_box["height"] < 50, heading_box
+            assert page.locator(".overview-card-actions").evaluate_all("groups => groups.every(group => group.firstElementChild.matches('a.overview-workspace-link') && group.lastElementChild.matches('button.overview-add'))")
 
             page.get_by_role("button", name="＋ Add channel").click()
             page.locator("#device-dialog").wait_for(state="visible")
             assert page.url.endswith("/#iptv")
-            assert page.locator("#form-title").inner_text() == "Add IPTV channel"
+            assert page.locator("#form-title").inner_text() == "Add channel"
             page.locator("#close-dialog").click()
 
             page.goto(origin + "/")

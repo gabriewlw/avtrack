@@ -477,8 +477,8 @@ nav a,.eyebrow,.network-card-top,.stats span,.filters label>span,.button-filter 
 .overview-card-footer{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:auto;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)}
 .overview-card-actions{display:grid;grid-template-columns:1fr;gap:8px;margin-top:16px}
 .overview-card-actions button,.overview-card-actions a{display:flex;align-items:center;justify-content:center;min-height:38px;padding:8px 10px;border-radius:6px;font-size:11px;font-weight:650;text-decoration:none}
-.overview-add{border:1px solid #9f343c;background:#322026;color:#ffabb0}.overview-add:hover{border-color:var(--accent-text);background:#44242b;color:#fff}
-.overview-workspace-link{gap:6px;border:1px solid var(--border);background:#15181d;color:#eeeee9}.overview-workspace-link:hover{border-color:#4b505a;background:#202329;color:#fff}
+.overview-workspace-link{gap:6px;border:1px solid #9f343c;background:#322026;color:#ffabb0}.overview-workspace-link:hover{border-color:var(--accent-text);background:#44242b;color:#fff}
+.overview-add{border:1px solid var(--border);background:#15181d;color:#eeeee9}.overview-add:hover{border-color:#4b505a;background:#202329;color:#fff}
 .home-data-pending #workspace,.home-data-pending main>.stats,.home-data-pending #inventory,.home-data-pending #validation-note,.home-empty-workspace #workspace,.home-empty-workspace main>.stats,.home-empty-workspace #inventory,.home-empty-workspace #validation-note{display:none}
 .home-empty-state{position:relative;overflow:hidden;margin:0 0 36px;padding:34px;border:1px solid #30343c;border-radius:14px;background:radial-gradient(circle at 88% 0,rgba(201,47,56,.15),transparent 38%),linear-gradient(135deg,#1a1e24,#111418 72%);box-shadow:0 20px 60px rgba(0,0,0,.16)}
 .home-empty-state::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.18;background:linear-gradient(90deg,transparent 49.8%,#353941 50%,transparent 50.2%),linear-gradient(0deg,transparent 49.8%,#353941 50%,transparent 50.2%);background-size:72px 72px;mask-image:linear-gradient(to left,#000,transparent 72%)}
