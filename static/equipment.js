@@ -347,7 +347,7 @@
   }
   document.fonts.ready.then(()=>{if(inventoryReady)renderEquipment();});
   function renderCustomFilters() {
-    $('equipment-custom-filters').replaceChildren(...displayColumns().filter(col=>col.key!=='location'&&col.filter!=='none').map(col=>{
+    $('equipment-custom-filters').replaceChildren(...displayColumns().filter(col=>!['location','model'].includes(col.key)&&col.filter!=='none').map(col=>{
       const group=element('fieldset','button-filter');group.append(element('legend','',col.label));
       const values=[...new Set(items.map(item=>String(inventoryValue(item,col.key))).filter(Boolean))].sort(nameCollator.compare);
       if(col.filter==='buttons') {

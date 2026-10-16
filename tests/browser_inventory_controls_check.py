@@ -14,6 +14,7 @@ with tempfile.TemporaryDirectory() as temporary:
     app.DB_PATH=Path(temporary)/'inventory.sqlite3'
     app.save_equipment({'description':'Keep this camera','serial_number':'KEEP-1'})
     profile=copy.deepcopy(DEFAULT_PROFILE)
+    next(column for column in profile['columns'] if column['key']=='model')['filter']='dropdown'
     profile['columns'].append({'key':'custom_asset_tag','label':'Asset tag','type':'text','important':False,'filter':'none','options':[]})
     target=app.save_equipment_inventory({'name':'Spare TVs','layout':profile})
     app.save_equipment(dict(inventory_id=target['id'],description='Studio display',brand='ViewBrand',model='ModelQ',serial_number='ABC123',quantity=7,location='Store room',notes='Remote included',custom_values={'custom_asset_tag':'TAG-44'}))
@@ -31,6 +32,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#equipment-status-buttons button').all_text_contents()==['All items','Located','To be found']
             assert page.locator('#equipment-location-buttons button').all_text_contents()==['Store room']
             assert page.locator('#equipment-location-filter option').first.inner_text()=='All locations'
+            assert page.locator('#equipment-custom-filters fieldset').count()==0
             for query in ['studio','viewbrand','modelq','abc123','7','store','remote','tag-44','to be found','confirm stock']:
                 page.locator('#equipment-search').fill(query)
                 assert page.locator('#equipment-rows tr').count()==1,query
