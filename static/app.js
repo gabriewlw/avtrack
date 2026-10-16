@@ -302,6 +302,7 @@ function switchTab(type) {
   }
   $('add-device').hidden = false;
   if (equipment) {
+    $('equipment-transfer').insertBefore($('add-device'), $('equipment-paste'));
     $('hero-title').replaceChildren(document.createTextNode('Every asset.'), element('br'), document.createTextNode('Every location.'), element('br'), element('span', '', 'One clear view.'));
     $('hero-intro').textContent = 'Manage your broadcast equipment, spare stock, and production tools. Keep brands, models, serial numbers, and quantities organized from the control room to the storeroom.';
     $('example-ip').textContent = 'Advanced Panel 10'; $('example-name').textContent = 'Blackmagic Design';
@@ -309,6 +310,7 @@ function switchTab(type) {
     $('add-device').textContent = 'Add equipment'; $('validation-note').hidden = true;
     window.equipmentUI.load(); return;
   }
+  $('transfer').insertBefore($('add-device'), $('network-paste'));
   filters.forEach(id => $(id).value = '');
   $('inventory').setAttribute('aria-labelledby', type === 'iptv' ? 'iptv-tab' : 'device-tab');
   const iptv = type === 'iptv';

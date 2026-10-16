@@ -18,7 +18,8 @@ with tempfile.TemporaryDirectory() as tmp:
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
             page.locator('#device-tab').click()
             def paste(text,mode):
-                assert page.locator('#transfer button').first.get_attribute('id')=='network-paste'
+                assert page.locator('#transfer button').first.get_attribute('id')=='add-device'
+                assert page.locator('#transfer button').nth(1).get_attribute('id')=='network-paste'
                 page.locator('#import').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
                 assert page.locator('#paste-inventory-location-label').is_hidden()
                 page.locator('#paste-inventory-text').fill(text);page.locator('#continue-paste-inventory').click()
