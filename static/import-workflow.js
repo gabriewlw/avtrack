@@ -5,7 +5,7 @@ window.importWorkflow = (() => {
   const panels=['paste-inventory-dialog','paste-confirmation-dialog','paste-layout-dialog','paste-field-dialog','spreadsheet-dialog','inventory-import-review','import-summary-panel'];
   let active=null,session=null,preferences={},queue=[],queueIndex=0,completed=new Set(),receipts=[],edited={},applied=false,originalLayout=null,sheetMappings={};
   let checkpointTimer=null;
-  let saving=Promise.resolve(),historyReady=false,knownRecords=[],historyRecords=[];
+  let saving=Promise.resolve(),knownRecords=[];
   const target=()=>currentTab==='equipment'?`equipment:${(spreadsheetInventory || pasteInventory)?.id}`:currentTab;
   function showPanel(panel){
     panels.forEach(id=>{byId(id).hidden=id!==panel.id;});active=panel;
@@ -53,7 +53,7 @@ window.importWorkflow = (() => {
     preferences=await api('/api/import-preferences?target='+encodeURIComponent(inventory?`equipment:${inventory.id}`:currentTab));
     if(!file.confirmation_mode)file.confirmation_mode=preferences.confirmation_mode || (inventory?.layout?.confirmation_mode || (inventory?(inventory.layout?.show_status===false?'none':'storage'):currentTab==='device'?'ip':'none'));
     const saved=await api('/api/import-sessions','POST',{target:inventory?`equipment:${inventory.id}`:currentTab,name:file.filename,state:{file,inventory,originalLayout,confirmation_mode:file.confirmation_mode}});
-    session=saved;refreshHistory();
+    session=saved;
   }
   function sourceKeys(entry){return (entry.sourceNumbers || [entry.number]).map(number=>`${queueIndex}:${byId('sheet-choice').value}:${number}`);}
   function remaining(entries){return entries.filter(entry=>!sourceKeys(entry).every(key=>completed.has(key))).map(entry=>({...entry,row:edited[sourceKeys(entry)[0]] || entry.row}));}
@@ -120,7 +120,7 @@ window.importWorkflow = (() => {
       session.state.mappings=null;session.state.sheet=null;
       byId('spreadsheet-dialog').showModal();await loadSpreadsheet();await checkpoint();return;
     }
-    showSummary(stopped);refreshHistory();
+    showSummary(stopped);
   }
   function showSummary(stopped=session?.status!=='complete'){
     const groups=new Map();receipts.forEach(receipt=>{if(!groups.has(receipt.location))groups.set(receipt.location,[]);groups.get(receipt.location).push(receipt);});
@@ -161,18 +161,6 @@ window.importWorkflow = (() => {
     const resumeButton=el('button','secondary','Resume previous import');resumeButton.type='button';resumeButton.onclick=()=>{byId('paste-inventory-dialog').close();resume(previous.id).catch(error=>toast(error.message));};
     box.append(el('p','dialog-intro',`Saved draft: ${previous.name}. Resume it or paste a new table below.`),resumeButton);
   }
-  async function refreshHistory(older=false){
-    try{
-      const {sessions}=await api('/api/import-sessions'+(older && historyRecords.length?'?before='+historyRecords.at(-1).id:''));historyReady=true;
-      historyRecords=older?[...historyRecords,...sessions]:sessions;
-      byId('import-history-older').hidden=sessions.length<50;
-      byId('import-history-panel').hidden=!historyRecords.length;
-      byId('import-history-list').replaceChildren(...historyRecords.map(record=>{
-        const row=el('div','import-history-row'),button=el('button','secondary',record.retired || record.status==='complete'?'View report':'Resume');button.type='button';button.onclick=()=>resume(record.id).catch(error=>toast(error.message));
-        row.append(el('span','',`${record.name} · ${record.destination} · ${record.retired?'Inventory deleted':record.status==='complete'?'Completed':record.status==='paused'?'Paused':'In progress'}`),button);return row;
-      }));
-    }catch(error){if(historyReady)toast('Could not refresh import history: '+error.message);}
-  }
   async function compare(original){
     if(!session.target.startsWith('equipment:'))return;
     const file=original || session.state.file;
@@ -183,8 +171,6 @@ window.importWorkflow = (() => {
     const details=byId('import-summary-comparison-details');details.replaceChildren(...report.rows.filter(row=>row.status!=='matched').map(row=>el('p','inventory-flags',`${row.sheet || 'Pasted table'} row ${row.row_number} · ${row.status} · ${[...row.issues,...row.differences.map(diff=>`${diff.field}: original ${diff.original}; saved ${diff.saved}`)].join(' · ')}`)));
   }
   document.addEventListener('DOMContentLoaded',()=>{
-    refreshHistory();
-    byId('import-history-older').onclick=()=>refreshHistory(true);
     byId('cancel-import-cell-notes').onclick=()=>byId('import-cell-notes-dialog').close();
     byId('close-import-summary').onclick=byId('import-summary-close-action').onclick=()=>byId('import-summary-panel').close();
     byId('import-summary-resume').onclick=()=>resume(session.id).catch(error=>toast(error.message));
@@ -195,6 +181,6 @@ window.importWorkflow = (() => {
     byId('import-summary-file').onchange=async event=>{try{const file=event.target.files[0];if(!file)return;if(file.size>5000000)throw new Error('Choose a file up to 5 MB.');const content=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=reject;reader.readAsDataURL(file);});await compare({filename:file.name,content});}catch(error){byId('import-summary-comparison').textContent=error.message;}finally{event.target.value='';}};
   });
   install();
-  return {begin,checkpoint,scheduleCheckpoint,write,remaining,sourceKeys,edit,restoreMappings,applySetup,configureSheets,finish,refreshHistory,offerResume,
+  return {begin,checkpoint,scheduleCheckpoint,write,remaining,sourceKeys,edit,restoreMappings,applySetup,configureSheets,finish,offerResume,
     resetSuggestions(){preferences={...preferences,mappings:{},seen_headers:[]};},get preferences(){return preferences;},get session(){return session;},get queue(){return queue;},get queueIndex(){return queueIndex;},get originalLayout(){return originalLayout;},get knownRecords(){return knownRecords;},showSummary};
 })();

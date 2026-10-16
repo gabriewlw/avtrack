@@ -731,7 +731,6 @@ main, dialog {
 #import-workspace #column-mappings{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 20px}
 #import-workspace .dialog-actions{position:sticky;bottom:-28px;background:var(--panel);padding:18px 0;border-top:1px solid var(--border);z-index:5}
 #import-workspace[data-panel="inventory-import-review"] .dialog-actions{position:static;padding:8px 0 0;border-top:0}
-.import-history{padding:24px;margin:24px 0}.import-history h2{font-size:20px}.import-history p{font-size:13px;color:var(--muted)}
 .import-history-row{display:flex;justify-content:space-between;gap:16px;align-items:center;border-top:1px solid var(--border);padding:12px 0;font-size:13px}
 #import-draft-summary{margin:18px 0}#import-sheet-selection{margin:18px 0}#import-duplicate-list,#import-excluded-list{font-size:12px;line-height:1.7}
 #import-workspace .batch-review-table{table-layout:auto}.batch-review-table .batch-sticky{position:sticky;left:0;z-index:2;background:#171b21;min-width:150px}

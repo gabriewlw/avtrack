@@ -23,6 +23,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.on('pageerror',lambda error:errors.append(str(error)))
             page.goto(f'http://127.0.0.1:{server.server_port}/')
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
+            page.locator('#device-tab').click()
             def paste(text,mode=None):
                 page.locator('#network-paste' if page.locator('#equipment-panel').is_hidden() else '#equipment-paste').click()
                 page.locator('#paste-inventory-text').fill(text);page.locator('#continue-paste-inventory').click()
@@ -49,7 +50,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#inventory-import-review-stop').click();page.locator('#import-summary-panel').wait_for(state='visible')
             assert app.inventory()[0]['notes']=='Edited floating notes'
             assert app.inventory()[0]['confirmation_required']==0
-            page.reload();page.locator('#import-history-list button').first.click()
+            page.reload();page.locator('#network-paste').click();page.get_by_role('button',name='Resume previous import',exact=True).click()
             page.locator('#spreadsheet-dialog').wait_for(state='visible');page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
             assert page.locator('#inventory-import-review-rows tr').count()==1
@@ -107,21 +108,15 @@ with tempfile.TemporaryDirectory() as tmp:
             assert 'state' not in report
             assert not errors,errors
             page.screenshot(path=str(Path(app.__file__).parent/'work/guided-import-summary.png'),full_page=True)
-            page.reload();page.locator('#import-history-list button').first.click();page.locator('#import-summary-panel').wait_for(state='visible')
-            assert 'Last source comparison' in page.locator('#import-summary-comparison').inner_text()
-            page.locator('#close-import-summary').click()
+            page.reload()
+            assert page.locator('#import-history-panel').count()==0
             page.locator('#equipment-inventory-select').select_option(str(tv['id']));page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled")
             row=app.save_equipment(dict(inventory_id=tv['id'],brand='LG',model='TV1',custom_values={'deck_6':'2','deck_2_port':'0','deck_2_stbd':'0'}))
             page.locator('#equipment-refresh').click();page.wait_for_function("() => document.getElementById('equipment-records').textContent==='1'")
             assert page.get_by_role('button',name='Confirm stock check for TV1',exact=True).inner_text()=='Never checked'
             assert app.equipment_inventory(tv['id'])[0]['last_checked_at'] is None
             app.delete_equipment_inventory(parts['id'],{'name':parts['name']})
-            page.reload()
-            page.locator('#import-history-list .import-history-row').filter(has_text='inventory.xlsx').get_by_role('button',name='View report',exact=True).click()
-            page.locator('#import-summary-panel').wait_for(state='visible')
-            assert 'inventory deleted' in page.locator('#import-summary-title').inner_text()
-            assert page.locator('#import-summary-resume').is_hidden()
-            assert page.locator('#import-summary-compare').is_hidden()
+            page.reload();assert page.locator('#import-history-panel').count()==0
             assert not errors,errors
             browser.close()
     finally:server.shutdown();server.server_close()

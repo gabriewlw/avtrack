@@ -64,6 +64,16 @@ class AppTests(unittest.TestCase):
         assets=worker.split('const ASSETS = ',1)[1].split(';',1)[0]
         self.assertNotIn('/recover',assets)
 
+    def test_import_history_is_not_rendered_in_workspace_pages(self):
+        for path in ('/', '/inventory', '/backups'):
+            status, page = self.request(path)
+            self.assertEqual(status, 200)
+            self.assertNotIn(b'import-history-panel', page)
+            self.assertNotIn(b'>Import history<', page)
+        workflow = self.request('/import-workflow.js')[1]
+        self.assertNotIn(b'refreshHistory', workflow)
+        self.assertIn(b'Resume previous import', workflow)
+
     def test_product_showcase_is_available_as_a_separate_page(self):
         status, page = self.request('/avtrack')
         self.assertEqual(status, 200)
