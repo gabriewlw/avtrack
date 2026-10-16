@@ -31,6 +31,141 @@ addEventListener('scroll', () => {
 }, {passive: true});
 renderScroll();
 
+const commandBody = document.querySelector('#command-body');
+const commandOutput = document.querySelector('#command-output');
+const commandForm = document.querySelector('#command-form');
+const commandInput = document.querySelector('#command-input');
+const commandPrompt = 'C:\\Users\\visitor\\broadcastgab>';
+const commandHistory = [];
+let commandHistoryIndex = -1;
+
+const terminalCommands = {
+  help: [
+    {text: 'AVTRACK COMMANDS', tone: 'command-accent'},
+    {text: '  status      Show workspace capabilities'},
+    {text: '  devices     Open the AV device workspace'},
+    {text: '  iptv        Open the IPTV channel workspace'},
+    {text: '  inventory   Open equipment inventory'},
+    {text: '  backups     Open the recovery-file archive'},
+    {text: '  demo        Explore AVTrack with sample data'},
+    {text: '  about       Read why AVTrack was built'},
+    {text: '  github      View the source repository'},
+    {text: '  clear       Clear this terminal'},
+    {text: 'Use ↑ and ↓ to revisit commands.', tone: 'command-dim'}
+  ],
+  status: [
+    {text: 'AVTRACK WORKSPACE', tone: 'command-accent'},
+    {text: '  AV devices   READY   · IP addresses, VLANs and confirmation'},
+    {text: '  IPTV         READY   · Channel endpoints, ports and sources'},
+    {text: '  Inventory    READY   · Excel import, locations and stock checks'},
+    {text: '  AV backups   READY   · Local configuration recovery files'},
+    {text: 'Runtime: local Python + SQLite · designed to work offline', tone: 'command-dim'}
+  ],
+  devices: [
+    {text: 'AV DEVICES', tone: 'command-accent'},
+    {text: 'Search equipment by name, venue, system, IP address or VLAN.'},
+    {text: 'Open AV Devices workspace →', href: '/#av'}
+  ],
+  iptv: [
+    {text: 'IPTV CHANNELS', tone: 'command-accent'},
+    {text: 'Track onboard and satellite streams with IP, UDP port and source.'},
+    {text: 'Open IPTV workspace →', href: '/#iptv'}
+  ],
+  inventory: [
+    {text: 'EQUIPMENT INVENTORY', tone: 'command-accent'},
+    {text: 'Paste Excel tables, review missing data by location and confirm stock.'},
+    {text: 'Open Inventory workspace →', href: '/inventory'}
+  ],
+  backups: [
+    {text: 'AV BACKUPS', tone: 'command-accent'},
+    {text: 'Keep known-good Videohub, ATEM, receiver and OBS files ready.'},
+    {text: 'Open AV Backups workspace →', href: '/backups'}
+  ],
+  demo: [
+    {text: 'EXHIBITION DEMO', tone: 'command-accent'},
+    {text: 'Explore the interface with fictional devices, channels and inventory.'},
+    {text: 'Launch the interactive demo →', href: '/demo'}
+  ],
+  about: [
+    {text: 'ABOUT AVTRACK', tone: 'command-accent'},
+    {text: 'Created by a cruise ship broadcast technician to keep operational'},
+    {text: 'addresses, channel endpoints, stock records and recovery files together.'}
+  ],
+  github: [
+    {text: 'SOURCE REPOSITORY', tone: 'command-accent'},
+    {text: 'github.com/gabriewlw/avtrack ↗', href: 'https://github.com/gabriewlw/avtrack', external: true}
+  ]
+};
+
+function appendTerminalLine(line) {
+  const paragraph = document.createElement('p');
+  if (line.tone) paragraph.className = line.tone;
+  if (line.href) {
+    const link = document.createElement('a');
+    link.href = line.href;
+    link.textContent = line.text;
+    if (line.external) {
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+    }
+    paragraph.append(link);
+  } else {
+    paragraph.textContent = line.text;
+  }
+  commandOutput.append(paragraph);
+}
+
+function runTerminalCommand(value) {
+  const entered = value.trim();
+  if (!entered) return;
+  commandHistory.unshift(entered);
+  commandHistoryIndex = -1;
+  const normalized = entered.toLowerCase().replace(/^avtrack\s+/, '').replace(/^--/, '');
+  if (normalized === 'clear' || normalized === 'cls') {
+    commandOutput.replaceChildren();
+  } else {
+    const echo = document.createElement('p');
+    const prompt = document.createElement('span');
+    prompt.className = 'command-prompt';
+    prompt.textContent = commandPrompt;
+    echo.append(prompt, document.createTextNode(` ${entered}`));
+    commandOutput.append(echo);
+    const response = terminalCommands[normalized];
+    if (response) response.forEach(appendTerminalLine);
+    else appendTerminalLine({text: `'${entered}' is not an AVTrack command. Type 'help' to see the list.`, tone: 'command-dim'});
+    appendTerminalLine({text: ''});
+  }
+  commandInput.value = '';
+  commandBody.scrollTop = commandBody.scrollHeight;
+}
+
+commandForm.addEventListener('submit', event => {
+  event.preventDefault();
+  runTerminalCommand(commandInput.value);
+});
+commandInput.addEventListener('keydown', event => {
+  if (event.ctrlKey && event.key.toLowerCase() === 'l') {
+    event.preventDefault();
+    runTerminalCommand('clear');
+    return;
+  }
+  if (!['ArrowUp', 'ArrowDown'].includes(event.key) || !commandHistory.length) return;
+  event.preventDefault();
+  if (event.key === 'ArrowUp') commandHistoryIndex = Math.min(commandHistory.length - 1, commandHistoryIndex + 1);
+  else commandHistoryIndex = Math.max(-1, commandHistoryIndex - 1);
+  commandInput.value = commandHistoryIndex < 0 ? '' : commandHistory[commandHistoryIndex];
+  requestAnimationFrame(() => commandInput.setSelectionRange(commandInput.value.length, commandInput.value.length));
+});
+commandBody.addEventListener('click', event => {
+  if (!event.target.closest('a,input,button')) commandInput.focus();
+});
+document.querySelectorAll('.command-chips [data-command]').forEach(button => {
+  button.addEventListener('click', () => {
+    runTerminalCommand(button.dataset.command);
+    commandInput.focus();
+  });
+});
+
 const revealObserver = new IntersectionObserver(entries => {
   entries.forEach(entry => {
     if (entry.isIntersecting) {

@@ -32,10 +32,22 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('.command-body').evaluate('(node)=>getComputedStyle(node).padding')=='16px 20px'
             assert page.locator('.command-body p').first.evaluate('(node)=>getComputedStyle(node).color')=='rgb(230, 230, 230)'
             assert page.locator('.command-dim').first.evaluate('(node)=>getComputedStyle(node).color')=='rgb(168, 168, 168)'
-            assert page.locator('.command-chips span').first.inner_text()=='HELP'
-            assert page.locator('.command-chips span').last.inner_text()=='OFFLINE'
+            shortcuts=page.locator('.command-chips button')
+            assert shortcuts.count()==6
+            assert shortcuts.first.inner_text()=='STATUS'
+            assert shortcuts.last.inner_text()=='DEMO'
+            terminal=page.locator('#command-input')
+            terminal.fill('help');terminal.press('Enter')
+            assert 'AVTRACK COMMANDS' in page.locator('#command-output').inner_text()
+            page.locator('.command-chips button[data-command="inventory"]').click()
+            inventory_link=page.get_by_role('link',name='Open Inventory workspace →',exact=True)
+            assert inventory_link.get_attribute('href')=='/inventory'
+            terminal.press('ArrowUp');assert terminal.input_value()=='inventory'
+            terminal.fill('clear');terminal.press('Enter')
+            assert page.locator('#command-output p').count()==0
+            assert terminal.evaluate('(node)=>node===document.activeElement')
             assert not errors,errors
             browser.close()
     finally:
         server.shutdown();server.server_close()
-print('Landing CMD window matches the BroadcastGab title bar, desktop grid, type, colors and command strip.')
+print('Landing CMD window matches BroadcastGab and supports typing, history, project shortcuts and clear.')

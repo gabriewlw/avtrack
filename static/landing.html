@@ -52,19 +52,26 @@
   <div class="section-label" data-reveal><span>01</span> THE PURPOSE</div>
   <div class="command-bridge" data-reveal aria-label="AVTrack command prompt preview">
     <div class="command-title"><span><i></i>CMD.EXE — BROADCAST GAB</span><div class="command-controls" aria-hidden="true"><b>—</b><b class="command-maximize">▢</b><b>✕</b></div></div>
-    <div class="command-body">
-      <p>Broadcast Shell [Version 10.0.26100.1]</p>
-      <p>(c) Gabriel Moura. All rights reserved.</p>
-      <p class="command-blank" aria-hidden="true">&nbsp;</p>
-      <p class="command-accent">AVTrack terminal — local broadcast operations</p>
-      <p class="command-dim">Type 'help' to list available commands.</p>
-      <p class="command-blank" aria-hidden="true">&nbsp;</p>
-      <p><span class="command-prompt">C:\Users\visitor\broadcastgab&gt;</span> avtrack --status</p>
-      <p class="command-dim">Workspace ready. Devices, IPTV, inventory, and backups are available.</p>
-      <p class="command-blank" aria-hidden="true">&nbsp;</p>
-      <p><span class="command-prompt">C:\Users\visitor\broadcastgab&gt;</span><span class="command-cursor" aria-hidden="true"></span></p>
+    <div class="command-body" id="command-body">
+      <div id="command-output" aria-live="polite" aria-atomic="false">
+        <p>Broadcast Shell [Version 10.0.26100.1]</p>
+        <p>(c) Gabriel Moura. All rights reserved.</p>
+        <p class="command-blank" aria-hidden="true">&nbsp;</p>
+        <p class="command-accent">AVTrack terminal — local broadcast operations</p>
+        <p class="command-dim">Type 'help' to list available commands.</p>
+        <p class="command-blank" aria-hidden="true">&nbsp;</p>
+        <p><span class="command-prompt">C:\Users\visitor\broadcastgab&gt;</span> status</p>
+        <p class="command-dim">Workspace ready. Devices, IPTV, inventory, and backups are available.</p>
+        <p class="command-blank" aria-hidden="true">&nbsp;</p>
+      </div>
+      <form class="command-entry" id="command-form" autocomplete="off">
+        <span class="command-prompt" aria-hidden="true">C:\Users\visitor\broadcastgab&gt;</span>
+        <label class="terminal-label" for="command-input">Enter an AVTrack command</label>
+        <input id="command-input" name="command" type="text" autocapitalize="off" autocomplete="off" spellcheck="false" aria-describedby="command-hint">
+      </form>
+      <span class="terminal-label" id="command-hint">Type help for available commands. Use the up and down arrow keys for command history.</span>
     </div>
-    <div class="command-chips" aria-label="Example terminal commands"><span>help</span><span>devices</span><span>iptv</span><span>inventory</span><span>backups</span><span>import</span><span>export</span><span>status</span><span>offline</span></div>
+    <div class="command-chips" aria-label="Suggested terminal commands"><button type="button" data-command="status">status</button><button type="button" data-command="devices">devices</button><button type="button" data-command="iptv">iptv</button><button type="button" data-command="inventory">inventory</button><button type="button" data-command="backups">backups</button><button type="button" data-command="demo">demo</button></div>
   </div>
   <p class="statement" data-reveal>Technical work gets harder when the information is <strong>somewhere else.</strong></p>
   <div class="purpose-grid">

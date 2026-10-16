@@ -80,13 +80,17 @@ class AppTests(unittest.TestCase):
         self.assertIn(b'Technical operations.', page)
         self.assertIn(b'CMD.EXE \xe2\x80\x94 BROADCAST GAB', page)
         self.assertIn(b'Broadcast Shell [Version 10.0.26100.1]', page)
+        self.assertIn(b'id="command-input"', page)
+        self.assertIn(b'data-command="demo"', page)
         self.assertEqual(self.request('/avtrack/')[0], 200)
         landing_css = self.request('/landing.css')[1]
         self.assertIn(b'.story-stage', landing_css)
         self.assertIn(b'color:#e6e6e6', landing_css)
         self.assertIn(b'color:#a8a8a8', landing_css)
         self.assertIn(b'box-shadow:0 24px 80px -20px rgba(0,0,0,.9)', landing_css)
-        self.assertIn(b'activateScene', self.request('/landing.js')[1])
+        landing_js = self.request('/landing.js')[1]
+        self.assertIn(b'activateScene', landing_js)
+        self.assertIn(b'runTerminalCommand', landing_js)
         worker = self.request('/service-worker.js')[1].decode()
         self.assertIn('"/avtrack"', worker)
 
