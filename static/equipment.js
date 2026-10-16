@@ -293,8 +293,13 @@
       });
       if(notesCell)row.append(notesCell);
       const actions = element('td', 'equipment-actions'); actions.dataset.label = 'Actions';
-      const edit = element('button', 'quiet equipment-action-icon', '✎'); edit.title='Edit';edit.setAttribute('aria-label', `Edit equipment ${displayName(item)}`); edit.onclick = () => openEquipment(item);
-      const remove = element('button', 'quiet equipment-action-icon', '🗑'); remove.title='Delete';remove.setAttribute('aria-label', `Delete equipment ${displayName(item)}`);
+      const edit = element('button', 'quiet equipment-action-icon equipment-edit-action');
+      edit.type='button';edit.title='Edit item';edit.setAttribute('aria-label', `Edit equipment ${displayName(item)}`);
+      edit.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m15.5 4.5 4 4L8 20H4v-4Z"/><path d="m13.5 6.5 4 4"/></svg>';
+      edit.onclick = () => openEquipment(item);
+      const remove = element('button', 'quiet equipment-action-icon equipment-delete-action');
+      remove.type='button';remove.title='Delete item';remove.setAttribute('aria-label', `Delete equipment ${displayName(item)}`);
+      remove.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5"/></svg>';
       remove.onclick = () => {
         deletingItem = item;
         $('equipment-delete-description').textContent = `${displayName(item)} · Quantity ${item.quantity} · ${item.location}`;
@@ -324,7 +329,7 @@
       }
       return Math.max(baseWidths[col.key] || 120,labelWidth,controlWidth,modelWidth);
     });
-    widths.push(...(showLocatedStatus()?[110]:[]),...(recordChecksEnabled()?[115]:[]),...(stockChecksEnabled()?[126]:[]),...(notesColumn?[74]:[]),70);
+    widths.push(...(showLocatedStatus()?[110]:[]),...(recordChecksEnabled()?[115]:[]),...(stockChecksEnabled()?[126]:[]),...(notesColumn?[74]:[]),82);
     const totalWidth=widths.reduce((total,width)=>total+width,0);
     const columns=orderedColumns.map((col,index)=>{const th=element('th','',index===0?'':col.key==='quantity'?'Qnt':col.label);th.scope='col';if(index===0)th.append(heading);th.style.width=`${widths[index]/totalWidth*100}%`;return th;});
     [...(showLocatedStatus()?['Status']:[]),...(recordChecksEnabled()?['Stock check']:[]),...(stockChecksEnabled()?['Last checked']:[]),...(notesColumn?['Notes']:[]),'Actions'].forEach((text,index)=>{const th=element('th','',text);th.scope='col';th.style.width=`${widths[orderedColumns.length+index]/totalWidth*100}%`;columns.push(th);});

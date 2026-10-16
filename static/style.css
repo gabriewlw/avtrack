@@ -516,8 +516,13 @@ nav a,.eyebrow,.network-card-top,.stats span,.filters label>span,.button-filter 
 #equipment-table .equipment-confirm-label{box-sizing:border-box}
 .inventory-flags{color:#e5c587;font-size:12px;line-height:1.5}.record-checked{color:#9ed3b8}.equipment-review-filter{max-width:240px;margin-top:12px}
 #equipment-table thead{width:auto;height:auto;overflow:visible;clip:auto}
-#equipment-table .equipment-actions button{display:inline-block}
-#equipment-table .equipment-action-icon{display:inline-flex;align-items:center;justify-content:center;width:30px;padding:4px;font-size:15px;line-height:18px}
+#equipment-table td.equipment-actions{overflow:visible}
+#equipment-table .equipment-actions button.equipment-action-icon{position:relative;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;min-height:32px;padding:0;border:1px solid var(--border);border-radius:6px;background:#181b20;color:#c9cdd4;line-height:18px;transition:border-color .15s,background-color .15s,color .15s,transform .15s}
+#equipment-table .equipment-actions button.equipment-action-icon+button.equipment-action-icon{margin-left:6px}
+#equipment-table .equipment-action-icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+#equipment-table .equipment-actions button.equipment-edit-action:hover,#equipment-table .equipment-actions button.equipment-edit-action:focus-visible{border-color:#6e737d;background:#252930;color:#fff;transform:translateY(-1px)}
+#equipment-table .equipment-actions button.equipment-delete-action{border-color:rgba(241,88,101,.34);background:rgba(241,88,101,.08);color:#ff929a}
+#equipment-table .equipment-actions button.equipment-delete-action:hover,#equipment-table .equipment-actions button.equipment-delete-action:focus-visible{border-color:#f15865;background:rgba(241,88,101,.18);color:#fff;transform:translateY(-1px)}
 
 .cross-check-location{margin:12px 0;padding:12px;border:1px solid var(--border);border-radius:6px}.cross-check-location summary{cursor:pointer}.cross-check-location li{padding:8px 0;overflow-wrap:anywhere}.cross-check-location p{margin:5px 0}
 
