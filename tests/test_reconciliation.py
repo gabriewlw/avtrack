@@ -45,6 +45,8 @@ class ReconciliationTests(unittest.TestCase):
         records,_ = original_records(payload(b'brand,model,description,serial_number,quantity,location\nSony,X,Camera,"S1, S1, S2",3,Store\n'))
         self.assertIn('Duplicate serial numbers in one source row', records[0]['issues'])
         self.assertIn('Serial count 2 does not match quantity 3', records[0]['issues'])
+        records,_ = original_records(payload(b'brand,model,description,serial_number,quantity,location\nSony,X,Camera,,4,Store\n'))
+        self.assertIn('Serial count 0 does not match quantity 4', records[0]['issues'])
 
     def test_repeated_or_blank_serial_never_proves_two_source_rows(self):
         for serial in ('S1',''):

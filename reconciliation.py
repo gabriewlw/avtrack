@@ -42,7 +42,7 @@ def serial_quantity_issues(value, quantity):
     issues = []
     if len(serials) != len(unique):
         issues.append('Duplicate serial numbers in one source row')
-    if unique and quantity is not None and len(unique) != quantity:
+    if quantity is not None and len(unique) != quantity:
         issues.append(f'Serial count {len(unique)} does not match quantity {quantity}')
     return issues
 

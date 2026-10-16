@@ -878,12 +878,13 @@ function equipmentIssues(row,profile=window.equipmentUI?.profile() || defaultInv
 
   profile.columns.filter(col=>['select','buttons'].includes(col.type)&&!col.allow_custom).forEach(col=>{const value=String(inventoryValue(row,col.key));if(value&&!col.options.some(option=>option.toLowerCase()===value.toLowerCase()))issues.push(`Check ${col.label}: ${value}`);});
   profile.columns.filter(col=>col.type==='count').forEach(col=>{const value=String(inventoryValue(row,col.key)).trim();if(value&&(!/^\d+$/.test(value)||Number(value)<(col.minimum ?? 1)||Number(value)>50))issues.push(`Check ${col.label}: choose ${(col.minimum ?? 1)}–50`);});
-  if(profile.columns.some(col=>col.key==='serial_number')){
+  const stockFields=new Set(profile.columns.map(col=>col.key));
+  if(stockFields.has('serial_number')&&stockFields.has('quantity')){
     const serials=splitEquipmentSerials(row.serial_number);
     const uniqueSerials=uniqueEquipmentSerials(row.serial_number);
     const quantity=Number(row.quantity);
     if(serials.length!==uniqueSerials.length)issues.push('Duplicate serial numbers in one record');
-    if(uniqueSerials.length&&Number.isInteger(quantity)&&quantity>0&&uniqueSerials.length!==quantity){
+    if(Number.isInteger(quantity)&&quantity>=0&&uniqueSerials.length!==quantity){
       issues.push(`Serial count ${uniqueSerials.length} does not match quantity ${quantity}`);
     }
   }
