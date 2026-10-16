@@ -135,6 +135,15 @@ class ExportTests(unittest.TestCase):
         self.assertIn('Oct 10 2026 @ 4pm', text)
         self.assertIn('broadcastgab.com', text)
         self.assertNotIn('by broadcastgab.com', text)
+        bbox = subprocess.run(['pdftotext','-bbox','-','-'], input=raw, stdout=subprocess.PIPE, check=True).stdout.decode()
+        def vertical_center(word):
+            match = re.search(rf'<word [^>]*yMin="([\d.]+)"[^>]*yMax="([\d.]+)">{word}</word>', bbox)
+            self.assertIsNotNone(match)
+            return (float(match.group(1)) + float(match.group(2))) / 2
+        self.assertAlmostEqual(vertical_center('avtrack'), vertical_center('Inventory'), delta=1)
+        lines = [line for line in text.splitlines() if line.strip()]
+        self.assertGreater(lines.index(next(line for line in lines if 'broadcastgab.com' in line)),
+                           lines.index(next(line for line in lines if 'HG24F800FNF' in line)))
         self.assertNotEqual(exports.location_pdf_tint('Deck 6 Locker'), exports.location_pdf_tint('Deck 2 Port'))
 
     @unittest.skipUnless(shutil.which('pdftoppm'), 'PDF print-color validation needs optional pdftoppm')
@@ -149,7 +158,7 @@ class ExportTests(unittest.TestCase):
                            input=raw, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
             image = Image.open(output + '.png').convert('RGB')
             self.assertEqual(image.getpixel((10,300)), (255,255,255))
-            for y in (85,105):
+            for y in (74,95):
                 self.assertEqual(image.getpixel((100,y)), (255,255,255))
                 self.assertEqual(image.getpixel((700,y)), (255,255,255))
                 self.assertNotEqual(image.getpixel((450,y)), (255,255,255))
