@@ -33,8 +33,9 @@
       const actions = element('div', 'backup-actions');
       const download = element('a', 'primary compact', 'Download');
       download.href = `/api/backups/${item.id}/download`; download.download = item.filename;
-      const remove = element('button', 'icon-button danger-icon', '🗑');
+      const remove = element('button', 'icon-button danger-icon backup-delete-action');
       remove.type = 'button'; remove.title = 'Delete backup'; remove.setAttribute('aria-label', `Delete ${item.filename}`);
+      remove.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5"/></svg>';
       remove.onclick = () => {
         deleting = item;
         $('delete-backup-description').textContent = `${item.device_name} · ${item.filename}`;

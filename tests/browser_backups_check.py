@@ -47,6 +47,9 @@ with tempfile.TemporaryDirectory() as temp:
             page.wait_for_function("() => document.querySelector('.backup-custom-icon').naturalWidth > 0")
             assert 'ATEM 2 M/E Production Studio' in card.inner_text()
             assert 'control-room-show.xml' in card.inner_text()
+            delete_button=card.get_by_role('button', name='Delete control-room-show.xml')
+            assert delete_button.locator('svg').count() == 1
+            assert '🗑' not in delete_button.inner_text()
             page.locator('#backup-search').fill('known-good')
             assert card.is_visible()
             page.locator('#backup-search').fill('videohub')
@@ -55,7 +58,7 @@ with tempfile.TemporaryDirectory() as temp:
             with page.expect_download() as download:
                 card.get_by_role('link', name='Download').click()
             assert Path(download.value.path()).read_bytes() == backup.read_bytes()
-            card.get_by_role('button', name='Delete control-room-show.xml').click()
+            delete_button.click()
             page.locator('#confirm-delete-backup').click()
             page.wait_for_function("() => document.getElementById('backup-count').textContent === '0'")
             assert list((Path(temp) / 'backups').iterdir()) == []
