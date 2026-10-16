@@ -157,10 +157,11 @@
     $('equipment-found').textContent = items.filter(item => item.item_confirmed).length;
     $('equipment-found-percent').textContent = `${confirmedPercentLabel}% of units`;
     $('equipment-found-percent').title = `${confirmedUnits} of ${totalUnits} ${quantityTracked?'known units':'records'} confirmed`;
-    $('equipment-found').previousElementSibling.textContent=ipConfirmation()?'Confirmed IPs':'Confirmed locations';
+    const confirmedStat=$('equipment-found').closest('.equipment-confirmed-stat');
+    confirmedStat.previousElementSibling.textContent=ipConfirmation()?'Confirmed IPs':'Confirmed locations';
     $('equipment-result-count').textContent = results.length;
     $('equipment-showing').textContent = `${results.length} of ${items.length} items`+(showLocatedStatus() ? ` · ${results.filter(item => item.item_confirmed).length} ${ipConfirmation()?'IPs confirmed':'located'} in this view` : '');
-    $('equipment-found').closest('div').hidden=!showLocatedStatus();
+    confirmedStat.parentElement.hidden=!showLocatedStatus();
     document.querySelector('.equipment-stats').classList.toggle('without-status',!showLocatedStatus());
     $('equipment-empty').hidden = items.length > 0;
     $('equipment-no-results').hidden = !items.length || !!results.length;

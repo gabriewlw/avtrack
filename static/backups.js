@@ -78,7 +78,7 @@
       if (file.size > 25_000_000) throw new Error('Choose a file no larger than 25 MB.');
       if(icon && (!['image/png','image/jpeg','image/webp'].includes(icon.type) || icon.size > 1_000_000)) throw new Error('Choose a PNG, JPEG, or WebP icon no larger than 1 MB.');
       await api('/api/backups', 'POST', {equipment_type:$('backup-type').value, device_name:$('backup-device').value, filename:file.name, content:await fileContent(file), icon:icon?{mime_type:icon.type,content:await fileContent(icon)}:null, notes:$('backup-notes').value});
-      dialog.close(); loaded = false; await load(); toast('Backup saved.');
+      dialog.close(); loaded = false; await load(); await loadOverview(); toast('Backup saved.');
     } catch (error) {
       $('backup-form-error').textContent = error.message; $('backup-form-error').hidden = false;
     } finally { submit.disabled = false; }
@@ -88,7 +88,7 @@
     const button = $('confirm-delete-backup'); button.disabled = true;
     try {
       await api(`/api/backups/${deleting.id}`, 'DELETE', {});
-      backups = backups.filter(item => item.id !== deleting.id); deleteDialog.close(); deleting = null; render(); toast('Backup deleted.');
+      backups = backups.filter(item => item.id !== deleting.id); deleteDialog.close(); deleting = null; render(); await loadOverview(); toast('Backup deleted.');
     } catch (error) {
       $('delete-backup-error').textContent = error.message; $('delete-backup-error').hidden = false;
     } finally { button.disabled = false; }

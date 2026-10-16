@@ -55,6 +55,8 @@ class BackupTests(unittest.TestCase):
         self.assertEqual(listing['backups'][0]['filename'], 'show-control.xml')
         self.assertEqual(listing['backups'][0]['has_icon'], 1)
         self.assertNotIn('content', listing['backups'][0])
+        overview = self.request('/api/overview')[1]
+        self.assertEqual((overview['backup_total'], overview['backup_size']), (1, 31))
         stored_files = list(backup_folder.iterdir())
         self.assertEqual(len(stored_files), 2)
         self.assertIn(b'<switcher>known good</switcher>', [path.read_bytes() for path in stored_files])

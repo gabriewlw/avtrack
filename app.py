@@ -528,7 +528,7 @@ def equipment_inventories():
 
 def workspace_overview():
     with connect() as con:
-        # One query keeps all three cards on the same database snapshot.
+        # One query keeps every home card on the same database snapshot.
         row = con.execute("""SELECT
             (SELECT COUNT(*) FROM devices WHERE record_type='device') AS av_total,
             (SELECT COUNT(*) FROM devices WHERE record_type='device' AND ip_confirmed=1 AND ip NOT IN ('','DHCP')) AS av_validated,
@@ -537,7 +537,9 @@ def workspace_overview():
             (SELECT COUNT(*) FROM devices WHERE record_type='iptv' AND channel_source='Satellite') AS iptv_satellite,
             (SELECT COUNT(*) FROM equipment) AS inventory_total,
             (SELECT COUNT(DISTINCT NULLIF(location,'')) FROM equipment) AS inventory_locations,
-            (SELECT COUNT(*) FROM equipment_inventories) AS inventory_count""").fetchone()
+            (SELECT COUNT(*) FROM equipment_inventories) AS inventory_count,
+            (SELECT COUNT(*) FROM av_backups) AS backup_total,
+            (SELECT COALESCE(SUM(size),0) FROM av_backups) AS backup_size""").fetchone()
         result=dict(row)
         inventories=[equipment_inventory_details(con,r['id']) for r in con.execute('SELECT id FROM equipment_inventories')]
         storage_ids={record['id'] for record in inventories if record.get('layout',{}).get('location_role','geographic' if 'scala' in record['name'].casefold() else 'storage')=='storage'}

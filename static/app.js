@@ -1,5 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
+const formatFileSize = size => size < 1024 ? `${size} B` : size < 1024 * 1024 ? `${(size / 1024).toFixed(size < 10240 ? 1 : 0)} KB` : `${(size / 1024 / 1024).toFixed(1)} MB`;
 const navToggle = $('nav-toggle');
 const mainNavigation = $('main-navigation');
 const header = navToggle.closest('.header-inner');
@@ -31,6 +32,16 @@ let devices = [], editing = null, deleting = null, timer, currentTab = 'device';
 let equipmentPageSummary = null;
 let networkLoaded = false;
 let overviewVersion = 0;
+let overviewSnapshot;
+const onHomeRoute = () => location.pathname === '/' && !location.hash;
+function syncHomePresentation() {
+  const home = onHomeRoute();
+  const waiting = home && overviewSnapshot === undefined;
+  const empty = home && overviewSnapshot && (overviewSnapshot.av_total + overviewSnapshot.iptv_total + overviewSnapshot.inventory_total === 0);
+  document.body.classList.toggle('home-data-pending', waiting);
+  document.body.classList.toggle('home-empty-workspace', Boolean(empty));
+  $('home-empty-state').hidden = !empty;
+}
 async function loadOverview() {
   const version = ++overviewVersion;
   try {
@@ -45,11 +56,18 @@ async function loadOverview() {
     $('overview-inventory-total').textContent = totals.inventory_total;
     $('overview-inventory-locations').textContent = `${totals.inventory_total === 1 ? 'item' : 'items'} across ${totals.inventory_locations} ${totals.inventory_locations === 1 ? 'location' : 'locations'}`;
     $('overview-inventory-count').textContent = `${totals.inventory_count} ${totals.inventory_count === 1 ? 'inventory' : 'inventories'}`;
+    $('overview-backup-total').textContent = totals.backup_total;
+    $('overview-backup-caption').textContent = totals.backup_total === 1 ? 'configuration file saved' : 'configuration files saved';
+    $('overview-backup-size').textContent = `${totals.backup_total} ${totals.backup_total === 1 ? 'file' : 'files'} · ${formatFileSize(totals.backup_size)}`;
+    overviewSnapshot = totals;
+    syncHomePresentation();
     $('overview-error').hidden = true;
   } catch (error) {
     if (version !== overviewVersion) return;
-    for (const id of ['overview-av-validated','overview-iptv-total','overview-inventory-total']) $(id).textContent = '—';
-    for (const id of ['overview-av-total','overview-iptv-sources','overview-inventory-count']) $(id).textContent='Unavailable — use Refresh to retry';
+    for (const id of ['overview-av-validated','overview-iptv-total','overview-inventory-total','overview-backup-total']) $(id).textContent = '—';
+    for (const id of ['overview-av-total','overview-iptv-sources','overview-inventory-count','overview-backup-size']) $(id).textContent='Unavailable — use Refresh to retry';
+    overviewSnapshot = null;
+    syncHomePresentation();
     $('overview-error').textContent = 'Could not refresh the workspace overview. '+error.message;
     $('overview-error').hidden = false;
   }
@@ -258,6 +276,7 @@ function switchTab(type) {
   closeSystemMenu();
   closeExportMenus();
   currentTab = type;
+  syncHomePresentation();
   $('homepage-overview').hidden = ['/inventory','/backups'].includes(location.pathname) || Boolean(location.hash);
   updatePageSummary();
   const equipment = type === 'equipment';
@@ -336,6 +355,7 @@ function navigatePage(type) {
   switchTab(type);
 }
 function restorePage() {
+  syncHomePresentation();
   $('homepage-overview').hidden = ['/inventory','/backups'].includes(location.pathname) || Boolean(location.hash);
   if (location.hash === '#equipment' || location.hash === '#inventory') history.replaceState(null, '', '/inventory');
   const page = location.pathname === '/inventory' ? inventoryTabs[2] : location.pathname === '/backups' ? inventoryTabs[3] : inventoryTabs.find(([id]) => $(id).hash && $(id).hash === location.hash) || (!location.hash ? inventoryTabs[0] : null);
@@ -344,12 +364,21 @@ function restorePage() {
 window.addEventListener('hashchange', restorePage);
 window.addEventListener('popstate', restorePage);
 window.addEventListener('DOMContentLoaded', restorePage);
-document.querySelectorAll('.overview-card').forEach(link => {
+document.querySelectorAll('.overview-workspace-link').forEach(link => {
   link.onclick = event => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault(); navigatePage(link.dataset.page);
   };
 });
+async function openOverviewAdd(type) {
+  navigatePage(type);
+  if (type === 'equipment') {
+    await window.equipmentUI.waitUntilReady();
+    window.equipmentUI.open();
+  } else if (type === 'backups') window.backupsUI.open();
+  else $('add-device').click();
+}
+document.querySelectorAll('[data-add-page]').forEach(button => { button.onclick = () => openOverviewAdd(button.dataset.addPage).catch(error => toast(error.message)); });
 for (const [id, type] of inventoryTabs) {
   $(id).onclick = event => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
