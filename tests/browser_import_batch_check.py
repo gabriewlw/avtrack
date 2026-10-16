@@ -30,6 +30,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#import-complete-rows').is_checked()
             page.locator('#confirm-import').click()
             dialog=page.locator('#inventory-import-review');dialog.wait_for(state='visible')
+            assert page.locator('#inventory-import-review-stop').inner_text()=='Cancel import'
             assert page.locator('#inventory-import-review-rows tr').count()==4
             page.screenshot(path=str(Path(temporary)/'batch-review.png'),full_page=True)
             saved=app.equipment_inventory(inventory['id']);assert len(saved)==2
@@ -76,7 +77,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#confirm-import').click();dialog.wait_for(state='visible')
             assert len(app.equipment_inventory(1))==1
             assert page.locator('#inventory-import-review-rows tr').count()==1
-            page.get_by_label('Quantity, row 3',exact=True).fill('2')
+            page.get_by_label('Qnt, row 3',exact=True).fill('2')
             page.get_by_label('Select row 3',exact=True).check()
             page.locator('#inventory-import-review-save').click()
             page.locator('#spreadsheet-dialog').wait_for(state='hidden')

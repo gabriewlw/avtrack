@@ -1465,7 +1465,7 @@ $('back-spreadsheet-layout').onclick=()=>{if(spreadsheetReviewing)return;$('spre
 $('keep-paste-layout').onclick=()=>{$('paste-layout-dialog').close();$('spreadsheet-dialog').showModal();};
 $('continue-paste-layout').onclick=startPastedHeadingSetup;
 $('back-paste-layout').onclick=()=>{$('paste-layout-dialog').close();closeSpreadsheet();$('paste-inventory-dialog').showModal();$('paste-inventory-text').focus();};
-$('close-paste-layout').onclick=()=>{$('paste-layout-dialog').close();closeSpreadsheet();};
+for(const id of ['close-paste-layout','cancel-paste-layout'])$(id).onclick=()=>{$('paste-layout-dialog').close();closeSpreadsheet();};
 $('paste-layout-dialog').addEventListener('cancel',()=>closeSpreadsheet());
 let pastedFieldSetup=null;
 function startPastedHeadingSetup(){

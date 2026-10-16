@@ -16,6 +16,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.on('pageerror',lambda error:errors.append(str(error)))
             page.goto(f'http://127.0.0.1:{server.server_port}/')
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
+            page.locator('#device-tab').click()
             text='Venue\tDevice Name\tIP Address\tVLAN\tNotes\tOdd heading\nSports Bar\tWall TV\t10.20.30.40\t50\t\t<test>'
             page.locator('#network-paste').click();page.locator('#paste-inventory-text').fill(text)
             page.locator('#continue-paste-inventory').click()
@@ -25,6 +26,7 @@ with tempfile.TemporaryDirectory() as tmp:
             assert 'Excel: IP Address' in page.locator('#paste-layout-head').inner_text()
             assert 'Odd heading' in page.locator('#paste-layout-unmatched').inner_text()
             assert 'Needs review' in page.locator('#paste-layout-rows').inner_text()
+            assert page.locator('#cancel-paste-layout').is_visible()
             assert not app.inventory()
             page.locator('#back-paste-layout').click()
             assert page.locator('#paste-inventory-text').input_value()==text
@@ -35,6 +37,11 @@ with tempfile.TemporaryDirectory() as tmp:
             assert page.locator('#map-notes').input_value()=='4'
             assert not app.inventory()
             page.locator('#cancel-spreadsheet').click()
+            assert not app.inventory()
+            page.locator('#network-paste').click();page.locator('#paste-inventory-text').fill(text)
+            page.locator('#continue-paste-inventory').click();page.locator('#paste-layout-dialog').wait_for(state='visible')
+            page.locator('#cancel-paste-layout').click()
+            assert page.locator('#import-workspace').is_hidden()
             assert not app.inventory()
             assert not errors,errors
             browser.close()

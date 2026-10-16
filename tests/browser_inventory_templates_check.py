@@ -101,7 +101,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
             assert page.get_by_label('Location, row 3',exact=True).locator('option').all_text_contents()==['Leave blank','Locker A','Locker B']
-            assert page.get_by_label('Quantity, row 3',exact=True).get_attribute('type')=='number'
+            assert page.get_by_label('Qnt, row 3',exact=True).get_attribute('type')=='number'
             page.get_by_label('Brand, row 3',exact=True).fill('Sony');page.get_by_role('checkbox',name='Select row 3',exact=True).check()
             page.locator('#inventory-import-review-save').click()
             page.wait_for_function("() => document.getElementById('inventory-import-review-title').textContent==='Review Locker B'")
