@@ -24,6 +24,8 @@ with tempfile.TemporaryDirectory() as temp:
             assert page.locator("#inventory").is_hidden()
             assert page.locator("#workspace").is_hidden()
             assert page.get_by_role("heading", name="Your AV workspace is ready for its first record.").is_visible()
+            heading_box = page.locator("#home-empty-title").bounding_box()
+            assert heading_box and heading_box["height"] < 50, heading_box
 
             page.get_by_role("button", name="＋ Add channel").click()
             page.locator("#device-dialog").wait_for(state="visible")
