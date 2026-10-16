@@ -506,8 +506,8 @@ nav a,.eyebrow,.network-card-top,.stats span,.filters label>span,.button-filter 
 @media(max-width:600px){.overview-heading{display:block}.overview-heading>p{max-width:none;margin-top:12px}.overview-grid{grid-template-columns:1fr;gap:12px}.overview-card{padding:20px}.overview-card-heading{margin-bottom:16px}.overview-card>p{margin-bottom:18px}.overview-card-footer{flex-direction:row;align-items:center}.home-empty-state{padding:24px 20px}.home-empty-benefits{grid-template-columns:1fr}.home-empty-benefits span,.home-empty-benefits span:first-child,.home-empty-benefits span:last-child{padding:14px 0;border-right:0;border-bottom:1px solid var(--border)}.home-empty-benefits span:last-child{border-bottom:0}.home-empty-intro h2{font-size:28px}}
 
 .ip-address-value{display:flex;align-items:center;gap:4px;min-width:0}
-.ip-copy{display:flex;align-items:center;justify-content:center;flex:0 0 26px;width:26px;height:30px;min-height:30px;padding:4px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--muted);cursor:pointer}
-.ip-copy:hover{color:var(--foreground);border-color:var(--border);background:var(--surface-accent)}
+.ip-copy{display:flex;align-items:center;justify-content:center;flex:0 0 26px;width:26px;height:30px;min-height:30px;padding:4px;border:1px solid var(--border);border-radius:4px;background:var(--secondary);color:var(--muted-foreground);cursor:pointer;transition:border-color .15s,background-color .15s,color .15s}
+.ip-copy:hover,.ip-copy:focus-visible{color:var(--foreground);border-color:color-mix(in oklab,var(--foreground) 24%,var(--border));background:var(--surface-accent)}
 .ip-copy svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .clipboard-copy-buffer{position:fixed;left:-9999px;top:0;width:1px;height:1px;padding:0}
 
