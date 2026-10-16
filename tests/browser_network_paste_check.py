@@ -16,6 +16,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.on('pageerror',lambda error:errors.append(str(error)))
             page.goto(f'http://127.0.0.1:{server.server_port}/')
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
+            page.locator('#device-tab').click()
             def paste(text,mode):
                 assert page.locator('#transfer button').first.get_attribute('id')=='network-paste'
                 page.locator('#import').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')

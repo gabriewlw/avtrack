@@ -4,7 +4,7 @@ function reviewEquipmentBatch(entries, index, total, inventory, fields, filename
     const dialog = $('inventory-import-review');
     const identity=network?'name':inventory.layout?.primary_search || 'model';
     fields=[...fields.filter(([key])=>key===identity),...fields.filter(([key])=>key!==identity)];
-    let saving = false, finished = false;
+    let saving = false, finishing = false, finished = false;
     const outcomes = [];
     $('inventory-import-review-title').textContent = network?'Review IP list':inventory.layout?.stock_mode==='tv_counts'?'Review TV models':`Review ${entries[0].row.location || 'unassigned location'}`;
     $('inventory-import-review-progress').textContent = `${filename} · ${inventory.name} · ${network?(entries[0].row.venue || 'IP list'):entries[0].locationProgress.split(' · ').slice(0,2).join(' · ')} · ${entries.length} rows on this screen · ${total} source rows`;
@@ -71,20 +71,30 @@ function reviewEquipmentBatch(entries, index, total, inventory, fields, filename
       const remaining=states.filter(state=>!state.done),selected=remaining.filter(state=>state.check.checked).length;
       const all=$('inventory-import-review-all');
       all.checked=!!remaining.length&&selected===remaining.length;all.indeterminate=selected>0&&selected<remaining.length;
-      all.disabled=saving||!remaining.length;
+      all.disabled=saving||finishing||!remaining.length;
       const unconfirmed=remaining.filter(state=>state.check.checked).some(state=>[...state.confirmations.values()].some(control=>!control.checked));
-      $('inventory-import-review-save').disabled=saving||!selected||unconfirmed;
-      $('inventory-import-review-skip').disabled=saving||!selected;
-      $('inventory-import-review-save').textContent=`Import selected (${selected})`;
+      $('inventory-import-review-save').disabled=saving||finishing||!selected||unconfirmed;
+      $('inventory-import-review-skip').disabled=saving||finishing||!selected;
+      $('inventory-import-review-save').textContent=saving?'Importing…':finishing?'Finishing…':`Import selected (${selected})`;
       $('inventory-import-review-count').textContent=`${states.filter(state=>state.done).length} of ${states.length} rows finished · ${selected} selected${unconfirmed?' · Check required fields before importing':''}`;
-      $('inventory-import-review-stop').disabled=saving;
-      $('inventory-import-review-close').disabled=saving;
+      $('inventory-import-review-stop').disabled=saving||finishing;
+      $('inventory-import-review-close').disabled=saving||finishing;
     }
     async function finish(stopped=false) {
-      if(saving||finished)return;
-      states.filter(state=>!state.done).forEach(state=>window.importWorkflow.edit(state.entry,editedRow(state)));
-      await window.importWorkflow.checkpoint(stopped?'paused':'reviewing');
-      finished=true;dialog.close();resolve({outcomes,stopped});
+      if(saving||finishing||finished)return;
+      finishing=true;updateSelection();
+      try {
+        const remaining=states.filter(state=>!state.done);
+        remaining.forEach(state=>window.importWorkflow.edit(state.entry,editedRow(state)));
+        // Completed rows already have durable receipts. Only a paused review needs
+        // another checkpoint before closing; the parent completes the session once.
+        if(remaining.length)await window.importWorkflow.checkpoint(stopped?'paused':'reviewing');
+        finished=true;dialog.close();resolve({outcomes,stopped});
+      } catch(error) {
+        toast('Could not save import progress: '+error.message);
+      } finally {
+        finishing=false;if(!finished)updateSelection();
+      }
     }
     function editedRow(state) {
       const row={...state.entry.row,custom_values:{...state.entry.row.custom_values}};
@@ -110,11 +120,11 @@ function reviewEquipmentBatch(entries, index, total, inventory, fields, filename
       const selected=states.filter(state=>!state.done&&state.check.checked);
       saving=true;dialog.querySelectorAll('input,select,textarea,button').forEach(control=>{control.disabled=true;});updateSelection();
       try {
-        for(const state of selected) {
+        for(const [position,state] of selected.entries()) {
           const row=editedRow(state);
           if(inventory.layout?.stock_mode==='tv_counts'&&row.quantity===0){complete(state,await window.importWorkflow.write(state.entry,row,'zero'));state.status.textContent='Zero total · skipped';continue;}
           if(!meaningfulImportRow(row)){complete(state,await window.importWorkflow.write(state.entry,row,'skip'));continue;}
-          state.status.textContent='Importing…';
+          state.status.textContent=`Importing ${position+1} of ${selected.length}…`;
           try {
             const result=await window.importWorkflow.write(state.entry,row);
             complete(state,result);
@@ -124,14 +134,14 @@ function reviewEquipmentBatch(entries, index, total, inventory, fields, filename
         }
       } finally {
         saving=false;states.filter(state=>!state.done).forEach(state=>state.row.querySelectorAll('input,select,textarea,button').forEach(control=>{control.disabled=false;if(control.dataset.columnKey && inventory.layout?.columns.some(col=>col.key===control.dataset.columnKey&&col.type==='calculated'))control.readOnly=true;}));
-        updateSelection();if(states.every(state=>state.done))finish();
+        updateSelection();if(states.every(state=>state.done))await finish();
       }
     };
     $('inventory-import-review-skip').onclick=async()=>{
       if(saving)return;
       saving=true;updateSelection();
       try{for(const state of states.filter(state=>!state.done&&state.check.checked)){const row=editedRow(state);complete(state,await window.importWorkflow.write(state.entry,row,'skip'));}}catch(error){toast('Could not save skipped rows: '+error.message);}finally{saving=false;}
-      updateSelection();if(states.every(state=>state.done))finish();
+      updateSelection();if(states.every(state=>state.done))await finish();
     };
     $('inventory-import-review-close').onclick=$('inventory-import-review-stop').onclick=()=>finish(true);
     dialog.oncancel=event=>{event.preventDefault();finish(true);};

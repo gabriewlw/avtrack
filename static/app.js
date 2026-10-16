@@ -397,13 +397,13 @@ function toast(message) {
   $('toast').textContent = message; $('toast').hidden = false;
   clearTimeout(timer); timer = setTimeout(() => { $('toast').hidden = true; }, 6000);
 }
-async function api(path, method = 'GET', body) {
+async function api(path, method = 'GET', body, timeoutMs = method === 'GET' ? 20000 : 60000) {
   const options = {method, headers: method==='GET'?{}:{'Content-Type':'application/json'}};
   if (body !== undefined) options.body = JSON.stringify(body);
   const request = (async () => {
-    const reading=method==='GET',controller=reading?new AbortController():null;
-    const timeout=reading?setTimeout(()=>controller.abort(),20000):null;
-    if(controller)options.signal=controller.signal;
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),timeoutMs);
+    options.signal=controller.signal;
     try{
       const response=await fetch(path,options);
       const type=response.headers.get('Content-Type') || '';
@@ -415,10 +415,12 @@ async function api(path, method = 'GET', body) {
       if(!response.ok)throw new Error(data.error || 'Request failed. Please try again.');
       return data;
     }catch(error){
-      if(error.name==='AbortError')throw new Error('The server did not respond within 20 seconds. Check the running server or use Reload workspace below.');
+      if(error.name==='AbortError')throw new Error(method==='GET'
+        ? `The server did not respond within ${Math.round(timeoutMs/1000)} seconds. Check the running server or use Reload workspace below.`
+        : `The server did not finish saving within ${Math.round(timeoutMs/1000)} seconds. Saved import rows are safe; try the action again.`);
       if(error instanceof TypeError && location.hostname.endsWith('.app.github.dev'))throw new Error('The Codespaces connection failed. Use Reload workspace below to renew sign-in and reload browser files.');
       throw error;
-    }finally{if(timeout)clearTimeout(timeout);}
+    }finally{clearTimeout(timeout);}
   })();
   if (method !== 'GET') pendingWrites.add(request);
   try { return await request; }

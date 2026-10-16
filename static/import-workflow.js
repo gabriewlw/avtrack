@@ -42,7 +42,7 @@ window.importWorkflow = (() => {
     clearTimeout(checkpointTimer);
     if(!session || !spreadsheetFile)return;
     const state=snapshot(),id=session.id;
-    saving=saving.catch(()=>{}).then(async()=>{const saved=await api(`/api/import-sessions/${id}`,'PUT',{state,status});if(session?.id===id)session={...saved};});
+    saving=saving.catch(()=>{}).then(async()=>{const saved=await api(`/api/import-sessions/${id}`,'PUT',{state,status},20000);if(session?.id===id)session={...saved};});
     await saving;
   }
   async function begin(file,inventory){
@@ -60,7 +60,7 @@ window.importWorkflow = (() => {
   async function write(entry,row,action='import'){
     if(!session)throw new Error('Start or resume an import session before adding rows.');
     const keys=sourceKeys(entry);
-    const result=await api(`/api/import-sessions/${session.id}/rows`,'POST',{keys,row,action,sheet:byId('sheet-choice').value || spreadsheetFile.source_label || '',issues:entry.issues || []});
+    const result=await api(`/api/import-sessions/${session.id}/rows`,'POST',{keys,row,action,sheet:byId('sheet-choice').value || spreadsheetFile.source_label || '',issues:entry.issues || []},20000);
     keys.forEach(key=>{completed.add(key);delete edited[key];});
     const receipt=result._receipt;delete result._receipt;
     if(receipt && !receipts.some(saved=>saved.key===receipt.key))receipts.push(receipt);
