@@ -20,6 +20,10 @@ with tempfile.TemporaryDirectory() as temporary:
             page=browser.new_page(viewport={'width':1440,'height':1000});errors=[]
             page.on('pageerror',lambda error:errors.append(str(error)))
             page.goto(f'http://127.0.0.1:{server.server_port}/avtrack')
+            tally=page.locator('.showcase-nav .showcase-brand>span').first.bounding_box()
+            brand=page.locator('.showcase-nav .showcase-brand>b').first.bounding_box()
+            assert abs(tally['x']-164)<1,tally
+            assert abs(brand['x']-186)<1,brand
             bridge=page.locator('.command-bridge');bridge.scroll_into_view_if_needed()
             assert page.locator('.command-title>span').inner_text()=='CMD.EXE — BROADCAST GAB'
             assert page.locator('.command-controls').inner_text().splitlines()==['—','▢','✕']
@@ -30,24 +34,26 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('.command-title').evaluate('(node)=>getComputedStyle(node).height')=='34px'
             assert bridge.evaluate('(node)=>getComputedStyle(node).borderRadius')=='6px'
             assert page.locator('.command-body').evaluate('(node)=>getComputedStyle(node).padding')=='16px 20px'
-            assert page.locator('.command-body p').first.evaluate('(node)=>getComputedStyle(node).color')=='rgb(230, 230, 230)'
+            assert page.locator('.command-body p').first.inner_text()=='This interactive terminal is a quick tour of AVTrack.'
             assert page.locator('.command-dim').first.evaluate('(node)=>getComputedStyle(node).color')=='rgb(168, 168, 168)'
-            shortcuts=page.locator('.command-chips button')
-            assert shortcuts.count()==6
-            assert shortcuts.first.inner_text()=='STATUS'
-            assert shortcuts.last.inner_text()=='DEMO'
+            assert page.locator('.command-chips').count()==0
             terminal=page.locator('#command-input')
             terminal.fill('help');terminal.press('Enter')
             assert 'AVTRACK COMMANDS' in page.locator('#command-output').inner_text()
-            page.locator('.command-chips button[data-command="inventory"]').click()
+            terminal.fill('inventory');terminal.press('Enter')
             inventory_link=page.get_by_role('link',name='Open Inventory workspace →',exact=True)
             assert inventory_link.get_attribute('href')=='/inventory'
             terminal.press('ArrowUp');assert terminal.input_value()=='inventory'
             terminal.fill('clear');terminal.press('Enter')
             assert page.locator('#command-output p').count()==0
             assert terminal.evaluate('(node)=>node===document.activeElement')
+            closing=page.locator('.closing');closing.scroll_into_view_if_needed()
+            closing_box=closing.bounding_box();closing_action=closing.locator('.hero-actions .button.primary')
+            assert closing_action.count()==1
+            action_box=closing_action.bounding_box()
+            assert abs((action_box['x']+action_box['width']/2)-(closing_box['x']+closing_box['width']/2))<1
             assert not errors,errors
             browser.close()
     finally:
         server.shutdown();server.server_close()
-print('Landing CMD window matches BroadcastGab and supports typing, history, project shortcuts and clear.')
+print('Landing CMD window matches BroadcastGab and supports typing, history, project commands and clear.')

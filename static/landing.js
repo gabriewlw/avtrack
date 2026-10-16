@@ -159,13 +159,6 @@ commandInput.addEventListener('keydown', event => {
 commandBody.addEventListener('click', event => {
   if (!event.target.closest('a,input,button')) commandInput.focus();
 });
-document.querySelectorAll('.command-chips [data-command]').forEach(button => {
-  button.addEventListener('click', () => {
-    runTerminalCommand(button.dataset.command);
-    commandInput.focus();
-  });
-});
-
 const revealObserver = new IntersectionObserver(entries => {
   entries.forEach(entry => {
     if (entry.isIntersecting) {

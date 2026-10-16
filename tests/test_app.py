@@ -77,11 +77,16 @@ class AppTests(unittest.TestCase):
     def test_product_showcase_is_available_as_a_separate_page(self):
         status, page = self.request('/avtrack')
         self.assertEqual(status, 200)
-        self.assertIn(b'Technical operations.', page)
+        self.assertIn(b'Broadcast operations.', page)
+        self.assertIn(b'LOCAL AV OPERATIONS WORKSPACE', page)
+        self.assertNotIn(b'BUILT FOR BROADCAST OPERATIONS', page)
         self.assertIn(b'CMD.EXE \xe2\x80\x94 BROADCAST GAB', page)
-        self.assertIn(b'Broadcast Shell [Version 10.0.26100.1]', page)
+        self.assertIn(b'This interactive terminal is a quick tour of AVTrack.', page)
+        self.assertNotIn(b'Broadcast Shell [Version 10.0.26100.1]', page)
+        self.assertNotIn(b'(c) Gabriel Moura. All rights reserved.', page)
         self.assertIn(b'id="command-input"', page)
-        self.assertIn(b'data-command="demo"', page)
+        self.assertNotIn(b'class="command-chips"', page)
+        self.assertNotIn(b'Open BroadcastGab CMD', page)
         self.assertEqual(self.request('/avtrack/')[0], 200)
         landing_css = self.request('/landing.css')[1]
         self.assertIn(b'.story-stage', landing_css)
@@ -175,7 +180,7 @@ class AppTests(unittest.TestCase):
                 self.assertIn(f'{token}: {value};', style)
         self.assertIn('body { margin: 0; background: var(--background); color: var(--foreground); }', style)
         self.assertIn('.primary { background: var(--primary); color: var(--primary-foreground); }', style)
-        self.assertIn("const CACHE = 'avtrack-offline-v44'", self.request('/service-worker.js')[1].decode())
+        self.assertIn("const CACHE = 'avtrack-offline-v45'", self.request('/service-worker.js')[1].decode())
 
     def test_batch_delete_only_selected_ids_and_retry(self):
         first = self.request('/api/devices', 'POST', EXAMPLE)[1]
