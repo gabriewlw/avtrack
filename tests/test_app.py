@@ -64,6 +64,17 @@ class AppTests(unittest.TestCase):
         assets=worker.split('const ASSETS = ',1)[1].split(';',1)[0]
         self.assertNotIn('/recover',assets)
 
+    def test_product_showcase_is_available_as_a_separate_page(self):
+        status, page = self.request('/avtrack')
+        self.assertEqual(status, 200)
+        self.assertIn(b'Technical operations.', page)
+        self.assertIn(b'CMD.EXE', page)
+        self.assertEqual(self.request('/avtrack/')[0], 200)
+        self.assertIn(b'.story-stage', self.request('/landing.css')[1])
+        self.assertIn(b'activateScene', self.request('/landing.js')[1])
+        worker = self.request('/service-worker.js')[1].decode()
+        self.assertIn('"/avtrack"', worker)
+
     def test_full_lifecycle_and_persistence(self):
         status, saved = self.request('/api/devices', 'POST', EXAMPLE)
         self.assertEqual(status, 201)

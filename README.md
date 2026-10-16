@@ -87,6 +87,10 @@ open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
 
 Keep the terminal open while using AVTrack. Press **Ctrl+C** in that terminal to stop the server.
 
+### Product showcase
+
+Open [http://127.0.0.1:8000/avtrack](http://127.0.0.1:8000/avtrack) for the standalone AVTrack presentation. This page explains the product through an animated, scroll-based tour and is designed to be adapted for `broadcastgab.com` without replacing the application home page.
+
 ## First use
 
 The home page shows four workspace cards. Use **Add** to open the correct form immediately, or **Open workspace** to see the complete section.
