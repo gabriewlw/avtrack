@@ -156,7 +156,7 @@ def pdf_report(title, sections, repeat_section=False):
             pdfmetrics.registerFont(TTFont('HubMonoMedium', str(fonts / 'JetBrainsMono-Medium.ttf')))
     output = io.BytesIO()
     document = SimpleDocTemplate(output, pagesize=landscape(A4), leftMargin=18, rightMargin=18,
-                                 topMargin=12, bottomMargin=30, title=f'avtrack - {title}',
+                                 topMargin=8, bottomMargin=24, allowSplitting=1, title=f'avtrack - {title}',
                                  author='avtrack')
     body = ParagraphStyle('HubBody', fontName='HubText', fontSize=8, leading=11, wordWrap='CJK', textColor=colors.HexColor('#171A20'))
     header = ParagraphStyle('HubHeader', parent=body, fontName='HubMonoMedium', fontSize=7, leading=9,
@@ -228,8 +228,11 @@ def pdf_report(title, sections, repeat_section=False):
         table_rows += [[report_cell(label, value) for label, value in zip(labels, row)] for row in records]
         if not records:
             table_rows.append([paragraph('No records')] + [paragraph('')] * (len(labels) - 1))
+        # Prefer continuing a tall row into the remaining page space instead of
+        # moving the entire row and leaving a large empty block behind.
         table = LongTable(table_rows, colWidths=[document.width * width for width in widths],
-                          repeatRows=header_rows, splitInRow=1, hAlign='LEFT')
+                          repeatRows=header_rows, splitByRow=0, splitInRow=1,
+                          spaceBefore=0, spaceAfter=0, hAlign='LEFT')
         table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,header_rows-1), colors.HexColor('#F1F3F5')),
             ('BACKGROUND', (0,header_rows), (-1,-1), colors.white),
