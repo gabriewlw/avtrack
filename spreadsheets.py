@@ -207,7 +207,17 @@ def preview(payload):
                 row_numbers.append(number)
         if payload.get('auto_header') and not headers:
             raise ValueError('Could not identify an inventory header within the first 50 rows.')
-        return {'headers': headers, 'rows': rows, 'row_numbers': row_numbers, 'sheets': sheets, 'sheet': sheet, 'ignored_columns': ignored_columns, 'header_row':header_row,'header_confidence':confidence, 'header_candidates':header_candidates, 'generated_headers':locals().get('generated_headers',False),'column_samples':[[row[i] for row in rows[:4]] for i in range(len(headers))]}
+        generated_headers=locals().get('generated_headers',False)
+        overrides=payload.get('header_overrides')
+        if overrides is not None:
+            if not isinstance(overrides,list) or len(overrides)!=len(headers) or any(not isinstance(value,str) or not value.strip() or len(value.strip())>120 for value in overrides):
+                raise ValueError('Enter one clear name for every pasted column.')
+            normalized=[value.strip() for value in overrides]
+            if len({header_name(value) for value in normalized})!=len(normalized):
+                raise ValueError('Use a different name for each pasted column.')
+            headers=normalized
+            generated_headers=False
+        return {'headers': headers, 'rows': rows, 'row_numbers': row_numbers, 'sheets': sheets, 'sheet': sheet, 'ignored_columns': ignored_columns, 'header_row':header_row,'header_confidence':confidence, 'header_candidates':header_candidates, 'generated_headers':generated_headers,'column_samples':[[row[i] for row in rows[:4]] for i in range(len(headers))]}
     except (BadZipFile, InvalidFileException, ParseError, DefusedXmlException, KeyError, csv.Error, OSError):
         raise ValueError('Could not read this spreadsheet. Save a fresh .xlsx or CSV UTF-8 copy in Excel.') from None
     finally:

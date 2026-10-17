@@ -46,6 +46,9 @@ class SpreadsheetParserTests(unittest.TestCase):
         self.assertEqual(result['headers'], ['Channel','IP','Port','Column 4'])
         self.assertEqual(result['rows'][0], ['Forward Cam','239.252.4.2','1234',''])
         self.assertEqual(result['rows'][1], ['ESPN','239.252.1.5','2000','H.264'])
+        renamed = preview(encoded(raw, 'channels.csv', pasted=True, delimiter='\t', header_overrides=['Channel','Multicast IP','Port','Codec']))
+        self.assertFalse(renamed['generated_headers'])
+        self.assertEqual(renamed['headers'], ['Channel','Multicast IP','Port','Codec'])
 
     def test_worksheet_catalog_does_not_depend_on_header_row(self):
         result = preview(encoded(workbook_bytes(), sheets_only=True, header_row=50))

@@ -1470,6 +1470,25 @@ function showPastedLayoutSuggestion() {
   $('continue-paste-layout').disabled=false;$('keep-paste-layout').disabled=false;
   window.pasteWorkflow.render();
 }
+function showMissingPasteHeadings(){
+  const missing=!!spreadsheetData?.generated_headers,section=$('paste-missing-headings');section.hidden=!missing;
+  if(!missing){$('paste-heading-inputs').replaceChildren();return;}
+  $('paste-heading-error').hidden=true;
+  $('paste-heading-inputs').replaceChildren(...spreadsheetData.headers.map((header,index)=>{
+    const sample=(spreadsheetData.column_samples[index] || []).filter(Boolean).slice(0,2).join(' · ') || 'blank cells';
+    const label=element('label','',`Column ${index+1}`),input=element('input');input.maxLength=120;input.dataset.columnIndex=String(index);input.placeholder=`Name this column · ${sample}`;input.value=/^column\s+\d+$/i.test(header)?'':header;label.append(input,element('small','',`Examples: ${sample}`));return label;
+  }));
+}
+$('apply-paste-headings').onclick=async()=>{
+  const button=$('apply-paste-headings'),names=[...$('paste-heading-inputs').querySelectorAll('input')].map(input=>input.value.trim());
+  $('paste-heading-error').hidden=true;
+  if(names.some(name=>!name)){ $('paste-heading-error').textContent='Enter a clear name for every column before continuing.';$('paste-heading-error').hidden=false;return; }
+  if(new Set(names.map(normalizedHeader)).size!==names.length){$('paste-heading-error').textContent='Use a different name for each column.';$('paste-heading-error').hidden=false;return;}
+  button.disabled=true;spreadsheetFile.header_overrides=names;
+  await loadSpreadsheet();button.disabled=false;
+  if(!$('spreadsheet-error').hidden){$('paste-heading-error').textContent=$('spreadsheet-error').textContent;$('paste-heading-error').hidden=false;return;}
+  showPastedLayoutSuggestion();
+};
 $('back-spreadsheet-layout').onclick=()=>{if(spreadsheetReviewing)return;$('spreadsheet-dialog').close();showPastedLayoutSuggestion();$('paste-layout-dialog').showModal();};
 $('keep-paste-layout').onclick=()=>{$('paste-layout-dialog').close();$('spreadsheet-dialog').showModal();};
 $('continue-paste-layout').onclick=startPastedHeadingSetup;
