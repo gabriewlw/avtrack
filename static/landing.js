@@ -35,23 +35,40 @@ const commandBody = document.querySelector('#command-body');
 const commandOutput = document.querySelector('#command-output');
 const commandForm = document.querySelector('#command-form');
 const commandInput = document.querySelector('#command-input');
-const commandPrompt = 'C:\\Users\\visitor\\broadcastgab>';
+const commandPrompt = 'C:\\Users\\visitor\\avtrack>';
 const commandHistory = [];
 let commandHistoryIndex = -1;
 
 const terminalCommands = {
   help: [
     {text: 'AVTRACK COMMANDS', tone: 'command-accent'},
-    {text: '  status      Show workspace capabilities'},
-    {text: '  devices     Open the AV device workspace'},
-    {text: '  iptv        Open the IPTV channel workspace'},
-    {text: '  inventory   Open equipment inventory'},
-    {text: '  backups     Open the recovery-file archive'},
-    {text: '  demo        Explore AVTrack with sample data'},
-    {text: '  about       Read why AVTrack was built'},
-    {text: '  github      View the source repository'},
-    {text: '  clear       Clear this terminal'},
+    {text: 'status      Show workspace capabilities', command: 'status'},
+    {text: 'devices     Open the device workspace', command: 'devices'},
+    {text: 'iptv        Open the IPTV channel workspace', command: 'iptv'},
+    {text: 'inventory   Open equipment inventory', command: 'inventory'},
+    {text: 'backups     Open the recovery-file archive', command: 'backups'},
+    {text: 'demo        Explore AVTrack with sample data', command: 'demo'},
+    {text: 'aboutme     Meet the technician behind AVTrack', command: 'aboutme'},
+    {text: 'purpose     See who AVTrack is designed to help', command: 'purpose'},
+    {text: 'github      View the source repository', command: 'github'},
+    {text: 'clear       Clear this terminal', command: 'clear'},
     {text: 'Use ↑ and ↓ to revisit commands.', tone: 'command-dim'}
+  ],
+  aboutme: [
+    {text: 'GABRIEL MOURA · BROADCAST TECHNICIAN', tone: 'command-accent'},
+    {text: 'Gabriel works in cruise-ship broadcast operations, running onboard TV'},
+    {text: 'systems from satellite reception and server ingest to live production'},
+    {text: 'and interactive television.'},
+    {text: 'AVTrack grew from that day-to-day technical work.', tone: 'command-dim'},
+    {text: 'Next: purpose →', command: 'purpose'}
+  ],
+  purpose: [
+    {text: 'WHY AVTRACK EXISTS', tone: 'command-accent'},
+    {text: 'AVTrack helps broadcast technicians and anyone responsible for AV systems'},
+    {text: 'find device IPs faster, test IPTV feeds, verify physical inventory, and'},
+    {text: 'keep known-good configuration files ready for recovery.'},
+    {text: 'It turns scattered technical records into one practical local workspace.', tone: 'command-dim'},
+    {text: 'Next: help →', command: 'help'}
   ],
   status: [
     {text: 'AVTRACK WORKSPACE', tone: 'command-accent'},
@@ -86,11 +103,7 @@ const terminalCommands = {
     {text: 'Explore the interface with fictional devices, channels and inventory.'},
     {text: 'Launch the interactive demo →', href: '/demo'}
   ],
-  about: [
-    {text: 'ABOUT AVTRACK', tone: 'command-accent'},
-    {text: 'Created by a cruise ship broadcast technician to keep operational'},
-    {text: 'addresses, channel endpoints, stock records and recovery files together.'}
-  ],
+  about: [{text: 'Use aboutme to meet Gabriel, the technician behind AVTrack.', command: 'aboutme'}],
   github: [
     {text: 'SOURCE REPOSITORY', tone: 'command-accent'},
     {text: 'github.com/gabriewlw/avtrack ↗', href: 'https://github.com/gabriewlw/avtrack', external: true}
@@ -100,7 +113,14 @@ const terminalCommands = {
 function appendTerminalLine(line) {
   const paragraph = document.createElement('p');
   if (line.tone) paragraph.className = line.tone;
-  if (line.href) {
+  if (line.command) {
+    paragraph.className = `${paragraph.className} command-option`.trim();
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.command = line.command;
+    button.textContent = line.text;
+    paragraph.append(button);
+  } else if (line.href) {
     const link = document.createElement('a');
     link.href = line.href;
     link.textContent = line.text;
@@ -157,6 +177,12 @@ commandInput.addEventListener('keydown', event => {
   requestAnimationFrame(() => commandInput.setSelectionRange(commandInput.value.length, commandInput.value.length));
 });
 commandBody.addEventListener('click', event => {
+  const shortcut = event.target.closest('[data-command]');
+  if (shortcut) {
+    runTerminalCommand(shortcut.dataset.command);
+    commandInput.focus();
+    return;
+  }
   if (!event.target.closest('a,input,button')) commandInput.focus();
 });
 const revealObserver = new IntersectionObserver(entries => {

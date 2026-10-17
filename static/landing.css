@@ -46,3 +46,15 @@ main{position:relative;z-index:1}.hero{position:relative;min-height:1120px;paddi
 .stage-bar,.app-frame-bar{background:var(--card)}
 .mock-filters b,.storage-node i{background:var(--secondary)}
 .mock-filters span:hover,.location-buttons span:hover{background:var(--accent)}
+
+/* Guided landing-page actions and terminal tour. */
+.hero-copy .hero-actions .button{width:190px;padding-right:18px;padding-left:18px}
+.command-option{padding:2px 0}.command-option button{padding:0;border:0;background:transparent;color:var(--signal);font:500 13px/1.55 var(--mono);text-align:left;text-decoration:underline;text-underline-offset:3px;cursor:pointer}.command-option button:hover,.command-option button:focus-visible{color:var(--foreground)}
+
+/* Simple, evenly aligned source-to-certainty cards. */
+.workflow-track{gap:12px;border:0}.workflow-track article{min-height:320px;padding:28px;display:flex;flex-direction:column;align-items:flex-start;border:1px solid #2a2d33!important;border-radius:var(--radius);background:var(--card)}.workflow-icon{flex:0 0 45px;margin:48px 0 34px}.workflow-track h3{min-height:30px}.workflow-track p{max-width:23ch}
+
+/* Short connectors stop before the central local-workspace mark. */
+.storage-visual>svg{display:none}.storage-node:after{content:"";position:absolute;height:1px;background:linear-gradient(90deg,var(--border),color-mix(in oklab,var(--signal) 38%,var(--border)))}.node-db:after{top:50%;right:-72px;width:72px;transform:rotate(24deg);transform-origin:left}.node-files:after{top:50%;left:-72px;width:72px;transform:rotate(-24deg);transform-origin:right}.node-export:after{top:-52px;left:50%;width:52px;transform:rotate(90deg);transform-origin:left}.storage-brand-mark{display:flex;align-items:center;gap:10px;color:var(--foreground)}.storage-brand-mark i{width:10px;height:10px;border-radius:50%;background:var(--onair);box-shadow:0 0 12px 2px color-mix(in oklab,var(--onair) 60%,transparent)}.storage-brand-mark b{font:700 20px/1 var(--display);letter-spacing:.18em;text-transform:uppercase}.storage-core small{margin-top:14px}
+@media(max-width:850px){.workflow-track{gap:12px}.workflow-track article{min-height:300px}.workflow-track p{max-width:28ch}}
+@media(max-width:600px){.hero-copy .hero-actions .button{width:min(100%,190px)}.workflow-track{gap:10px}.workflow-track article{min-height:260px}.storage-node:after{display:none}}

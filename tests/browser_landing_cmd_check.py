@@ -34,10 +34,15 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('.command-title').evaluate('(node)=>getComputedStyle(node).height')=='34px'
             assert bridge.evaluate('(node)=>getComputedStyle(node).borderRadius')=='6px'
             assert page.locator('.command-body').evaluate('(node)=>getComputedStyle(node).padding')=='16px 20px'
-            assert page.locator('.command-body p').first.inner_text()=='This interactive terminal is a quick tour of AVTrack.'
+            assert page.locator('.command-body p').first.inner_text()=='C:\\Users\\visitor\\avtrack> aboutme'
             assert page.locator('.command-dim').first.evaluate('(node)=>getComputedStyle(node).color')=='rgb(168, 168, 168)'
             assert page.locator('.command-chips').count()==0
             terminal=page.locator('#command-input')
+            assert page.locator('.command-entry .command-prompt').inner_text()=='C:\\Users\\visitor\\avtrack>'
+            page.get_by_role('button',name='purpose →',exact=True).click()
+            assert 'WHY AVTRACK EXISTS' in page.locator('#command-output').inner_text()
+            page.get_by_role('button',name='Next: help →',exact=True).click()
+            assert page.get_by_role('button',name='inventory   Open equipment inventory',exact=True).count()==1
             terminal.fill('help');terminal.press('Enter')
             assert 'AVTRACK COMMANDS' in page.locator('#command-output').inner_text()
             terminal.fill('inventory');terminal.press('Enter')
@@ -47,12 +52,18 @@ with tempfile.TemporaryDirectory() as temporary:
             terminal.fill('clear');terminal.press('Enter')
             assert page.locator('#command-output p').count()==0
             assert terminal.evaluate('(node)=>node===document.activeElement')
-            storage_logo=page.locator('.storage-core img')
+            storage_logo=page.locator('.storage-brand-mark')
             storage_logo.scroll_into_view_if_needed()
-            assert storage_logo.get_attribute('src')=='/favicon.svg'
-            assert storage_logo.get_attribute('alt')=='AVTrack logo'
-            assert storage_logo.evaluate('(node)=>node.complete && node.naturalWidth>0')
+            assert storage_logo.inner_text()=='AVTRACK'
+            assert page.locator('.storage-visual>svg').count()==0
             assert page.locator('.storage-core strong').count()==0
+            actions=page.locator('.hero-copy .hero-actions .button')
+            assert actions.count()==2
+            widths=actions.evaluate_all('(nodes)=>nodes.map(node=>node.getBoundingClientRect().width)')
+            assert abs(widths[0]-widths[1])<1,widths
+            cards=page.locator('.workflow-track article')
+            heights=cards.evaluate_all('(nodes)=>nodes.map(node=>node.getBoundingClientRect().height)')
+            assert max(heights)-min(heights)<1,heights
             closing=page.locator('.closing');closing.scroll_into_view_if_needed()
             closing_box=closing.bounding_box();closing_action=closing.locator('.hero-actions .button.primary')
             assert closing_action.count()==1
