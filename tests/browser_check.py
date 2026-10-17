@@ -194,7 +194,7 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#header-row').fill('2')
             assert page.locator('#confirm-import').is_disabled()
             page.get_by_role('button', name='Reload preview').click()
-            page.locator('#map-ip').get_by_role('option', name='2. Address on network', exact=True).wait_for(state='attached')
+            page.locator('#map-ip option').filter(has_text='2. Address on network').wait_for(state='attached')
             page.locator('#map-ip').select_option('1')
             assert not page.locator('[id^=default-]').count()
             assert 'Excel camera' in page.locator('#spreadsheet-preview').inner_text()

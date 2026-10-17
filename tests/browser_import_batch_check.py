@@ -11,7 +11,10 @@ from playwright.sync_api import sync_playwright
 
 with tempfile.TemporaryDirectory() as temporary:
     app.DB_PATH=Path(temporary)/'inventory.sqlite3'
-    inventory=app.save_equipment_inventory({'name':'Scala','layout':SCALA_PROFILE})
+    stock_inventory=app.save_equipment_inventory({'name':'Stock'})
+    batch_profile=dict(SCALA_PROFILE,template='custom',unique_location=False)
+    batch_profile['columns']=[dict(column,key='model') if column['key']=='monitor_model' else dict(column) for column in SCALA_PROFILE['columns']]
+    inventory=app.save_equipment_inventory({'name':'Signage review','layout':batch_profile})
     server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
@@ -22,7 +25,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.goto(f'http://127.0.0.1:{server.server_port}/inventory')
             page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled")
             page.locator('#equipment-inventory-select').select_option(str(inventory['id']))
-            page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled && document.getElementById('equipment-inventory-title').textContent==='Scala'")
+            page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled && document.getElementById('equipment-inventory-title').textContent==='Signage review'")
             data=b'ID,Location,Monitor model,Orientation,Notes\nS1,Room A,LG,,note\nS2,Room A,LG,Horizontal,note\nM1,Room A,,,note\nM2,Room A,LG,,\nM3,Room A,LG,Diagonal,note\nM4,Room A,,,note\nB1,Room B,LG,,note\nB2,Room B,,,note\n'
             page.locator('#import-file').set_input_files({'name':'scala.csv','mimeType':'text/csv','buffer':data})
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
@@ -69,25 +72,27 @@ with tempfile.TemporaryDirectory() as temporary:
             page.reload();page.locator('#equipment-rows tr').first.wait_for()
             assert page.locator('#equipment-rows tr').count()==6
             # The same workflow also reviews the stock inventory's own columns.
-            page.locator('#equipment-inventory-select').select_option('1')
-            page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled && document.getElementById('equipment-inventory-select').value==='1'")
+            page.locator('#equipment-inventory-select').select_option(str(stock_inventory['id']))
+            page.wait_for_function("value => !document.getElementById('equipment-inventory-select').disabled && document.getElementById('equipment-inventory-select').value===value",arg=str(stock_inventory['id']))
             stock=b'Item,Brand,Model,Serial number,Quantity,Location,Notes\nCamera,Sony,X,ST-1,1,Store,note\nCamera,Sony,X,ST-2,,Store,note\n'
             page.locator('#import-file').set_input_files({'name':'stock.csv','mimeType':'text/csv','buffer':stock})
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             page.locator('#confirm-import').click();dialog.wait_for(state='visible')
-            assert len(app.equipment_inventory(1))==1
+            assert len(app.equipment_inventory(stock_inventory['id']))==1
             assert page.locator('#inventory-import-review-rows tr').count()==1
             page.get_by_label('Qnt, row 3',exact=True).fill('2')
             page.get_by_label('Select row 3',exact=True).check()
             page.locator('#inventory-import-review-save').click()
             page.locator('#spreadsheet-dialog').wait_for(state='hidden')
-            assert len(app.equipment_inventory(1))==2
+            assert len(app.equipment_inventory(stock_inventory['id']))==2
+            page.locator('#import-summary-panel').wait_for(state='visible')
+            page.locator('#close-import-summary').click()
             # Turning off automatic import keeps even complete rows on the review screen.
             page.locator('#import-file').set_input_files({'name':'manual.csv','mimeType':'text/csv','buffer':stock.replace(b'ST-1',b'ST-3').replace(b'ST-2',b'ST-4')})
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             page.locator('#import-complete-rows').uncheck();page.locator('#confirm-import').click();dialog.wait_for(state='visible')
             assert page.locator('#inventory-import-review-rows tr').count()==2
-            assert len(app.equipment_inventory(1))==2
+            assert len(app.equipment_inventory(stock_inventory['id']))==2
             page.locator('#inventory-import-review-stop').click();page.locator('#spreadsheet-dialog').wait_for(state='hidden')
             # Larger locations keep every row together in one dense, scrollable review table.
             many=('Item,Brand,Model,Serial number,Quantity,Location,Notes\n'+''.join(f'Camera,Sony,X,BULK-{index},,Store,note\n' for index in range(10))).encode()
@@ -103,7 +108,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#inventory-import-review-all').check()
             page.locator('#inventory-import-review-save').click()
             page.locator('#import-summary-panel').wait_for(state='visible')
-            saved_count=len(app.equipment_inventory(1))
+            saved_count=len(app.equipment_inventory(stock_inventory['id']))
             assert saved_count==12,saved_count
             assert not errors,errors
             browser.close()

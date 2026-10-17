@@ -21,7 +21,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.on('pageerror',lambda error:errors.append(str(error)))
             page.goto(f'http://127.0.0.1:{server.server_port}/')
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
-            assert page.locator('.brand-logo').inner_text()=='avtrack'
+            assert page.locator('.brand-logo').inner_text()=='AVTRACK'
             assert page.locator('meta[name=application-name]').get_attribute('content')=='avtrack'
             assert 'broadcasthub' not in page.content().lower()
             for tab,prefix,panel in [('device','av-devices','#inventory'),('iptv','iptv-channels','#inventory'),('equipment','spare-tvs','#equipment-panel')]:

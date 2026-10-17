@@ -15,7 +15,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.on('pageerror',lambda error:errors.append(str(error)))
             page.goto(f'http://127.0.0.1:{server.server_port}/inventory')
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
-            page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled")
+            page.wait_for_function("() => !document.getElementById('new-equipment-inventory').disabled")
             page.locator('#new-equipment-inventory').click()
             page.locator('#equipment-inventory-name').fill('Custom signage')
             page.locator('#equipment-template').select_option('custom')

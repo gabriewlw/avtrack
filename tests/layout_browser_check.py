@@ -35,6 +35,7 @@ def main():
                         assert page.evaluate('''() => [...document.querySelectorAll('.device-row,#equipment-rows tr')]
                             .filter(row => row.getBoundingClientRect().width).every(row => Math.abs(row.getBoundingClientRect().height-47)<1)'''), (width, route)
                         if route == '/inventory':
+                            assert page.evaluate('''() => {const controls=[...document.querySelectorAll('#equipment-transfer>button')].filter(button=>button.offsetParent);return controls.every(button=>button.getBoundingClientRect().height===44) && controls.filter(button=>!button.classList.contains('refresh-button')).every(button=>button.getBoundingClientRect().width===148) && document.querySelector('#equipment-refresh').getBoundingClientRect().width===44}'''), (width, route)
                             assert page.evaluate('''() => {const headings=[...document.querySelectorAll('#equipment-table th')];
                                 const cells=[...document.querySelector('#equipment-rows tr').children];
                                 return headings.every((heading,index) => Math.abs(heading.getBoundingClientRect().x-cells[index].getBoundingClientRect().x)<1 && Math.abs(heading.getBoundingClientRect().width-cells[index].getBoundingClientRect().width)<1)}''')
@@ -51,7 +52,12 @@ def main():
                             assert page.evaluate('''() => [...document.querySelectorAll('.inventory-column-editor')].every(card=> {const inputs=[...card.querySelectorAll('input,select')].slice(0,3);return inputs.every(input=>Math.abs(input.getBoundingClientRect().y-inputs[0].getBoundingClientRect().y)<1)})''')
                             page.locator('#inventory-columns-dialog').evaluate('(dialog)=>dialog.close()')
                         else:
+                            assert page.evaluate('''() => {const controls=[...document.querySelectorAll('#transfer>button,#transfer>details>summary')].filter(control=>control.offsetParent);return controls.every(control=>control.getBoundingClientRect().height===44) && controls.filter(control=>!control.classList.contains('refresh-button')).every(control=>control.getBoundingClientRect().width===148) && document.querySelector('#refresh').getBoundingClientRect().width===44}'''), (width, route)
                             assert page.evaluate('''() => {const head=document.querySelector('.directory-head'),row=document.querySelector('.device-row');return getComputedStyle(head).gridTemplateColumns===getComputedStyle(row).gridTemplateColumns && head.getBoundingClientRect().height===48}''')
+                    page.goto(f'http://127.0.0.1:{server.server_port}/backups')
+                    page.locator('#backups-panel').wait_for(state='visible')
+                    assert page.evaluate('''() => [...document.querySelectorAll('.backups-hero-actions>button')].every(button=>button.getBoundingClientRect().height===44 && button.getBoundingClientRect().width===164)'''), width
+                    assert page.evaluate('''() => {const refresh=document.querySelector('#refresh-backups').getBoundingClientRect();const select=document.querySelector('#backup-filter').getBoundingClientRect();return refresh.width===44 && refresh.height===44 && select.height===44}'''), width
                 assert not errors, errors
                 browser.close()
         finally:

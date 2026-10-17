@@ -36,6 +36,8 @@ with tempfile.TemporaryDirectory() as temp:
                 page.locator('#equipment-inventory-dialog').wait_for(state='hidden')
                 wait_loaded(name)
                 assert page.locator('#equipment-empty').is_visible()
+                if page.locator('#paste-inventory-dialog').is_visible():
+                    page.locator('#close-paste-inventory').click()
                 return int(page.locator('#equipment-inventory-select').input_value())
 
             def import_csv(filename, rows):
@@ -55,7 +57,8 @@ with tempfile.TemporaryDirectory() as temp:
                     if index<len(locations)-1:page.wait_for_function('previous => document.getElementById("inventory-import-review-title").textContent !== previous',arg=title)
                     else:page.locator('#inventory-import-review').wait_for(state='hidden')
                 wait_loaded(target)
-                if page.locator('#import-summary-panel').is_visible(): page.locator('#close-import-summary').click()
+                page.locator('#import-summary-panel').wait_for(state='visible')
+                page.locator('#close-import-summary').click()
 
             def download(label, scope):
                 dropdown = page.locator('#equipment-panel .export-dropdown')
@@ -93,19 +96,19 @@ with tempfile.TemporaryDirectory() as temp:
             pdf = Path(download('PDF', 'filtered').path()).read_bytes()
             if shutil.which('pdftotext'):
                 text = subprocess.run(['pdftotext','-','-'], input=pdf, capture_output=True, check=True).stdout.decode()
-                assert 'TVs' in text and 'Location: Main lounge' in text
+                assert 'TVs' in text and 'Main lounge' in text
                 assert 'Cabin 100' not in text
-            scalas = create('Scalas')
+            scalas = create('Media players')
             assert page.locator('#equipment-location-filter').input_value() == ''
             assert page.locator('#equipment-selection-summary').is_hidden()
-            import_csv('scalas.csv', 'Scala player,Scala,Media player,ASSET-01,1,Theater,Signage\n')
+            import_csv('scalas.csv', 'Scala player,Scala,Media player,ASSET-01,1,Theater,\n')
             assert len(app.equipment_inventory(scalas)) == 1
             assert page.locator('#equipment-found').inner_text() == '0'
             assert page.locator('#workspace-page-summary').text_content() == '1 item across 1 location'
             page.locator('#rename-equipment-inventory').click()
-            page.locator('#equipment-inventory-name').fill('Scala players')
+            page.locator('#equipment-inventory-name').fill('Signage players')
             page.locator('#save-equipment-inventory').click()
-            wait_loaded('Scala players')
+            wait_loaded('Signage players')
             assert int(page.locator('#equipment-inventory-select').input_value()) == scalas
             assert page.locator('#equipment-rows tr').count() == 1
             spare = create('Spare parts')
@@ -118,7 +121,9 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#add-device').click()
             page.locator('#equipment-description').fill('USB cable')
             page.locator('#equipment-model').fill('USB-C')
-            page.locator('#equipment-location').fill('Storeroom')
+            page.locator('#equipment-location').locator('xpath=..').get_by_role('button', name='New location').click()
+            page.get_by_label('New storage location').fill('Storeroom')
+            page.locator('#equipment-location').locator('xpath=..').get_by_role('button', name='Add location').click()
             page.locator('#save-equipment').click()
             page.locator('#equipment-dialog').wait_for(state='hidden')
             page.wait_for_function("() => document.getElementById('equipment-records').textContent === '3'")

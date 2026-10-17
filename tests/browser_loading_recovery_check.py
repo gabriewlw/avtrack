@@ -35,7 +35,8 @@ with tempfile.TemporaryDirectory() as temp:
             page.route('**/api/overview',lambda route:held.append(route))
             page.goto(origin+'/');page.locator('#overview-error').wait_for(state='visible',timeout=25000)
             assert '20 seconds' in page.locator('#overview-error').inner_text()
-            assert page.get_by_role('link',name='Reload workspace',exact=True).get_attribute('href')=='/recover'
+            assert page.get_by_role('link',name='Reload workspace',exact=True).count()==0
+            assert page.locator('#refresh').is_enabled()
             for route in held:route.abort()
             context.close()
             # Remove a real app worker and stale cache, preserving preferences and inventory.

@@ -66,9 +66,9 @@ class EquipmentInventoryTests(unittest.TestCase):
         self.assertEqual(self.request('/api/equipment/inventories/0','DELETE',{})[0], 400)
 
     def test_imports_and_duplicates_are_scoped_to_inventory(self):
-        tvs, scalas = self.create('TVs'), self.create('Scalas')
+        tvs, cameras = self.create('TVs'), self.create('Cameras')
         stock = dict(ITEM, serial_number='', description='Cable')
-        for inventory_id in [1, tvs, scalas]:
+        for inventory_id in [1, tvs, cameras]:
             payload = dict(version=1, inventory_id=inventory_id, equipment=[ITEM, stock])
             self.assertEqual(self.request('/api/equipment/import', 'POST', payload)[1], {'added':2,'skipped':0})
             self.assertEqual(self.request('/api/equipment/import', 'POST', payload)[1], {'added':0,'skipped':2})
@@ -76,7 +76,7 @@ class EquipmentInventoryTests(unittest.TestCase):
             rows = self.request(f'/api/equipment?inventory_id={inventory_id}')[1]['equipment']
             self.assertEqual(len(rows), 2)
             self.assertTrue(all(row['inventory_id'] == inventory_id for row in rows))
-        self.assertEqual(len({row['id'] for inventory_id in [1,tvs,scalas] for row in app.equipment_inventory(inventory_id)}), 6)
+        self.assertEqual(len({row['id'] for inventory_id in [1,tvs,cameras] for row in app.equipment_inventory(inventory_id)}), 6)
 
     def test_item_actions_and_located_status_do_not_cross_inventories(self):
         tvs, spare = self.create('TVs'), self.create('Spare parts')

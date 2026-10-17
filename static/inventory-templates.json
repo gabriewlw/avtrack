@@ -803,8 +803,8 @@
           "important": true,
           "filter": "buttons",
           "options": [
-            "Mounted",
-            "Portable"
+            "Portable",
+            "Mounted"
           ]
         },
         {

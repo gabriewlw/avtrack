@@ -13,6 +13,7 @@ from playwright.sync_api import sync_playwright
 
 with tempfile.TemporaryDirectory() as temp:
     app.DB_PATH = Path(temp) / 'inventory.sqlite3'
+    app.save_equipment_inventory({'name':'Spare parts'})
     server = app.ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
@@ -105,7 +106,7 @@ with tempfile.TemporaryDirectory() as temp:
             pdf = Path(download.value.path()).read_bytes()
             if shutil.which('pdftotext'):
                 text = subprocess.run(['pdftotext','-','-'],input=pdf,capture_output=True,check=True).stdout.decode()
-                assert 'Location: Main lounge' in text
+                assert 'Main lounge' in text
                 assert 'Broadcast center' not in text
                 assert 'Located' in text and 'To be found' in text
             page.reload()

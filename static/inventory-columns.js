@@ -15,7 +15,7 @@ function inventoryInput(column,value = '', {allowClear = true, locations = []} =
     column = {...column,type:'buttons',options:column.options.length ? column.options : ['Vertical','Horizontal']};
     allowClear = false;
   }
-  if(column.key==='location')allowClear=false;
+  if(['location','installation'].includes(column.key))allowClear=false;
   if(column.type==='count')column={...column,type:'select',options:Array.from({length:51-(column.minimum ?? 1)},(_,index)=>String(index+(column.minimum ?? 1)))};
   if(column.type==='location')column={...column,type:'select',options:[...new Set([...locations,String(value || '')].filter(Boolean))].sort()};
   const wrapper = element('div', 'inventory-value-input');

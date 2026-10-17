@@ -222,6 +222,7 @@
           cell.replaceChildren(select);
         }
         if(field==='notes'){
+          cell.classList.add('equipment-notes-column');
           const button=element('button',`quiet equipment-notes-button${item.notes?' has-notes':''}`,item.notes?'View':'Add');button.type='button';button.disabled=pendingConfirmations.has(item.id);button.setAttribute('aria-label',`${item.notes?'Edit':'Add'} notes for ${displayName(item)}`);button.onclick=()=>openNotes(item);
           const content=element('div','equipment-notes-cell');if(index===0)content.append(selectionControl(item.id,`equipment ${displayName(item)}`,selectedItems,updateEquipmentSelection));content.append(button);cell.replaceChildren(content);
         }
@@ -350,7 +351,7 @@
     widths.push(...(showLocatedStatus()?[110]:[]),...(recordChecksEnabled()?[115]:[]),...(stockChecksEnabled()?[126]:[]),...(notesColumn?[74]:[]),82);
     const totalWidth=widths.reduce((total,width)=>total+width,0);
     const columns=orderedColumns.map((col,index)=>{const th=element('th','',index===0?'':col.key==='quantity'?'Qnt':col.label);th.scope='col';if(index===0)th.append(heading);th.style.width=`${widths[index]/totalWidth*100}%`;return th;});
-    [...(showLocatedStatus()?['Status']:[]),...(recordChecksEnabled()?['Stock check']:[]),...(stockChecksEnabled()?['Last checked']:[]),...(notesColumn?['Notes']:[]),'Actions'].forEach((text,index)=>{const th=element('th','',text);th.scope='col';th.style.width=`${widths[orderedColumns.length+index]/totalWidth*100}%`;columns.push(th);});
+    [...(showLocatedStatus()?['Status']:[]),...(recordChecksEnabled()?['Stock check']:[]),...(stockChecksEnabled()?['Last checked']:[]),...(notesColumn?['Notes']:[]),'Actions'].forEach((text,index)=>{const th=element('th',text==='Notes'?'equipment-notes-heading':text==='Actions'?'equipment-actions-heading':'',text);th.scope='col';th.style.width=`${widths[orderedColumns.length+index]/totalWidth*100}%`;columns.push(th);});
     $('equipment-table').querySelector('thead tr').replaceChildren(...columns);
     $('equipment-table').style.minWidth=`${Math.max(850,totalWidth)}px`;
     $('equipment-search').placeholder='Search all inventory columns…';

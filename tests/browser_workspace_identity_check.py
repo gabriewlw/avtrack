@@ -12,6 +12,7 @@ from playwright.sync_api import sync_playwright
 
 with tempfile.TemporaryDirectory() as temp:
     app.DB_PATH = Path(temp) / "inventory.sqlite3"
+    app.save_equipment_inventory({'name':'Test inventory'})
     server = app.ThreadingHTTPServer(("127.0.0.1", 0), app.Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:

@@ -357,9 +357,9 @@ input.equipment-confirm{width:18px;height:18px;min-height:18px;margin:0;padding:
 .directory-head>span{padding:12px 10px}
 .device-directory .device-list{display:block;margin:0}
 .device-directory .device-row{border-bottom:1px solid var(--border)}
-.device-directory .device-row:last-child{border-bottom:0}
-.device-directory .device-row>div{padding:8px 10px;min-width:0;grid-column:auto;grid-row:auto;text-align:left;border-right:1px solid var(--border);height:100%}
-.device-directory .device-row>.row-actions{border-right:0;gap:0;padding:8px 0;align-items:start}
+.device-directory .device-row:last-child{border-bottom-color:transparent}
+.device-directory .device-row>div{padding:7px 10px;min-width:0;grid-column:auto;grid-row:auto;text-align:left;border-right:1px solid var(--border);height:100%}
+.device-directory .device-row>.row-actions{border-right:0;gap:0;padding:7px 0;align-items:start}
 .device-directory .device-identity{gap:8px;align-items:center}
 .device-directory .device-icon{width:26px;height:26px;font-size:13px}
 .device-directory .device-venue{font:11px var(--font-ui);min-height:30px;max-width:100%;white-space:normal;overflow-wrap:anywhere;padding:5px 7px}
@@ -825,3 +825,56 @@ main, dialog {
 
 /* Keep the primary workspace destinations visually consistent with the AVTrack wordmark. */
 #main-navigation a{text-transform:uppercase;letter-spacing:.08em}
+
+/* Keep neighboring workspace actions on the same visual grid. */
+.file-actions > button:not(.refresh-button),
+.file-actions > .export-dropdown > .export-toggle {
+  width: 148px;
+  height: var(--control-height,44px);
+  min-height: var(--control-height,44px);
+  flex: 0 0 148px;
+  justify-content: center;
+  white-space: nowrap;
+}
+.file-actions > .refresh-button {
+  width: var(--control-height,44px);
+  height: var(--control-height,44px);
+  min-height: var(--control-height,44px);
+  flex: 0 0 var(--control-height,44px);
+}
+.inventory-management > button {
+  width: 148px;
+  height: var(--control-height,44px);
+  min-height: var(--control-height,44px);
+}
+.backups-hero-actions > button {
+  width: 164px;
+  height: var(--control-height,44px);
+  min-height: var(--control-height,44px);
+}
+.backups-toolbar { grid-template-columns: 220px minmax(320px,1fr) var(--control-height,44px); }
+.backups-toolbar > .refresh-button {
+  width: var(--control-height,44px);
+  height: var(--control-height,44px);
+  min-height: var(--control-height,44px);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted-foreground);
+}
+.backups-toolbar > .refresh-button:hover{border-color:var(--accent-text);background:var(--surface-accent);color:var(--accent-text)}
+.backups-toolbar > .refresh-button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+@media(max-width:700px){.backups-toolbar{grid-template-columns:1fr var(--control-height,44px)}}
+@media(min-width:901px){
+  #equipment-table td{padding-top:7px;padding-bottom:7px}
+  #equipment-table td.equipment-actions{padding-top:7px;padding-bottom:7px}
+  #equipment-table th.equipment-notes-heading,
+  #equipment-table td.equipment-notes-column{width:64px!important;max-width:64px}
+  #equipment-table th.equipment-actions-heading,
+  #equipment-table td.equipment-actions{width:82px!important;max-width:82px}
+}
+@media(max-width:360px){.equipment-confirmed-stat{gap:4px}.equipment-confirmed-stat small{font-size:9px}}

@@ -947,13 +947,14 @@ def import_equipment(payload, connection=None):
             raise ValueError('Inventory columns changed. Refresh and try importing again.')
         existing = {identity for row in con.execute('SELECT * FROM equipment WHERE inventory_id=?', (inventory_id,)) if (identity := equipment_identity(dict(row))) is not None}
         existing_custom = {profile_identifier(equipment_record(saved),profile) for saved in con.execute('SELECT * FROM equipment WHERE inventory_id=?',(inventory_id,))}
-        existing_locations = {saved['location'].strip().casefold() for saved in con.execute('SELECT location FROM equipment WHERE inventory_id=?',(inventory_id,)) if saved['location']} if profile.get('unique_location') else set()
+        unique_locations = bool(profile.get('unique_location'))
+        existing_locations = {saved['location'].strip().casefold() for saved in con.execute('SELECT location FROM equipment WHERE inventory_id=?',(inventory_id,)) if saved['location']} if unique_locations else set()
         added = 0
         for row in rows:
             custom_id = profile_identifier(row,profile)
             if custom_id and custom_id in existing_custom: continue
             location_key=row['location'].strip().casefold()
-            if location_key and location_key in existing_locations: continue
+            if unique_locations and location_key and location_key in existing_locations: continue
             identity = None if custom_id else equipment_identity(row)
             if identity is not None and identity in existing:
                 continue
@@ -963,7 +964,7 @@ def import_equipment(payload, connection=None):
             con.execute('UPDATE equipment SET custom_values=? WHERE id=?',(json.dumps(row['custom_values'],sort_keys=True),item_id))
             added += 1
             if custom_id: existing_custom.add(custom_id)
-            if location_key: existing_locations.add(location_key)
+            if unique_locations and location_key: existing_locations.add(location_key)
             if identity is not None:
                 existing.add(identity)
     result={'added': added, 'skipped': len(rows)-added+zero_count}

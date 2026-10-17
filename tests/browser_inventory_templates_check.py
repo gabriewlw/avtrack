@@ -19,7 +19,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page=browser.new_page(viewport={'width':1600,'height':1000});errors=[]
             page.on('pageerror',lambda error:errors.append(str(error)))
             page.goto(f'http://127.0.0.1:{server.server_port}/inventory')
-            page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled")
+            page.wait_for_function("() => document.getElementById('equipment-inventory-select').options[0]?.textContent==='No inventories yet'")
             page.locator('#new-equipment-inventory').click()
             page.locator('#equipment-inventory-dialog').wait_for(state='visible')
             assert page.locator('#equipment-template option').count()==11
@@ -123,6 +123,17 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#equipment-location').input_value()=='Locker C'
             page.locator('#save-equipment').click();page.locator('#equipment-dialog').wait_for(state='hidden')
             page.wait_for_function("() => [...document.querySelectorAll('#equipment-location-buttons button')].some(button=>button.textContent==='Locker C')")
+            # Projector installation has two explicit choices and cannot be cleared.
+            page.locator('#new-equipment-inventory').click();page.locator('#equipment-inventory-name').fill('Projectors onboard')
+            page.locator('#equipment-template').select_option('projectors');page.locator('#save-equipment-inventory').click()
+            page.locator('#paste-inventory-dialog').wait_for(state='visible')
+            with page.expect_file_chooser():page.locator('#upload-paste-inventory').click()
+            page.locator('#inventory-columns-dialog').wait_for(state='hidden')
+            page.locator('#add-device').click()
+            installation=page.locator('#equipment-form [role="group"][aria-label="Installation"] button')
+            assert installation.all_text_contents()==['Portable','Mounted']
+            assert page.locator('#equipment-form').get_by_role('button',name='Clear',exact=True).count()==0
+            page.locator('#equipment-dialog').get_by_role('button',name='Cancel',exact=True).click()
             page.screenshot(path=str(Path(app.__file__).parent/'work/template-desktop.png'),full_page=True)
             assert page.evaluate("""() => { const heights=[...document.querySelectorAll('#equipment-rows tr')].map(row=>row.getBoundingClientRect().height); return heights.every(height=>height>=40&&height<=56&&Math.abs(height-heights[0])<1); }""")
             assert not errors,errors
