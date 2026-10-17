@@ -17,7 +17,7 @@ AVTrack is built around those jobs. It runs locally, uses a single SQLite databa
 
 ## What AVTrack manages
 
-### AV Devices
+### Devices
 
 Store each device’s name, venue, IP address or DHCP assignment, VLAN, system, category, and notes. Search the full directory, filter it by venue or system, copy an IP address with one click, and record when an address has been manually confirmed.
 
@@ -121,7 +121,7 @@ Spreadsheet layouts can differ from one job to another. Always review the detect
 
 ## Search, confirmation, and reports
 
-- AV Devices searches names, IP addresses, venues, systems, VLANs, categories, and notes.
+- Devices searches names, IP addresses, venues, systems, VLANs, categories, and notes.
 - IPTV searches channel names, IP addresses, ports, sources, and notes.
 - Inventory searches every visible and custom field, including model and all stored serial numbers.
 - Confirmation buttons save a manual check. They do not perform automatic network or physical verification.
@@ -139,7 +139,7 @@ data/inventory.sqlite3   Main database
 data/backups/            Uploaded AV backup files and icons
 ```
 
-The SQLite database stores AV devices, IPTV channels, inventories, import history, confirmation history, and AV Backup metadata. The `data/backups` folder stores the actual equipment backup files.
+The SQLite database stores Devices, IPTV channels, inventories, import history, confirmation history, and AV Backup metadata. The `data/backups` folder stores the actual equipment backup files.
 
 To make a complete manual backup:
 

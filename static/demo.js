@@ -12,7 +12,7 @@
   const printableValue=(row,field)=>field==='validated'?(row[field]?'Confirmed':'Confirm IP'):field==='located'?(row[field]?'Located':'To be found'):field==='checked'?(row.checked?new Date(row.checked).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):'Never checked'):value(row,field);
   const button=(text,action,cls='quiet')=>{const node=el('button',text);node.type='button';node.className=cls;node.onclick=action;return node;};
   function render(){
-    const key=activeKey(),names={av:'AV Devices',iptv:'IPTV Channels',tv:'Spare TVs',scala:'Scala · Digital signage',parts:'Spare Parts'},query=$('demo-search').value.toLowerCase();
+    const key=activeKey(),names={av:'Devices',iptv:'IPTV Channels',tv:'Spare TVs',scala:'Scala · Digital signage',parts:'Spare Parts'},query=$('demo-search').value.toLowerCase();
     $('demo-title').textContent=names[key];$('demo-type-label').hidden=tab!=='inventory';$('demo-eyebrow').textContent=tab==='inventory'?'EQUIPMENT REGISTER':'BROADCAST DIRECTORY';
     $('demo-subtitle').textContent={av:'A fictional onboard AV network, ready to explore.',iptv:'Sample onboard and satellite channels in one directory.',tv:'Stock by model and deck, with calculated totals and check dates.',scala:'One player per location, with screen orientation at a glance.',parts:'Search parts by serial number, model, or storage location.'}[key];
     $('demo-hint').textContent={av:'Try IP validation or copy an address.',iptv:'Copy a sample multicast address.',tv:'Change a stock count or confirm a check.',scala:'Switch Vertical / Horizontal.',parts:'Click a status to mark a part located.'}[key];

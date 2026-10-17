@@ -74,7 +74,7 @@ async function loadOverview() {
 }
 function updatePageSummary(equipmentItems, inventoryName, profile = {}) {
   if (equipmentItems) equipmentPageSummary = {count:equipmentItems.length, locations:new Set(equipmentItems.map(item => item.location).filter(Boolean)).size, name:inventoryName,storage:profile.location_role!=='geographic'&&profile.location_role!=='none'&&!inventoryName?.toLowerCase().includes('scala')};
-  $('workspace-page-title').textContent = currentTab === 'backups' ? 'AV Backups' : currentTab === 'equipment' ? `Inventory${equipmentPageSummary ? ' · ' + equipmentPageSummary.name : ''}` : currentTab === 'iptv' ? 'IPTV' : 'AV Devices';
+  $('workspace-page-title').textContent = currentTab === 'backups' ? 'AV Backups' : currentTab === 'equipment' ? `Inventory${equipmentPageSummary ? ' · ' + equipmentPageSummary.name : ''}` : currentTab === 'iptv' ? 'IPTV' : 'Devices';
   if (currentTab === 'backups') {
     $('workspace-page-summary').textContent = 'Configuration files ready for recovery';
   } else if (currentTab === 'equipment') {
@@ -82,7 +82,7 @@ function updatePageSummary(equipmentItems, inventoryName, profile = {}) {
       ? `${equipmentPageSummary.count} ${equipmentPageSummary.count === 1 ? 'item' : 'items'}${equipmentPageSummary.storage ? ` across ${equipmentPageSummary.locations} ${equipmentPageSummary.locations === 1 ? 'location' : 'locations'}` : ''}`
       : 'Loading inventory…';
   } else if (!networkLoaded) {
-    $('workspace-page-summary').textContent = currentTab === 'iptv' ? 'Loading IPTV channels…' : 'Loading AV devices…';
+    $('workspace-page-summary').textContent = currentTab === 'iptv' ? 'Loading IPTV channels…' : 'Loading devices…';
   } else if (currentTab === 'iptv') {
     const count = devices.filter(item => item.record_type === 'iptv').length;
     $('workspace-page-summary').textContent = `${count} ${count === 1 ? 'channel' : 'channels'} running`;
@@ -337,7 +337,7 @@ function switchTab(type) {
   $('use-example').hidden = iptv;
   $('total-label').textContent = iptv ? 'Total channels' : 'Total devices';
   $('system-count-label').textContent = iptv ? 'Onboard / Satellite' : 'Video / Audio / Lighting';
-  $('list-title').textContent = iptv ? 'IPTV channels' : 'AV Devices';
+  $('list-title').textContent = iptv ? 'IPTV channels' : 'Devices';
   $('search-label').textContent = iptv ? 'Search channels' : 'Search devices';
   $('clear-filters').hidden = iptv;
   $('network-filters').classList.toggle('iptv-filters', iptv);
@@ -1419,7 +1419,7 @@ $('spreadsheet-form').onsubmit = async event => {
         try{await window.importWorkflow.write(entry,entry.row);}catch(error){entry.issues.push(error.message);remaining.push(entry);}
       }
       if(remaining.length){
-        const review=await reviewEquipmentBatch(remaining,index,entries.length,spreadsheetInventory || {name:tab==='iptv'?'IPTV Channels':'AV Devices',layout:{columns:[]}},profile?profile.columns.map(column=>[column.key,column.label]):importFields().map(([key,label])=>[key,label]),spreadsheetFile.filename,[...new Set(entries.map(entry=>entry.row.location).filter(Boolean))],tab!=='equipment');
+        const review=await reviewEquipmentBatch(remaining,index,entries.length,spreadsheetInventory || {name:tab==='iptv'?'IPTV Channels':'Devices',layout:{columns:[]}},profile?profile.columns.map(column=>[column.key,column.label]):importFields().map(([key,label])=>[key,label]),spreadsheetFile.filename,[...new Set(entries.map(entry=>entry.row.location).filter(Boolean))],tab!=='equipment');
         if(review.stopped){stopped=true;break;}
       }
       await load();index=end;
@@ -1466,7 +1466,7 @@ function showPastedLayoutSuggestion() {
   const unmatched=[...spreadsheetData.headers.filter((header,index)=>!used.has(index)),...(spreadsheetData.ignored_columns || [])];
   $('paste-layout-unmatched').hidden=!unmatched.length;
   $('paste-layout-unmatched').textContent='Headings without a direct field match: '+unmatched.join(', ')+'. Review these in field matching; some source details may be kept in Notes.';
-  $('paste-layout-summary').textContent=`${spreadsheetInventory?.name || (currentTab==='iptv'?'IPTV Channels':'AV Devices')} · Heading row ${spreadsheetData.header_row} · ${spreadsheetData.rows.length} source rows · ${matched} suggested field matches · Showing ${Math.min(5,preview.length)} sample rows`;
+  $('paste-layout-summary').textContent=`${spreadsheetInventory?.name || (currentTab==='iptv'?'IPTV Channels':'Devices')} · Heading row ${spreadsheetData.header_row} · ${spreadsheetData.rows.length} source rows · ${matched} suggested field matches · Showing ${Math.min(5,preview.length)} sample rows`;
   $('continue-paste-layout').disabled=false;$('keep-paste-layout').disabled=false;
   window.pasteWorkflow.render();
 }
@@ -1534,7 +1534,7 @@ function renderPastedHeadingControls(){
   $('paste-field-options-label').hidden=!choices;
   $('paste-field-options').value=(column.options || []).join('\n');
   $('paste-field-confirm').checked=network || !!column.require_confirmation;$('paste-field-confirm').disabled=skip||network;
-  $('paste-field-help').textContent=skip?'This source heading will not be mapped to a table column.':network?'AV Devices and IPTV use fixed fields and validation. Every pasted row is confirmed during review.':dependent||column.type==='calculated'?'This field is part of a calculated stock total, so its numeric control is preserved.':'These choices remain a draft until you start importing. Required fields will have a Checked box during import review; they cannot be added automatically.';
+  $('paste-field-help').textContent=skip?'This source heading will not be mapped to a table column.':network?'Devices and IPTV use fixed fields and validation. Every pasted row is confirmed during review.':dependent||column.type==='calculated'?'This field is part of a calculated stock total, so its numeric control is preserved.':'These choices remain a draft until you start importing. Required fields will have a Checked box during import review; they cannot be added automatically.';
 }
 $('paste-field-target').onchange=()=>{
   const setup=pastedFieldSetup,decision=setup.decisions[setup.index];decision.target=$('paste-field-target').value;
@@ -1639,7 +1639,7 @@ async function openPastedImport(options={}){
     $('paste-inventory-form').reset();
     $('paste-batch-location-options').replaceChildren(...(pasteInventory?window.equipmentUI.locations():[]).map(location=>new Option(location,location)));
     $('paste-inventory-error').hidden=true;$('continue-paste-inventory').disabled=true;
-    $('paste-inventory-target').textContent='Import into: '+(pasteInventory?.name || (currentTab==='iptv'?'IPTV Channels':'AV Devices'));
+    $('paste-inventory-target').textContent='Import into: '+(pasteInventory?.name || (currentTab==='iptv'?'IPTV Channels':'Devices'));
     $('paste-inventory-dialog').showModal();$('paste-inventory-text').focus();
   }catch(error){toast('Could not open pasted import: '+error.message);}
 }
@@ -1692,7 +1692,7 @@ function openPasteConfirmation(file,inventory){
   const options=[['none','No confirmation needed'],['ip','Confirm IP — check the network address afterward'],...(inventory?[['storage','Storage — To be found / Located afterward']]:[])];
   $('paste-confirmation-mode').replaceChildren(...options.map(([value,label])=>new Option(label,value)));
   $('paste-confirmation-mode').value=inventory?(inventory.layout?.confirmation_mode || (inventory.layout?.show_status===false?'none':'storage')):currentTab==='device'?'ip':'none';
-  $('paste-confirmation-target').textContent='Import into: '+(inventory?.name || (currentTab==='iptv'?'IPTV Channels':'AV Devices'));
+  $('paste-confirmation-target').textContent='Import into: '+(inventory?.name || (currentTab==='iptv'?'IPTV Channels':'Devices'));
   $('paste-confirmation-help').textContent=inventory?'This setting will apply to this inventory when import starts. Changing the workflow resets existing confirmation marks. Closing the draft keeps your current settings.':'This choice applies to records added in this paste. Existing records keep their current workflow.';
   $('paste-confirmation-error').hidden=true;$('paste-confirmation-dialog').showModal();
 }

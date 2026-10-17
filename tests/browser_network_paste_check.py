@@ -1,4 +1,4 @@
-"""Excel pastes on AV Devices and IPTV share column matching and editable review."""
+"""Excel pastes on Devices and IPTV share column matching and editable review."""
 import sys,tempfile,threading,shutil
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
@@ -36,7 +36,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 page.locator('#spreadsheet-dialog').wait_for(state='visible')
                 page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             paste('Venue\tDevice Name\tIP Address\tVLAN\tNotes\nSports Bar\tWall TV\t10.20.30.40\t50\tScreen one','none')
-            assert 'AV Devices' in page.locator('#paste-inventory-target').inner_text()
+            assert 'Devices' in page.locator('#paste-inventory-target').inner_text()
             assert page.locator('#map-ip').input_value()=='2'
             assert not app.inventory()
             page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')

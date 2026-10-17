@@ -104,7 +104,7 @@ def network_xlsx(rows, record_type=None):
     av = [dict(row, confirmation=confirmation(row)) for row in rows if row['record_type'] == 'device']
     channels = [row for row in rows if row['record_type'] == 'iptv']
     sections = [
-        ('AV devices', [('Venue','venue',24), ('Device name','name',30), ('IP Address','ip',20),
+        ('Devices', [('Venue','venue',24), ('Device name','name',30), ('IP Address','ip',20),
                         ('VLAN','vlan',10), ('System','discipline',16), ('Notes','notes',55),
                         ('IP confirmation','confirmation',20), ('Category','category',24)], av),
         ('IPTV channels', [('Channel name','name',30), ('IP Address','ip',20), ('Port','port',10),
@@ -282,11 +282,11 @@ def network_pdf(rows, record_type=None):
         else:
             channels.append([name, row['ip'], row['port'], row['channel_source'], row['notes']])
     sections = [
-        ('AV devices', ['VENUE','DEVICE','IP','VLAN','CONFIRMATION','SYSTEM','NOTES'], [.14,.16,.11,.07,.12,.11,.29], av),
+        ('Devices', ['VENUE','DEVICE','IP','VLAN','CONFIRMATION','SYSTEM','NOTES'], [.14,.16,.11,.07,.12,.11,.29], av),
         ('IPTV channels', ['CHANNEL','IP','PORT','SOURCE','NOTES'], [.21,.11,.08,.15,.45], channels)]
     if record_type:
         sections = [sections[0 if record_type == 'device' else 1]]
-    title = sections[0][0] if record_type else 'AV devices and IPTV channels'
+    title = sections[0][0] if record_type else 'Devices and IPTV channels'
     return pdf_report(title, sections)
 
 

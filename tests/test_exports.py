@@ -53,8 +53,8 @@ class ExportTests(unittest.TestCase):
         book = self.xlsx()
         self.assertEqual(book.properties.creator, 'avtrack')
         self.assertTrue(book.properties.title.startswith('avtrack'))
-        self.assertEqual(book.sheetnames, ['AV devices','IPTV channels'])
-        sheet = book['AV devices']
+        self.assertEqual(book.sheetnames, ['Devices','IPTV channels'])
+        sheet = book['Devices']
         self.assertEqual([cell.value for cell in sheet[1]], ['Venue','Device name','IP Address','VLAN','System','Notes','IP confirmation','Category'])
         rows = {cells[1].value: cells for cells in list(sheet)[1:]}
         cells = rows['ATEM video switcher']
@@ -121,7 +121,7 @@ class ExportTests(unittest.TestCase):
         self.assertIn('Inventory item 44', text)
 
     def test_empty_reports_download_without_inventing_records(self):
-        self.assertEqual(self.xlsx()['AV devices'].max_row, 1)
+        self.assertEqual(self.xlsx()['Devices'].max_row, 1)
         self.assertEqual(self.xlsx(True).active.max_row, 1)
         for scope, filename in [('/api/export','avtrack-network.pdf'), ('/api/equipment/export','avtrack-equipment.pdf')]:
             raw = self.download(scope + '.pdf', 'application/pdf', filename)
@@ -188,7 +188,7 @@ class ExportTests(unittest.TestCase):
         status, raw = self.request('/api/export.xlsx', 'POST', payload)
         self.assertEqual(status, 200)
         book = load_workbook(io.BytesIO(raw))
-        self.assertEqual([row[1] for row in list(book['AV devices'].values)[1:]], ['Selected panel', 'Selected camera'])
+        self.assertEqual([row[1] for row in list(book['Devices'].values)[1:]], ['Selected panel', 'Selected camera'])
         self.assertEqual(book['IPTV channels'].max_row, 1)
         status, raw = self.request('/api/export.pdf', 'POST', payload)
         self.assertEqual(status, 200)
@@ -237,8 +237,8 @@ class ExportTests(unittest.TestCase):
         channel = self.request('/api/devices', 'POST', dict(record_type='iptv', name='IPTV only news', ip='239.30.0.1', port=5000))[1]
         self.request('/api/equipment', 'POST', dict(brand='Equipment only brand'))
         for record_type, name, excluded, sheet_name, other_sheet in [
-            ('device', 'AV only camera', 'IPTV only news', 'AV devices', 'IPTV channels'),
-            ('iptv', 'IPTV only news', 'AV only camera', 'IPTV channels', 'AV devices'),
+            ('device', 'AV only camera', 'IPTV only news', 'Devices', 'IPTV channels'),
+            ('iptv', 'IPTV only news', 'AV only camera', 'IPTV channels', 'Devices'),
         ]:
             for ids in [None, [av['id'], channel['id']], []]:
                 payload = {'record_type':record_type}

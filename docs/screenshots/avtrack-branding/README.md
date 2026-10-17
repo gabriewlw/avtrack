@@ -6,7 +6,7 @@ Sample data is used in these screenshots. Headings use Space Grotesk and body te
 
 | Section | Desktop | Mobile | PDF | Export menu |
 | --- | --- | --- | --- | --- |
-| AV devices | [View](avtrack-av-devices-desktop.png) | [View](avtrack-av-devices-mobile.png) | [View](avtrack-av-devices-pdf.png) | [View](avtrack-av-devices-export-menu.png) |
+| Devices | [View](avtrack-av-devices-desktop.png) | [View](avtrack-av-devices-mobile.png) | [View](avtrack-av-devices-pdf.png) | [View](avtrack-av-devices-export-menu.png) |
 | IPTV channels | [View](avtrack-iptv-channels-desktop.png) | [View](avtrack-iptv-channels-mobile.png) | [View](avtrack-iptv-channels-pdf.png) | [View](avtrack-iptv-channels-export-menu.png) |
 | Equipment inventory | [View](avtrack-equipment-desktop.png) | [View](avtrack-equipment-mobile.png) | [View](avtrack-equipment-pdf.png) | [View](avtrack-equipment-export-menu.png) |
 
@@ -21,8 +21,8 @@ Other branding details:
 
 ## Desktop preview
 
-![AV devices desktop](avtrack-av-devices-desktop.png)
+![Devices desktop](avtrack-av-devices-desktop.png)
 
 ## PDF preview
 
-![AV devices report](avtrack-av-devices-pdf.png)
+![Devices report](avtrack-av-devices-pdf.png)

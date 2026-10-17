@@ -63,4 +63,4 @@ with tempfile.TemporaryDirectory() as tmp:
             assert not errors,errors
             browser.close()
     finally:server.shutdown();server.server_close()
-print('CSV, XLSX and JSON imports passed in AV Devices, IPTV and Inventory.')
+print('CSV, XLSX and JSON imports passed in Devices, IPTV and Inventory.')

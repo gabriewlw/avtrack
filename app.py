@@ -355,7 +355,7 @@ def set_device_system(device_id, value):
         if record is None:
             raise LookupError('Device not found.')
         if record['record_type'] != 'device':
-            raise ValueError('System dropdowns apply to AV devices.')
+            raise ValueError('System dropdowns apply to devices.')
         con.execute('UPDATE devices SET discipline=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', (discipline, device_id))
         return serialize(con.execute('SELECT * FROM devices WHERE id=?', (device_id,)).fetchone())
 
@@ -1024,7 +1024,7 @@ class Handler(BaseHTTPRequestHandler):
                     if before:
                         if not before.isascii() or not before.isdigit() or int(before)<1:raise ValueError('Choose a valid import history page.')
                         where.append('id<?');parameters.append(int(before))
-                    rows=con.execute("SELECT id,target,name,status,retired,updated_at,COALESCE(json_extract(state,'$.inventory.name'),CASE target WHEN 'device' THEN 'AV Devices' WHEN 'iptv' THEN 'IPTV Channels' ELSE 'Inventory' END) AS destination FROM import_sessions "+('WHERE '+' AND '.join(where)+' ' if where else '')+'ORDER BY id DESC LIMIT 50',parameters).fetchall()
+                    rows=con.execute("SELECT id,target,name,status,retired,updated_at,COALESCE(json_extract(state,'$.inventory.name'),CASE target WHEN 'device' THEN 'Devices' WHEN 'iptv' THEN 'IPTV Channels' ELSE 'Inventory' END) AS destination FROM import_sessions "+('WHERE '+' AND '.join(where)+' ' if where else '')+'ORDER BY id DESC LIMIT 50',parameters).fetchall()
                     return self.send(200,{'sessions':[dict(r) for r in rows]})
                 if path=='/api/import-sessions' and self.command=='POST':
                     value=self.body()
@@ -1118,13 +1118,13 @@ class Handler(BaseHTTPRequestHandler):
                 if 'record_type' in query:
                     record_type = query['record_type'][0]
                     if record_type not in ('device', 'iptv'):
-                        raise ValueError('Choose AV devices or IPTV channels for this export.')
+                        raise ValueError('Choose devices or IPTV channels for this export.')
                     rows = [row for row in rows if row['record_type'] == record_type]
             if self.command == 'POST':
                 if path.startswith('/api/export') and isinstance(payload, dict) and 'record_type' in payload:
                     record_type = payload['record_type']
                     if record_type not in ('device', 'iptv'):
-                        raise ValueError('Choose AV devices or IPTV channels for this export.')
+                        raise ValueError('Choose devices or IPTV channels for this export.')
                     rows = [row for row in rows if row['record_type'] == record_type]
                     if 'ids' in payload:
                         rows = selected_export_rows(rows, payload)
@@ -1336,7 +1336,7 @@ class Handler(BaseHTTPRequestHandler):
             if 'equipment_inventories.name' in str(exc):
                 message = 'An inventory with this name already exists.'
             elif 'Duplicate AV IP' in str(exc):
-                message = 'This IP address already exists in AV devices. Each AV IP must be unique, even across VLANs.'
+                message = 'This IP address already exists in Devices. Each device IP must be unique, even across VLANs.'
             else:
                 message = 'This assignment, serial number, or stock record already exists in the inventory.'
             self.send(409, {'error': message})

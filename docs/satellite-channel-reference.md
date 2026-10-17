@@ -17,7 +17,7 @@ Additional aliases in the local catalog cover common abbreviations and former na
 
 ## Logos
 
-Matched Galaxy 31 IPTV channel names display a locally bundled PNG logo immediately after the channel name, at the same height as the name’s font. The name stays visible if the logo fails to load; channels outside the supplied lineup and AV devices have no channel logo. Matching uses the same aliases and HD/SD suffix rules as import suggestions and does not depend on the saved source choice. The broader source suggestion catalog is preserved, but external logo references for channels outside the lineup have been removed. No logo requests are made to external services at runtime.
+Matched Galaxy 31 IPTV channel names display a locally bundled PNG logo immediately after the channel name, at the same height as the name’s font. The name stays visible if the logo fails to load; channels outside the supplied lineup and Devices have no channel logo. Matching uses the same aliases and HD/SD suffix rules as import suggestions and does not depend on the saved source choice. The broader source suggestion catalog is preserved, but external logo references for channels outside the lineup have been removed. No logo requests are made to external services at runtime.
 
 - [IPTV-org logo metadata](https://github.com/iptv-org/database/blob/69eca3be81cf5865ce891f34c9a1897b2c4ab9ea/data/logos.csv) — published logo URLs linked to channel IDs.
 - [TV logo image collection](https://github.com/tv-logo/tv-logos/tree/d32e347bb7c4c640dceec23957802ad9182f58a6) — source for the 18 bundled PNG images, selected for dark backgrounds. Each image’s exact source path is recorded in the catalog. ESPN Caribbean shares the ESPN US wordmark, and ESPN 2 Caribbean shares the ESPN 2 US wordmark.

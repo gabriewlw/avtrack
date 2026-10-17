@@ -26,7 +26,7 @@ with tempfile.TemporaryDirectory() as temp:
             errors = []
 
             def open_page(name):
-                identifier = {'AV devices':'device-tab', 'IPTV channels':'iptv-tab', 'Equipment inventory':'equipment-tab'}[name]
+                identifier = {'Devices':'device-tab', 'IPTV channels':'iptv-tab', 'Equipment inventory':'equipment-tab'}[name]
                 link = page.locator('#'+identifier)
                 if not link.is_visible():
                     page.locator('#nav-toggle').click()
@@ -68,7 +68,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert navigation.is_visible()
             assert navigation.get_by_role('link', name='Inventory', exact=True).is_visible()
             nav_toggle.press('Tab')
-            assert navigation.get_by_role('link', name='AV Devices', exact=True).evaluate('(node) => node === document.activeElement')
+            assert navigation.get_by_role('link', name='Devices', exact=True).evaluate('(node) => node === document.activeElement')
             page.keyboard.press('Escape')
             assert navigation.is_hidden()
             assert nav_toggle.evaluate('(node) => node === document.activeElement')
@@ -76,7 +76,7 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#hero-intro').click()
             assert navigation.is_hidden()
             nav_toggle.click()
-            navigation.get_by_role('link', name='AV Devices', exact=True).click()
+            navigation.get_by_role('link', name='Devices', exact=True).click()
             assert navigation.is_hidden() and nav_toggle.get_attribute('aria-expanded') == 'false'
             nav_toggle.click()
             page.set_viewport_size({'width':1440,'height':1000})
@@ -302,7 +302,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert not page.locator('.ip-confirm').count()
             assert page.locator('.device-row').count() == 3
             page.screenshot(path='/tmp/avtrack-iptv-mobile.png', full_page=True)
-            open_page('AV devices')
+            open_page('Devices')
             assert page.locator('.device-row').count() == 3
             assert page.get_by_role('button', name='Edit Ship information').count() == 0
             open_page('IPTV channels')
@@ -360,7 +360,7 @@ with tempfile.TemporaryDirectory() as temp:
             page.get_by_role('button', name='Edit equipment Neutrik XLR').wait_for()
             open_page('IPTV channels')
             assert page.locator('.device-row').count() == 3
-            open_page('AV devices')
+            open_page('Devices')
             assert page.locator('.device-row').count() == 3
             open_page('Equipment inventory')
             page.get_by_role('button', name='Edit equipment Neutrik XLR').wait_for()
@@ -368,7 +368,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert page.title() == 'avtrack - AV & IPTV and device management'
             # Requested CSV workflow: prioritize exact headers, clean venues,
             # skip repeated IPs across VLANs, and keep devices with text VLANs.
-            open_page('AV devices')
+            open_page('Devices')
             path = Path(temp) / 'venue-devices.csv'
             path.write_text('Device ID,o.O,Name,Location,IP,DEVICE NAME,VENUE,IP Adress,VLAN,Notes,Category,Inventory type,Channel source,Port,System\n'
                             'old-id,unwanted,Wrong name,Wrong location,invalid,CSV switcher,RD MAIN LOUNGE,10.24.176.90,1500,o.O\n'
@@ -431,7 +431,7 @@ with tempfile.TemporaryDirectory() as temp:
             page.get_by_role('button', name='IP confirmed for CSV camera', exact=True).wait_for()
             open_page('IPTV channels')
             assert not warnings.is_visible()
-            open_page('AV devices')
+            open_page('Devices')
             assert warnings.is_visible()
             page.get_by_role('button', name='Refresh', exact=True).click()
             page.get_by_role('button', name='Edit CSV lights', exact=True).wait_for()
@@ -535,7 +535,7 @@ with tempfile.TemporaryDirectory() as temp:
             accept_rows(1)
             page.get_by_role('button', name='Edit Unassigned channel', exact=True).wait_for()
             assert next(r for r in app.inventory() if r['name'] == 'Unassigned channel')['channel_source'] == ''
-            open_page('AV devices')
+            open_page('Devices')
             # Every row requires a decision. DHCP stays a shared marker, while
             # text can be corrected, cleared, marked DHCP, or skipped.
             before = len(app.inventory())
@@ -644,7 +644,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert page.locator('#directory-venue-title').is_hidden()
             assert page.locator('#directory-vlan-title').is_hidden()
             assert page.locator('#directory-system-title').inner_text() == 'SOURCE'
-            open_page('AV devices')
+            open_page('Devices')
             brand = page.locator('.site-footer strong')
             page.evaluate('document.fonts.ready')
             assert 'JetBrains Mono' in brand.evaluate('(node) => getComputedStyle(node).fontFamily')
@@ -702,8 +702,8 @@ with tempfile.TemporaryDirectory() as temp:
                 page.locator('#inventory').get_by_role('link', name='XLSX ↓', exact=True).click()
             assert download.value.suggested_filename == 'avtrack-av-devices.xlsx'
             workbook = load_workbook(io.BytesIO(Path(download.value.path()).read_bytes()))
-            assert workbook.sheetnames == ['AV devices']
-            exported = next(row for row in list(workbook['AV devices'].values)[1:] if row[1] == 'Unassigned camera')
+            assert workbook.sheetnames == ['Devices']
+            exported = next(row for row in list(workbook['Devices'].values)[1:] if row[1] == 'Unassigned camera')
             assert exported[4] == 'Video' and exported[5] == 'Exported immediately after edit'
             open_export_menu('inventory')
             with page.expect_download() as download:
@@ -734,7 +734,7 @@ with tempfile.TemporaryDirectory() as temp:
                     'notes':'Sorting fixture', 'venue':'Sort venue', 'vlan':1500,
                 })
                 assert response.status == 201, response.text()
-            open_page('AV devices')
+            open_page('Devices')
             page.locator('#refresh').click()
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
             page.locator('#search').fill('Sorting fixture')
@@ -771,7 +771,7 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#sort-order').select_option('system-desc')
             assert names() == ['IPTV sort A','IPTV sort Z']
             assert page.locator('#sort-order option[value="system-desc"]').inner_text() == 'Source · Z–A'
-            open_page('AV devices')
+            open_page('Devices')
             assert page.locator('#sort-order').input_value() == 'name-asc'
             page.locator('#refresh').click()
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
@@ -855,8 +855,8 @@ with tempfile.TemporaryDirectory() as temp:
             assert [row['name'] for row in csv.DictReader(io.StringIO(raw.decode('utf-8-sig')))] == ['Sort Alpha', 'Sort foxtrot']
             raw = scoped_download('inventory', 'XLSX ↓', 'filtered')
             book = load_workbook(io.BytesIO(raw))
-            assert [row[1] for row in list(book['AV devices'].values)[1:]] == ['Sort Alpha', 'Sort foxtrot']
-            assert book.sheetnames == ['AV devices']
+            assert [row[1] for row in list(book['Devices'].values)[1:]] == ['Sort Alpha', 'Sort foxtrot']
+            assert book.sheetnames == ['Devices']
             raw = scoped_download('inventory', 'PDF ↓', 'filtered')
             assert b'http://10.99.0.10' in raw and b'http://200.1.1.1' in raw
             assert b'http://10.99.0.2' not in raw
@@ -876,7 +876,7 @@ with tempfile.TemporaryDirectory() as temp:
             exported = json.loads(scoped_download('inventory', 'JSON ↓', 'selected'))['devices']
             assert [row['name'] for row in exported] == ['IPTV sort A']
             assert exported[0]['record_type'] == 'iptv'
-            open_page('AV devices')
+            open_page('Devices')
             assert page.locator('#network-selection-count').inner_text().startswith('1 selected')
             page.locator('#clear-network-selection').click()
             assert page.locator('#network-export-scope').input_value() == 'filtered'
@@ -920,7 +920,7 @@ with tempfile.TemporaryDirectory() as temp:
             for name, venue in [('Batch delete A','Batch theatre'), ('Batch delete B','Batch theatre'), ('Batch keep C','Batch lounge')]:
                 response = page.request.post(f'http://127.0.0.1:{server.server_port}/api/devices', data={'name':name,'venue':venue})
                 assert response.status == 201
-            open_page('AV devices')
+            open_page('Devices')
             page.locator('#refresh').click()
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
             clear_network_filters()
@@ -961,7 +961,7 @@ with tempfile.TemporaryDirectory() as temp:
             for name in ['Decoder cabin 1', 'Decoder cabin 2', 'Encoder keep']:
                 response = page.request.post(f'http://127.0.0.1:{server.server_port}/api/devices', data={'name':name})
                 assert response.status == 201
-            open_page('AV devices')
+            open_page('Devices')
             page.locator('#refresh').click()
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
             clear_network_filters()
@@ -976,7 +976,7 @@ with tempfile.TemporaryDirectory() as temp:
             rows = json.loads(scoped_download('inventory', 'JSON ↓', 'selected'))['devices']
             assert [row['name'] for row in rows]==matching
             book = load_workbook(io.BytesIO(scoped_download('inventory', 'XLSX ↓', 'selected')))
-            assert book.sheetnames==['AV devices']
+            assert book.sheetnames==['Devices']
             assert [row[1] for row in list(book.active.values)[1:]]==matching
             raw = scoped_download('inventory', 'CSV ↓', 'selected')
             assert [row['name'] for row in csv.DictReader(io.StringIO(raw.decode('utf-8-sig')))]==matching
@@ -987,8 +987,8 @@ with tempfile.TemporaryDirectory() as temp:
                 assert 'Encoder keep' not in text and 'IPTV channels' not in text
             # Every format, including All in this tab, stays within the active tab.
             for tab, record_type, sheet_name, excluded_heading in [
-                ('AV devices','device','AV devices','IPTV channels'),
-                ('IPTV channels','iptv','IPTV channels','AV devices'),
+                ('Devices','device','Devices','IPTV channels'),
+                ('IPTV channels','iptv','IPTV channels','Devices'),
             ]:
                 open_page(tab)
                 clear_network_filters()
@@ -1172,7 +1172,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert page.locator('.device-row').count() == 1
             assert 'Sport 24 HD' in page.locator('.device-row').inner_text()
             clear_network_filters()
-            open_page('AV devices')
+            open_page('Devices')
             assert page.locator('#search-label').text_content() == 'Search devices'
             assert page.locator('#clear-filters').is_visible()
             assert page.locator('.udp-address').count() == 0

@@ -13,7 +13,7 @@ window.importWorkflow = (() => {
     const stage=panel.id==='paste-inventory-dialog'?0:['paste-confirmation-dialog','paste-layout-dialog','paste-field-dialog','spreadsheet-dialog'].includes(panel.id)?1:panel.id==='inventory-import-review'?2:3;
     byId('import-workspace-steps').querySelectorAll('li').forEach((li,index)=>{li.classList.toggle('current',index===stage);li.classList.toggle('finished',index<stage);if(index===stage)li.setAttribute('aria-current','step');else li.removeAttribute('aria-current');});
     byId('import-workspace').setAttribute('aria-labelledby',panel.getAttribute('aria-labelledby') || 'import-workspace-title');
-    byId('import-workspace-caption').textContent=(currentTab==='equipment'?(panel.id==='paste-inventory-dialog'?pasteInventory?.name:spreadsheetInventory?.name) || 'Inventory':currentTab==='iptv'?'IPTV Channels':'AV Devices')+(stage!==0 && queue.length>1?` · Worksheet ${queueIndex+1} of ${queue.length}`:'');
+    byId('import-workspace-caption').textContent=(currentTab==='equipment'?(panel.id==='paste-inventory-dialog'?pasteInventory?.name:spreadsheetInventory?.name) || 'Inventory':currentTab==='iptv'?'IPTV Channels':'Devices')+(stage!==0 && queue.length>1?` · Worksheet ${queueIndex+1} of ${queue.length}`:'');
     if(stage===0)byId('import-workspace-saved').textContent='';
     if(!byId('import-workspace').open)byId('import-workspace').showModal();
     byId('import-workspace').scrollTop=0;

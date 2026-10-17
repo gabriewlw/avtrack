@@ -55,16 +55,16 @@ const terminalCommands = {
   ],
   status: [
     {text: 'AVTRACK WORKSPACE', tone: 'command-accent'},
-    {text: '  AV devices   READY   · IP addresses, VLANs and confirmation'},
+    {text: '  Devices   READY   · IP addresses, VLANs and confirmation'},
     {text: '  IPTV         READY   · Channel endpoints, ports and sources'},
     {text: '  Inventory    READY   · Excel import, locations and stock checks'},
     {text: '  AV backups   READY   · Local configuration recovery files'},
     {text: 'Runtime: local Python + SQLite · designed to work offline', tone: 'command-dim'}
   ],
   devices: [
-    {text: 'AV DEVICES', tone: 'command-accent'},
+    {text: 'DEVICES', tone: 'command-accent'},
     {text: 'Search equipment by name, venue, system, IP address or VLAN.'},
-    {text: 'Open AV Devices workspace →', href: '/#av'}
+    {text: 'Open Devices workspace →', href: '/#av'}
   ],
   iptv: [
     {text: 'IPTV CHANNELS', tone: 'command-accent'},
@@ -170,7 +170,7 @@ const revealObserver = new IntersectionObserver(entries => {
 document.querySelectorAll('[data-reveal]').forEach(item => revealObserver.observe(item));
 
 const sceneDetails = {
-  network: ['AV DEVICES', '01 / 04', 'Find, copy, and confirm technical addresses.'],
+  network: ['DEVICES', '01 / 04', 'Find, copy, and confirm technical addresses.'],
   iptv: ['IPTV CHANNELS', '02 / 04', 'Keep every stream endpoint ready to test.'],
   inventory: ['EQUIPMENT INVENTORY', '03 / 04', 'Review stock by location and resolve missing information.'],
   backups: ['AV BACKUPS', '04 / 04', 'Keep known-good recovery files ready.']
