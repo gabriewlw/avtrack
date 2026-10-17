@@ -90,7 +90,7 @@ class AppTests(unittest.TestCase):
         self.assertIn(b'View on GitHub', page)
         self.assertIn(b'aria-label="View AVTrack on GitHub (opens in a new tab)"', page)
         self.assertNotIn(b'>View the project ', page)
-        self.assertIn(b'<div class="storage-core"><img src="/favicon.svg" alt="AVTrack logo"><small>LOCAL WORKSPACE</small></div>', page)
+        self.assertIn(b'<div class="storage-core"><span class="storage-brand" aria-label="AVTrack">avtrack</span><small>LOCAL WORKSPACE</small></div>', page)
         self.assertNotIn(b'<div class="storage-core"><img src="/icon.svg"', page)
         self.assertEqual(self.request('/avtrack/')[0], 200)
         landing_css = self.request('/landing.css')[1]
@@ -185,9 +185,9 @@ class AppTests(unittest.TestCase):
                 self.assertIn(f'{token}: {value};', style)
         self.assertIn('body { margin: 0; background: var(--background); color: var(--foreground); }', style)
         self.assertIn('.primary { background: var(--primary); color: var(--primary-foreground); }', style)
-        self.assertIn("const CACHE = 'avtrack-offline-v61'", self.request('/service-worker.js')[1].decode())
+        self.assertIn("const CACHE = 'avtrack-offline-v62'", self.request('/service-worker.js')[1].decode())
         body = self.request('/')[1]
-        self.assertIn(b'AVTrack \xc2\xb7 v0.0.162', body)
+        self.assertIn(b'AVTrack \xc2\xb7 v0.0.163', body)
         self.assertNotIn(b'Reload workspace', body)
 
     def test_batch_delete_only_selected_ids_and_retry(self):
