@@ -158,7 +158,7 @@ class EquipmentInventoryTests(unittest.TestCase):
     def test_overview_counts_all_inventories_and_only_confirmed_fixed_av_ips(self):
         self.assertEqual(self.request('/api/overview')[1], {
             'av_total':0, 'av_validated':0, 'iptv_total':0, 'iptv_onboard':0,
-            'iptv_satellite':0, 'inventory_total':0, 'inventory_locations':0, 'inventory_count':1,
+            'iptv_satellite':0, 'inventory_total':0, 'inventory_locations':0, 'inventory_count':0,
             'backup_total':0, 'backup_size':0})
         av = self.request('/api/devices', 'POST', dict(name='Confirmed TV', ip='10.20.0.1'))[1]
         self.request(f"/api/devices/{av['id']}/confirm", 'POST', dict(ip=av['ip'], vlan=av['vlan']))
@@ -173,7 +173,7 @@ class EquipmentInventoryTests(unittest.TestCase):
         self.request('/api/equipment', 'POST', dict(description='Unknown location', inventory_id=spare))
         self.assertEqual(self.request('/api/overview')[1], {
             'av_total':3, 'av_validated':1, 'iptv_total':3, 'iptv_onboard':1,
-            'iptv_satellite':1, 'inventory_total':4, 'inventory_locations':2, 'inventory_count':3,
+            'iptv_satellite':1, 'inventory_total':4, 'inventory_locations':2, 'inventory_count':2,
             'backup_total':0, 'backup_size':0})
         self.request(f"/api/devices/{av['id']}", 'PUT', dict(name='Moved TV', ip='10.20.0.2'))
         self.assertEqual(self.request('/api/overview')[1]['av_validated'], 0)

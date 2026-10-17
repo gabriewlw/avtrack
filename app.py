@@ -537,7 +537,8 @@ def workspace_overview():
             (SELECT COUNT(*) FROM devices WHERE record_type='iptv' AND channel_source='Satellite') AS iptv_satellite,
             (SELECT COUNT(*) FROM equipment) AS inventory_total,
             (SELECT COUNT(DISTINCT NULLIF(location,'')) FROM equipment) AS inventory_locations,
-            (SELECT COUNT(*) FROM equipment_inventories) AS inventory_count,
+            (SELECT COUNT(*) FROM equipment_inventories i
+             WHERE i.name!='Equipment inventory' OR EXISTS (SELECT 1 FROM equipment e WHERE e.inventory_id=i.id)) AS inventory_count,
             (SELECT COUNT(*) FROM av_backups) AS backup_total,
             (SELECT COALESCE(SUM(size),0) FROM av_backups) AS backup_size""").fetchone()
         result=dict(row)

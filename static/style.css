@@ -737,6 +737,7 @@ main, dialog {
 
 .equipment-table-footer { align-items: center; }
 .equipment-table-footer .export-links { top: auto; bottom: calc(100% + 7px); }
+.inventory-catalog-empty > :not(.equipment-inventory-bar) { display:none !important; }
 
 #paste-layout-dialog{width:min(1120px,calc(100vw - 48px));max-width:calc(100vw - 48px)}
 .paste-layout-scroll{max-height:420px;overflow:auto;border:1px solid var(--border);border-radius:8px;margin:20px 0}

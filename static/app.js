@@ -74,13 +74,13 @@ async function loadOverview() {
 }
 function updatePageSummary(equipmentItems, inventoryName, profile = {}) {
   if (equipmentItems) equipmentPageSummary = {count:equipmentItems.length, locations:new Set(equipmentItems.map(item => item.location).filter(Boolean)).size, name:inventoryName,storage:profile.location_role!=='geographic'&&profile.location_role!=='none'&&!inventoryName?.toLowerCase().includes('scala')};
-  $('workspace-page-title').textContent = currentTab === 'backups' ? 'AV Backups' : currentTab === 'equipment' ? `Inventory${equipmentPageSummary ? ' · ' + equipmentPageSummary.name : ''}` : currentTab === 'iptv' ? 'IPTV' : 'Devices';
+  $('workspace-page-title').textContent = currentTab === 'backups' ? 'AV Backups' : currentTab === 'equipment' ? `Inventory${equipmentPageSummary?.name ? ' · ' + equipmentPageSummary.name : ''}` : currentTab === 'iptv' ? 'IPTV' : 'Devices';
   if (currentTab === 'backups') {
     $('workspace-page-summary').textContent = 'Configuration files ready for recovery';
   } else if (currentTab === 'equipment') {
-    $('workspace-page-summary').textContent = equipmentPageSummary
+    $('workspace-page-summary').textContent = equipmentPageSummary?.name
       ? `${equipmentPageSummary.count} ${equipmentPageSummary.count === 1 ? 'item' : 'items'}${equipmentPageSummary.storage ? ` across ${equipmentPageSummary.locations} ${equipmentPageSummary.locations === 1 ? 'location' : 'locations'}` : ''}`
-      : 'Loading inventory…';
+      : equipmentPageSummary ? 'No inventories added' : 'Loading inventory…';
   } else if (!networkLoaded) {
     $('workspace-page-summary').textContent = currentTab === 'iptv' ? 'Loading IPTV channels…' : 'Loading devices…';
   } else if (currentTab === 'iptv') {

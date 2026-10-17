@@ -18,7 +18,7 @@
   const crossChecks = new Map();
   const selectedItems = new Set();
   const pendingConfirmations = new Map();
-  let inventoryId = 1, inventories = [], inventoryReady = false, loadVersion = 0;
+  let inventoryId = 1, inventories = [], inventoryReady = false, inventoryCatalogEmpty = false, loadVersion = 0;
   let formInventoryId = 1, renamingInventoryId = null;
   let inventoryLoad = Promise.resolve();
   try { inventoryId = Number(localStorage.getItem('avtrack-equipment-inventory')) || 1; } catch (_) {}
@@ -79,12 +79,26 @@
     try {
       await Promise.all([...pendingConfirmations.values()]);
       const catalog = (await api('/api/equipment/inventories')).inventories;
-      const target = catalog.find(inventory => inventory.id === targetId) || catalog.find(inventory => inventory.id === 1) || catalog[0];
-      const records = (await api(`/api/equipment?inventory_id=${target.id}`)).equipment;
+      const placeholder = catalog.find(inventory => inventory.id === 1 && inventory.name === 'Equipment inventory');
+      const placeholderRecords = placeholder ? (await api('/api/equipment?inventory_id=1')).equipment : [];
+      const displayCatalog = placeholder && !placeholderRecords.length ? catalog.filter(inventory => inventory.id !== 1) : catalog;
+      const target = displayCatalog.find(inventory => inventory.id === targetId) || displayCatalog[0];
+      const records = target ? (target.id === 1 ? placeholderRecords : (await api(`/api/equipment?inventory_id=${target.id}`)).equipment) : [];
       if (version !== loadVersion) return false;
+      inventoryCatalogEmpty = !displayCatalog.length;
+      $('equipment-panel').classList.toggle('inventory-catalog-empty', inventoryCatalogEmpty);
+      if (inventoryCatalogEmpty) {
+        inventoryId = placeholder?.id || 1; inventories = []; items = []; inventoryReady = true;
+        $('equipment-inventory-select').replaceChildren(new Option('No inventories added', ''));
+        $('equipment-inventory-title').textContent = '';
+        try { localStorage.removeItem('avtrack-equipment-inventory'); } catch (_) {}
+        updatePageSummary([], '', {location_role:'none'});
+        await loadOverview();
+        return true;
+      }
       if (inventoryId !== target.id) resetEquipmentFilters(true);
-      inventoryId = target.id; inventories = catalog; items = records; inventoryReady = true;
-      $('equipment-inventory-select').replaceChildren(...catalog.map(inventory => new Option(inventory.name, inventory.id)));
+      inventoryId = target.id; inventories = displayCatalog; items = records; inventoryReady = true;
+      $('equipment-inventory-select').replaceChildren(...displayCatalog.map(inventory => new Option(inventory.name, inventory.id)));
       $('equipment-inventory-select').value = String(inventoryId);
       $('equipment-inventory-title').textContent = target.name;
       try { localStorage.setItem('avtrack-equipment-inventory', inventoryId); } catch (_) {}
@@ -104,7 +118,8 @@
     } finally {
       if (version === loadVersion) {
         $('equipment-refresh').disabled = false;
-        ['equipment-inventory-select','new-equipment-inventory','rename-equipment-inventory','delete-equipment-inventory','equipment-import','equipment-paste'].forEach(id => { $(id).disabled = !inventoryReady; });
+        $('new-equipment-inventory').disabled = !inventoryReady;
+        ['equipment-inventory-select','rename-equipment-inventory','delete-equipment-inventory','equipment-import','equipment-paste'].forEach(id => { $(id).disabled = !inventoryReady || inventoryCatalogEmpty; });
         $('equipment-rows').inert = !inventoryReady;
       }
     }
@@ -496,6 +511,7 @@
   };
   function openEquipment(item = null) {
     if (!inventoryReady) { toast('Wait for the inventory to finish loading.'); return; }
+    if (inventoryCatalogEmpty) { openInventoryForm(); return; }
     formInventoryId = item?.inventory_id ?? inventoryId;
     editingId = item?.id ?? null;
     equipmentForm.reset(); $('equipment-form-error').hidden = true;
@@ -679,7 +695,7 @@
   $('cancel-equipment-record-review').onclick = () => $('equipment-record-review-dialog').close();
   window.equipmentUI = {profile:()=>layout(),locations:()=>locations(),importReport:(id, report) => { importReports.set(id, report); renderEquipment(); },load:loadEquipment, open:openEquipment,
     currentInventory,
-    waitUntilReady:async () => { await inventoryLoad; return currentInventory(); },
+    waitUntilReady:async () => { await inventoryLoad; return inventoryCatalogEmpty ? null : currentInventory(); },
     flush:() => Promise.all([...pendingConfirmations.values()]),
     exportData:scope => {
       const inventory = currentInventory();
