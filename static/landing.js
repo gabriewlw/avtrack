@@ -58,7 +58,7 @@ const terminalCommands = {
     {text: '  Devices   READY   · IP addresses, VLANs and confirmation'},
     {text: '  IPTV         READY   · Channel endpoints, ports and sources'},
     {text: '  Inventory    READY   · Excel import, locations and stock checks'},
-    {text: '  AV backups   READY   · Local configuration recovery files'},
+    {text: '  Backups   READY   · Local configuration recovery files'},
     {text: 'Runtime: local Python + SQLite · designed to work offline', tone: 'command-dim'}
   ],
   devices: [
@@ -77,9 +77,9 @@ const terminalCommands = {
     {text: 'Open Inventory workspace →', href: '/inventory'}
   ],
   backups: [
-    {text: 'AV BACKUPS', tone: 'command-accent'},
+    {text: 'BACKUPS', tone: 'command-accent'},
     {text: 'Keep known-good Videohub, ATEM, receiver and OBS files ready.'},
-    {text: 'Open AV Backups workspace →', href: '/backups'}
+    {text: 'Open Backups workspace →', href: '/backups'}
   ],
   demo: [
     {text: 'EXHIBITION DEMO', tone: 'command-accent'},
@@ -173,7 +173,7 @@ const sceneDetails = {
   network: ['DEVICES', '01 / 04', 'Find, copy, and confirm technical addresses.'],
   iptv: ['IPTV CHANNELS', '02 / 04', 'Keep every stream endpoint ready to test.'],
   inventory: ['EQUIPMENT INVENTORY', '03 / 04', 'Review stock by location and resolve missing information.'],
-  backups: ['AV BACKUPS', '04 / 04', 'Keep known-good recovery files ready.']
+  backups: ['BACKUPS', '04 / 04', 'Keep known-good recovery files ready.']
 };
 const chapters = [...document.querySelectorAll('.story-chapter')];
 const scenes = [...document.querySelectorAll('[data-product-scene]')];

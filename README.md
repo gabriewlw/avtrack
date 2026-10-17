@@ -37,7 +37,7 @@ Paste cells directly from Excel or import CSV/XLSX files. AVTrack reads the head
 
 Use the source comparison tools after an import to check that spreadsheet records reached AVTrack. Blank values remain available for later inspection instead of blocking the entire import.
 
-### AV Backups
+### Backups
 
 Save known-good files for Videohubs, ATEM switchers, satellite receivers, OBS profiles, and other AV systems. Each record includes the device name, equipment type, date, notes, and an optional card icon.
 
@@ -100,7 +100,7 @@ A useful starting order is:
 1. Add one AV device manually and confirm that its layout fits your workflow.
 2. Paste a small section from an existing spreadsheet and review the suggested columns.
 3. Create the inventory types you need and import one location at a time.
-4. Add known-good recovery files under AV Backups.
+4. Add known-good recovery files under Backups.
 5. Export a report and copy the `data` folder to safe storage.
 
 ## Importing spreadsheets
@@ -136,10 +136,10 @@ By default, AVTrack uses:
 
 ```text
 data/inventory.sqlite3   Main database
-data/backups/            Uploaded AV backup files and icons
+data/backups/            Uploaded backup files and icons
 ```
 
-The SQLite database stores Devices, IPTV channels, inventories, import history, confirmation history, and AV Backup metadata. The `data/backups` folder stores the actual equipment backup files.
+The SQLite database stores Devices, IPTV channels, inventories, import history, confirmation history, and backup metadata. The `data/backups` folder stores the actual equipment backup files.
 
 To make a complete manual backup:
 
@@ -282,7 +282,7 @@ Use Python 3.12 or newer, recreate `.venv`, and run the dependency installation 
 ```text
 app.py                 Local HTTP server, API, and SQLite storage
 static/                Browser interface, styles, fonts, and offline assets
-data/                  Local database and uploaded AV backup files
+data/                  Local database and uploaded backup files
 docs/                  Examples, screenshots, and workflow documentation
 tests/                 Backend and browser checks
 requirements.txt       Pinned Python dependencies

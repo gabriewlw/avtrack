@@ -56,7 +56,7 @@
       $('open-backup-folder').textContent=folderInfo.can_open?'Open backup folder':'Copy backup folder path';
       loaded = true; $('backups-error').hidden = true; render();
     } catch (error) {
-      $('backups-error').textContent = `Could not load AV backups. ${error.message}`;
+      $('backups-error').textContent = `Could not load backups. ${error.message}`;
       $('backups-error').hidden = false;
     } finally { $('refresh-backups').disabled = false; }
   }
