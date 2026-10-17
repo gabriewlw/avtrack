@@ -175,6 +175,8 @@
       "primary_search": "asset_id",
       "identifier": "asset_id",
       "show_status": false,
+      "show_record_check": false,
+      "stock_check_history": false,
       "location_role": "geographic",
       "template": "scala",
       "unique_location": true

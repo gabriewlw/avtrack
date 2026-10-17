@@ -131,7 +131,10 @@
     renderLocationButtons();
     renderCustomFilters();
     const query = $('equipment-search').value.trim().toLowerCase(),serialQuery=serialKey(query);
-    const reviewFilter = $('equipment-review-filter').value;
+    const recordReview = recordChecksEnabled();
+    const reviewFilter = recordReview ? $('equipment-review-filter').value : '';
+    document.querySelector('.equipment-review-filter').hidden = !recordReview;
+    $('equipment-review-summary').hidden = !recordReview;
     const flaggedCount=items.filter(i => !i.data_checked && equipmentIssues(i).length).length;
     const flaggedLink=element('a','',`${flaggedCount} flagged`);
     flaggedLink.href='#equipment-table';flaggedLink.onclick=showFlaggedEquipment;
@@ -141,7 +144,7 @@
       document.createTextNode(showLocatedStatus() ? ` · ${items.filter(i => !i.item_confirmed).length} ${ipConfirmation()?'IPs':'locations'} not confirmed` : ''));
     const results = items.filter(item => (layout().stock_mode!=='tv_counts'||$('equipment-show-zero').checked||item.quantity!==0) && ([...fields.map(field=>item[field]),...Object.values(item.custom_values || {}),
       ...(showLocatedStatus() ? [item.item_confirmed ? confirmedLabel() : pendingLabel()] : []),
-      item.data_checked ? 'Stock confirmed' : 'Confirm stock'
+      ...(recordReview ? [item.data_checked ? 'Stock confirmed' : 'Confirm stock'] : [])
     ].some(value => String(value ?? '').toLowerCase().includes(query)) || (serialQuery && serialKey(item.serial_number).includes(serialQuery))) &&
       [...customFilterValues].every(([key,value]) => !value || String(inventoryValue(item,key)) === value) &&
       (!$('equipment-location-filter').value || item.location === $('equipment-location-filter').value) &&

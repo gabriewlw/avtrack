@@ -9,7 +9,7 @@ SCALA_PROFILE = {'columns':[
     {'key':'location','label':'Where','type':'text','important':True,'filter':'none','options':[]},
     {'key':'monitor_model','label':'Monitor model','type':'text','important':True,'filter':'dropdown','options':[]},
     {'key':'orientation','label':'Orientation','type':'buttons','important':False,'filter':'dropdown','options':['Vertical','Horizontal']},
-    {'key':'notes','label':'Notes','type':'text','important':False,'filter':'none','options':[]}], 'primary_search':'asset_id', 'identifier':'asset_id', 'show_status':False, 'unique_location':True}
+    {'key':'notes','label':'Notes','type':'text','important':False,'filter':'none','options':[]}], 'primary_search':'asset_id', 'identifier':'asset_id', 'show_status':False, 'show_record_check':False, 'stock_check_history':False, 'unique_location':True}
 
 
 def validate_profile(value):

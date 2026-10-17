@@ -28,8 +28,10 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#equipment-inventory-select').select_option(str(scala['id']))
             page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled && document.getElementById('equipment-inventory-title').textContent==='Scala inventory'")
             headers=page.locator('#equipment-table th').all_text_contents()
-            assert 'Status' not in headers and 'Serial number' not in headers
+            assert 'Status' not in headers and 'Serial number' not in headers and 'Stock check' not in headers and 'Last checked' not in headers
             assert not page.locator('.equipment-status-group').is_visible()
+            assert not page.locator('.equipment-review-filter').is_visible()
+            assert not page.locator('#equipment-review-summary').is_visible()
             assert not page.locator('#equipment-found').is_visible()
             assert page.locator('#equipment-rows .equipment-confirm').count()==0
             page.locator('#equipment-configure-columns').click()
@@ -53,4 +55,4 @@ with tempfile.TemporaryDirectory() as temporary:
             browser.close()
     finally:
         server.shutdown()
-print('Delete-column persistence/data retention and existing Scala serial/status removal passed; stock controls remain available.')
+print('Delete-column persistence/data retention and existing Scala serial, status, and stock-check removal passed.')

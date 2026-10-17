@@ -542,6 +542,8 @@ def equipment_inventory_details(con, inventory_id):
         if layout.get('identifier') and layout['identifier'] not in keys:
             layout['identifier'] = 'asset_id' if 'asset_id' in keys else ''
         layout['show_status'] = False
+        layout['show_record_check'] = False
+        layout['stock_check_history'] = False
         layout['unique_location'] = True
     if layout.get('confirmation_mode'):layout['show_status']=layout['confirmation_mode']!='none'
     if layout: record['layout'] = layout
