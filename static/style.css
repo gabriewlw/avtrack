@@ -704,7 +704,21 @@ main, dialog {
 @media(max-width:600px){.venue-editor-row.inventory-location-editor{grid-template-columns:minmax(0,1fr) auto}.inventory-location-editor>label{grid-column:1}.inventory-location-editor>.delete-import-location{grid-column:2;grid-row:1/3}}
 
 #paste-inventory-dialog{width:min(880px,calc(100vw - 48px));max-width:calc(100vw - 48px)}
+#paste-inventory-dialog .dialog-heading{align-items:flex-start;margin-bottom:14px}
+#paste-inventory-dialog .dialog-heading .icon-button{margin-top:0}
+#paste-inventory-dialog .paste-import-intro{max-width:920px;margin:0 0 6px;line-height:1.55}
+#paste-inventory-target{margin:0 0 16px;color:var(--accent-text);font:500 11px/1.5 var(--mono);letter-spacing:.04em}
+#import-paste-resume:not(:empty){display:flex;align-items:center;justify-content:space-between;gap:20px;margin:0 0 16px;padding:12px 14px;border:1px solid var(--border);border-radius:8px;background:var(--card)}
+.import-resume-copy{display:flex;min-width:0;flex-direction:column;gap:3px}
+.import-resume-copy strong{color:var(--text);font:600 13px/1.4 var(--sans)}
+.import-resume-copy span{color:var(--muted);font-size:12px;line-height:1.45}
+#import-paste-resume button{min-height:38px;flex:0 0 auto;padding:8px 14px}
+.paste-cells-field,.paste-sheet-field{margin:0}
+.paste-cells-field{gap:8px}
+.paste-sheet-field{margin-top:14px}
+.paste-import-note{margin:10px 0 0;font-size:12px;line-height:1.5}
 #paste-inventory-text{width:100%;min-height:240px;max-height:50vh;resize:vertical;white-space:pre;font:12px/1.7 var(--mono)}
+@media(max-width:640px){#import-paste-resume:not(:empty){align-items:stretch;flex-direction:column;gap:10px}#import-paste-resume button{width:100%}}
 
 #equipment-notes-dialog{width:min(680px,calc(100vw - 48px));max-width:calc(100vw - 48px)}
 #equipment-notes-text{width:100%;min-height:200px;max-height:55vh;resize:vertical;line-height:1.7}

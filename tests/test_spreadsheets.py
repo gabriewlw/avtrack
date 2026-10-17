@@ -26,6 +26,19 @@ def workbook_bytes():
 
 
 class SpreadsheetParserTests(unittest.TestCase):
+    def test_headerless_markdown_keeps_first_record_and_full_width(self):
+        raw = b'''| RADIANCE | 1 | Forward Cam | Axis Q1755 | 239.252.4.2 | 1234 | 239.252.2.61 | 1234 | |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| RADIANCE | 5 | ESPN U | TRANSCODER | 239.252.5.37 | 1234 | 239.252.1.5 | 2000 | H.264 |
+| RADIANCE | 17 | Insider TV | Castus | &#x9;239.252.2.17 | 1234 | 239.252.2.17 | 1234 | |'''
+        result = preview(encoded(raw, 'channels.csv', pasted=True))
+        self.assertTrue(result['generated_headers'])
+        self.assertEqual(result['headers'], [f'Column {number}' for number in range(1, 10)])
+        self.assertEqual(len(result['rows']), 3)
+        self.assertEqual(result['rows'][0][2], 'Forward Cam')
+        self.assertEqual(result['rows'][1][8], 'H.264')
+        self.assertEqual(result['rows'][2][4], '239.252.2.17')
+
     def test_worksheet_catalog_does_not_depend_on_header_row(self):
         result = preview(encoded(workbook_bytes(), sheets_only=True, header_row=50))
         self.assertEqual(result, {'sheets':['Cover','Devices']})

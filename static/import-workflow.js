@@ -158,8 +158,10 @@ window.importWorkflow = (() => {
     const {sessions}=await api('/api/import-sessions?target='+encodeURIComponent(destination));
     const previous=sessions.find(record=>!record.retired && record.status!=='complete');
     const box=byId('import-paste-resume');box.replaceChildren();if(!previous)return;
+    const resumeCopy=el('div','import-resume-copy');
+    resumeCopy.append(el('strong','',`Saved draft · ${previous.name}`),el('span','', 'Continue where you stopped, or paste a new table below.'));
     const resumeButton=el('button','secondary','Resume previous import');resumeButton.type='button';resumeButton.onclick=()=>{byId('paste-inventory-dialog').close();resume(previous.id).catch(error=>toast(error.message));};
-    box.append(el('p','dialog-intro',`Saved draft: ${previous.name}. Resume it or paste a new table below.`),resumeButton);
+    box.append(resumeCopy,resumeButton);
   }
   async function compare(original){
     if(!session.target.startsWith('equipment:'))return;

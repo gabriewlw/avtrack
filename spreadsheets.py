@@ -2,6 +2,7 @@
 import base64
 import binascii
 import csv
+import html
 import io
 import re
 from itertools import chain, islice
@@ -22,17 +23,29 @@ def pasted_markdown_rows(text):
     """Read a copied Markdown table without treating its separator as an item."""
     def cells(line):
         parts=re.split(r'(?<!\\)\|',line.strip().strip('|'))
-        return [re.sub(r'\\([|*`_])',r'\1',part).strip() for part in parts]
+        return [html.unescape(re.sub(r'\\([|*`_])',r'\1',part)).strip() for part in parts]
     lines=text.splitlines()
     for index in range(1,min(2,len(lines))):
         separator=cells(lines[index])
         if len(separator)>1 and all(re.fullmatch(r':?-{3,}:?',part) for part in separator) and '|' in lines[index-1]:
-            rows=[cells(lines[index-1])]
+            first=cells(lines[index-1])
+            data=[]
             for line in lines[index+1:]:
                 if not line.strip():continue
                 if '|' not in line:break
-                rows.append(cells(line))
-            return rows
+                data.append(cells(line))
+            known={'brand','model','description','serial number','quantity','location','notes','channel','channel name','name','ip','ip address','multicast ip','port','source','venue','device'}
+            normalized={header_name(value) for value in first if value.strip()}
+            looks_like_data=not normalized.intersection(known) and (
+                any(re.fullmatch(r'(?:\d{1,3}\.){3}\d{1,3}',value.strip()) for value in first)
+                or sum(bool(re.fullmatch(r'-?\d+',value.strip())) for value in first)>=2
+            )
+            rows=[first,*data]
+            if looks_like_data:
+                width=max(map(len,rows))
+                rows=[[f'Column {number}' for number in range(1,width+1)],*rows]
+                return rows, True
+            return rows, False
     return None
 
 
@@ -117,7 +130,8 @@ def preview(payload):
             except csv.Error:
                 dialect = csv.excel
             markdown=pasted_markdown_rows(text) if payload.get('pasted') is True else None
-            source = markdown if markdown is not None else csv.reader(io.StringIO(text), dialect, **({'delimiter':delimiter} if delimiter is not None else {}))
+            generated_headers=bool(markdown and markdown[1])
+            source = markdown[0] if markdown is not None else csv.reader(io.StringIO(text), dialect, **({'delimiter':delimiter} if delimiter is not None else {}))
         confidence=None
         header_candidates=[]
         if payload.get('detect_header') and not pasted:
@@ -182,7 +196,7 @@ def preview(payload):
                 row_numbers.append(number)
         if payload.get('auto_header') and not headers:
             raise ValueError('Could not identify an inventory header within the first 50 rows.')
-        return {'headers': headers, 'rows': rows, 'row_numbers': row_numbers, 'sheets': sheets, 'sheet': sheet, 'ignored_columns': ignored_columns, 'header_row':header_row,'header_confidence':confidence, 'header_candidates':header_candidates, 'column_samples':[[row[i] for row in rows[:4]] for i in range(len(headers))]}
+        return {'headers': headers, 'rows': rows, 'row_numbers': row_numbers, 'sheets': sheets, 'sheet': sheet, 'ignored_columns': ignored_columns, 'header_row':header_row,'header_confidence':confidence, 'header_candidates':header_candidates, 'generated_headers':locals().get('generated_headers',False),'column_samples':[[row[i] for row in rows[:4]] for i in range(len(headers))]}
     except (BadZipFile, InvalidFileException, ParseError, DefusedXmlException, KeyError, csv.Error, OSError):
         raise ValueError('Could not read this spreadsheet. Save a fresh .xlsx or CSV UTF-8 copy in Excel.') from None
     finally:

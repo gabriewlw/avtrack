@@ -1198,14 +1198,14 @@ async function loadSpreadsheet(options={}) {
       row.append(element('span','',candidate.values.filter(Boolean).join(' · ').slice(0,360)),button);return row;
     }));
     $('import-header-candidates').hidden=!data.header_candidates?.length;
-    $('header-row-help').textContent=spreadsheetFile.pasted?'The first pasted row is always the header row. Multiword titles stay within their original Excel cells.':`Column headings found on row ${data.header_row}${data.header_confidence==='low'?' — check the sample headings below':''}. Change the number and reload if needed.`;
+    $('header-row-help').textContent=data.generated_headers?'No column headings were detected, so AVTrack kept the first record and created temporary Column 1, Column 2… headings. Match each temporary column to the correct IPTV field below.':spreadsheetFile.pasted?'The first pasted row is always the header row. Multiword titles stay within their original Excel cells.':`Column headings found on row ${data.header_row}${data.header_confidence==='low'?' — check the sample headings below':''}. Change the number and reload if needed.`;
     $('sheet-label').hidden = !data.sheets.length;
     $('sheet-choice').replaceChildren(...data.sheets.map(sheet => new Option(sheet, sheet)));
     $('sheet-choice').value = data.sheet;
     if(currentTab==='equipment')$('spreadsheet-title').textContent='Step 2: match file columns to your inventory';else $('spreadsheet-title').textContent='Match your columns';
     $('import-complete-options').hidden=currentTab!=='equipment';
     $('spreadsheet-review-help').textContent=currentTab==='equipment' ? 'Match each inventory field to a file column. Complete matched rows can be added automatically. Review remaining rows together, grouped by location; edit their cells and import or skip selected rows. Calculated totals need no file column. Zero-stock TV rows are skipped. Orientation is optional.' : 'Match each field to a column, or choose Leave blank. Missing columns and empty cells stay blank. Click Review rows, then select valid rows and import them together.';
-    $('spreadsheet-summary').textContent = `${spreadsheetFile.filename} · ${data.rows.length} records${spreadsheetInventory ? ' · Inventory: ' + spreadsheetInventory.name : ''}`;
+    $('spreadsheet-summary').textContent = `${spreadsheetFile.filename} · ${data.rows.length} records${spreadsheetInventory ? ' · Inventory: ' + spreadsheetInventory.name : ''}${data.generated_headers?' · Temporary headings added':''}`;
     if (data.ignored_columns?.length) $('spreadsheet-summary').textContent += ` · Ignored columns: ${data.ignored_columns.join(', ')}`;
     $('column-mappings').replaceChildren(...importFields().map(([field, label, aliases]) => {
       const group = element('div', 'mapping-row');
