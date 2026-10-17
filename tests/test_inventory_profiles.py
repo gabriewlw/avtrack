@@ -26,7 +26,7 @@ class InventoryProfileTests(unittest.TestCase):
         self.assertEqual(saved['custom_values'],row['custom_values'])
         self.assertEqual(app.equipment_inventory(),[])
         self.assertEqual(self.request('/api/equipment','POST',self.row(inventory,'SC-2',orientation='Upside down'))[0],400)
-        self.assertEqual(self.request('/api/equipment','POST',self.row(inventory,'SC-2',orientation='landscape'))[1]['custom_values']['orientation'],'Horizontal')
+        self.assertEqual(self.request('/api/equipment','POST',dict(self.row(inventory,'SC-2',orientation='landscape'),location='Bridge'))[1]['custom_values']['orientation'],'Horizontal')
         self.assertEqual(self.request('/api/equipment/inventories')[1]['inventories'][1]['layout'],SCALA_PROFILE)
 
     def test_custom_changes_reset_confirmations_and_stale_writes_fail(self):
@@ -60,18 +60,19 @@ class InventoryProfileTests(unittest.TestCase):
         inventory=self.request('/api/equipment/inventories','POST',dict(name='Custom',layout=profile))[1]['id']
         saved=self.request('/api/equipment','POST',self.row(inventory,custom_online='true',custom_zone='A'))[1]
         self.assertEqual(saved['custom_values']['custom_online'],'Yes')
-        custom=self.request('/api/equipment','POST',self.row(inventory,'SC-3',custom_zone='C'))[1]
+        custom=self.request('/api/equipment','POST',dict(self.row(inventory,'SC-3',custom_zone='C'),location='Bridge'))[1]
         self.assertEqual(custom['custom_values']['custom_zone'],'C')
         profile['columns']=profile['columns'][:-2]
         self.request(f'/api/equipment/inventories/{inventory}','PUT',dict(name='Custom',layout=profile))
-        self.assertEqual(app.equipment_inventory(inventory)[0]['custom_values']['custom_zone'],'A')
+        saved=next(row for row in app.equipment_inventory(inventory) if row['custom_values']['asset_id']=='SC-1')
+        self.assertEqual(saved['custom_values']['custom_zone'],'A')
         bad=copy.deepcopy(profile);bad['columns'][0]['key']='id'
         self.assertEqual(self.request(f'/api/equipment/inventories/{inventory}','PUT',dict(name='Custom',layout=bad))[0],400)
 
     def test_different_custom_ids_allow_same_stock_details(self):
         inventory=self.create()
-        for asset in ['SC-1','SC-2']:
-            row=dict(self.row(inventory,asset),brand='LG',model='55',description='Monitor',quantity=1)
+        for asset,location in [('SC-1','Lobby'),('SC-2','Bridge')]:
+            row=dict(self.row(inventory,asset),location=location,brand='LG',model='55',description='Monitor',quantity=1)
             self.assertEqual(self.request('/api/equipment','POST',row)[0],201)
         self.assertEqual(len(app.equipment_inventory(inventory)),2)
         self.assertEqual(self.request('/api/equipment','POST',self.row(inventory,'sc-1'))[0],400)
@@ -82,11 +83,14 @@ class InventoryProfileTests(unittest.TestCase):
         self.assertEqual(status,200)
         self.assertEqual(result['headers'][0],'Device ID')
 
-    def test_location_merge_keeps_distinct_custom_identifiers(self):
+    def test_scala_locations_are_unique_for_manual_and_file_imports(self):
         inventory=self.create()
-        for asset,location in [('SC-1','A'),('SC-2','B')]:
-            self.request('/api/equipment','POST',dict(self.row(inventory,asset),location=location,brand='LG',model='55',description='Monitor'))
-        self.assertEqual(self.request('/api/equipment/locations','POST',dict(inventory_id=inventory,action='merge',source='A',target='B'))[0],200)
-        records=app.equipment_inventory(inventory)
-        self.assertEqual(len(records),2)
-        self.assertEqual({row['custom_values']['asset_id'] for row in records},{'SC-1','SC-2'})
+        self.assertEqual(self.request('/api/equipment','POST',self.row(inventory,'SC-1'))[0],201)
+        self.assertEqual(self.request('/api/equipment','POST',self.row(inventory,'SC-2'))[0],400)
+        duplicate=[self.row(inventory,'SC-3'),dict(self.row(inventory,'SC-4'),location=' lobby ')]
+        status,result=self.request('/api/equipment/import','POST',dict(version=1,inventory_id=inventory,equipment=duplicate))
+        self.assertEqual(status,400)
+        self.assertIn('Repeated Scala locations',result['error'])
+        existing=self.request('/api/equipment/import','POST',dict(version=1,inventory_id=inventory,equipment=[self.row(inventory,'SC-5')]))[1]
+        self.assertEqual(existing,{'added':0,'skipped':1})
+        self.assertEqual(len(app.equipment_inventory(inventory)),1)

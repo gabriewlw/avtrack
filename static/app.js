@@ -903,7 +903,7 @@ function equipmentIssues(row,profile=window.equipmentUI?.profile() || defaultInv
 function orderEquipmentReview(entries) {
   const serialCounts = new Map();
   const profile=spreadsheetInventory?.layout || window.equipmentUI?.profile()||defaultInventoryLayout;const identifierCounts=new Map();
-  const rowIdentifier=row=>profile.stock_mode==='tv_counts'&&row.brand&&row.model?JSON.stringify([row.brand.trim().toLowerCase(),row.model.trim().toLowerCase()]):profile.identifier?String(inventoryValue(row,profile.identifier)).trim().toLowerCase():'';
+  const rowIdentifier=row=>profile.unique_location&&row.location?`location:${row.location.trim().toLowerCase()}`:profile.stock_mode==='tv_counts'&&row.brand&&row.model?JSON.stringify([row.brand.trim().toLowerCase(),row.model.trim().toLowerCase()]):profile.identifier?String(inventoryValue(row,profile.identifier)).trim().toLowerCase():'';
   entries.forEach(({row}) => { const key = serialKey(row.serial_number); if (key) serialCounts.set(key, (serialCounts.get(key) || 0) + 1); });
   entries.forEach(({row})=>{const value=rowIdentifier(row);if(value)identifierCounts.set(value,(identifierCounts.get(value)||0)+1);});
   const groups = new Map(),locationCounts=new Map();
@@ -911,7 +911,7 @@ function orderEquipmentReview(entries) {
   entries.forEach(entry => {
     entry.issues = equipmentIssues(entry.row,profile);
     profile.columns.filter(col=>col.require_confirmation).forEach(col=>entry.issues.push(`Confirm ${col.label} during review`));
-    if(identifierCounts.get(rowIdentifier(entry.row))>1)entry.issues.push('Repeated item identifier in this file');
+    if(identifierCounts.get(rowIdentifier(entry.row))>1)entry.issues.push(profile.unique_location?'Repeated Scala location in this file':'Repeated item identifier in this file');
     if (serialCounts.get(serialKey(entry.row.serial_number)) > 1) entry.issues.push('Repeated serial number in this file');
     const location = entry.row.location || '';
     if(location&&locationCounts.get(location)===1&&locationCounts.size>1)entry.issues.push('Unusual location: appears once in this paste');
@@ -1411,7 +1411,8 @@ $('spreadsheet-form').onsubmit = async event => {
       if(stopSpreadsheetReview){stopped=true;break;}
       const location=tab==='equipment'?entries[index].row.location:entries[index].row.venue || '';
       let end=index;
-      while(end<entries.length && (tab==='equipment'?entries[end].row.location:entries[end].row.venue || '')===location)end++;
+      if(profile?.unique_location) end=Math.min(index+50,entries.length);
+      else while(end<entries.length && (tab==='equipment'?entries[end].row.location:entries[end].row.venue || '')===location)end++;
       const batch=entries.slice(index,end),remaining=[];
       for(const entry of batch){
         const complete=profile && $('import-complete-rows').checked && !profile.columns.some(column=>column.require_confirmation) && !entry.issues.length && profile.columns.filter(column=>column.key!=='orientation'&&column.type!=='calculated').every(column=>(($('map-'+column.key)?.value ?? '')!=='' || column.key==='brand'&&profile.stock_mode==='tv_counts' || column.key==='location'&&(spreadsheetFile.default_location || spreadsheetFile.sheet_location)) && String(inventoryValue(entry.row,column.key)).trim()!=='');

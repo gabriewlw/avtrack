@@ -6,8 +6,8 @@ function reviewEquipmentBatch(entries, index, total, inventory, fields, filename
     fields=[...fields.filter(([key])=>key===identity),...fields.filter(([key])=>key!==identity)];
     let saving = false, finishing = false, finished = false;
     const outcomes = [];
-    $('inventory-import-review-title').textContent = network?'Review IP list':inventory.layout?.stock_mode==='tv_counts'?'Review TV models':`Review ${entries[0].row.location || 'unassigned location'}`;
-    $('inventory-import-review-progress').textContent = `${filename} · ${inventory.name} · ${network?(entries[0].row.venue || 'IP list'):entries[0].locationProgress.split(' · ').slice(0,2).join(' · ')} · ${entries.length} rows on this screen · ${total} source rows`;
+    $('inventory-import-review-title').textContent = network?'Review IP list':inventory.layout?.stock_mode==='tv_counts'?'Review TV models':inventory.layout?.unique_location?'Review Scala locations':`Review ${entries[0].row.location || 'unassigned location'}`;
+    $('inventory-import-review-progress').textContent = `${filename} · ${inventory.name} · ${network?(entries[0].row.venue || 'IP list'):inventory.layout?.unique_location?'Unique locations':entries[0].locationProgress.split(' · ').slice(0,2).join(' · ')} · ${entries.length} rows on this screen · ${total} source rows`;
     const head = element('tr');
     ['Select / source row', ...fields.map(([key,label]) => label.replace(' (optional)','')+(key==='orientation'?' (optional)':'')), 'Result'].forEach(label => {
       const cell=element('th','',label);cell.scope='col';head.append(cell);

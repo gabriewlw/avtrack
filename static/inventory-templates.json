@@ -79,7 +79,7 @@
   {
     "id": "scala",
     "name": "Scala",
-    "description": "Digital signage: one Scala per geographical location. No serial number or located status.",
+    "description": "Digital signage: one Scala per unique geographical location. No serial number or located status.",
     "layout": {
       "columns": [
         {
@@ -176,7 +176,8 @@
       "identifier": "asset_id",
       "show_status": false,
       "location_role": "geographic",
-      "template": "scala"
+      "template": "scala",
+      "unique_location": true
     }
   },
   {

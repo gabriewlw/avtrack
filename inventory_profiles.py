@@ -9,7 +9,7 @@ SCALA_PROFILE = {'columns':[
     {'key':'location','label':'Where','type':'text','important':True,'filter':'none','options':[]},
     {'key':'monitor_model','label':'Monitor model','type':'text','important':True,'filter':'dropdown','options':[]},
     {'key':'orientation','label':'Orientation','type':'buttons','important':False,'filter':'dropdown','options':['Vertical','Horizontal']},
-    {'key':'notes','label':'Notes','type':'text','important':False,'filter':'none','options':[]}], 'primary_search':'asset_id', 'identifier':'asset_id', 'show_status':False}
+    {'key':'notes','label':'Notes','type':'text','important':False,'filter':'none','options':[]}], 'primary_search':'asset_id', 'identifier':'asset_id', 'show_status':False, 'unique_location':True}
 
 
 def validate_profile(value):
@@ -77,7 +77,7 @@ def validate_profile(value):
         if type(value['show_status']) is not bool:
             raise ValueError('Choose whether to show location status.')
         result['show_status'] = value['show_status']
-    for key in ('stock_check_history','show_record_check','merge_duplicate_models'):
+    for key in ('stock_check_history','show_record_check','merge_duplicate_models','unique_location'):
         if key in value:
             if type(value[key]) is not bool:raise ValueError('Table check settings must be true or false.')
             result[key]=value[key]

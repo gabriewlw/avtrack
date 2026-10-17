@@ -509,6 +509,7 @@ def equipment_inventory_details(con, inventory_id):
         if layout.get('identifier') and layout['identifier'] not in keys:
             layout['identifier'] = 'asset_id' if 'asset_id' in keys else ''
         layout['show_status'] = False
+        layout['unique_location'] = True
     if layout.get('confirmation_mode'):layout['show_status']=layout['confirmation_mode']!='none'
     if layout: record['layout'] = layout
     return record
@@ -604,6 +605,8 @@ def save_equipment(value, item_id=None):
         identifier = profile_identifier(dict(row,custom_values=values), profile)
         if identifier and any(profile_identifier(equipment_record(saved),profile)==identifier for saved in con.execute('SELECT * FROM equipment WHERE inventory_id=? AND id!=?',(inventory_id,item_id or 0))):
             raise ValueError('This item identifier already exists in this inventory.')
+        if profile.get('unique_location') and row['location'] and any(saved['location'].strip().casefold()==row['location'].casefold() for saved in con.execute('SELECT location FROM equipment WHERE inventory_id=? AND id!=?',(inventory_id,item_id or 0))):
+            raise ValueError('This Scala location already has an item. Each location must be unique.')
         if item_id is None:
             cursor = con.execute('INSERT INTO equipment (' + ','.join(EQUIPMENT_FIELDS) + ',inventory_id,custom_values) VALUES (?,?,?,?,?,?,?,?,?)', [row[f] for f in EQUIPMENT_FIELDS] + [inventory_id,json.dumps(values,sort_keys=True)])
             item_id = cursor.lastrowid
@@ -897,6 +900,9 @@ def import_equipment(payload, connection=None):
     custom_ids = [identity for row in rows if (identity := profile_identifier(row,profile)) is not None]
     if len(custom_ids)!=len(set(custom_ids)):
         raise ValueError('Repeated item identifiers in this file. Nothing was imported.')
+    locations=[row['location'].strip().casefold() for row in rows if row['location']]
+    if profile.get('unique_location') and len(locations)!=len(set(locations)):
+        raise ValueError('Repeated Scala locations in this file. Each location must be unique. Nothing was imported.')
     identities = [identity for row in rows if not profile_identifier(row,profile) and (identity := equipment_identity(row)) is not None]
     if len(set(identities)) != len(identities):
         raise ValueError('Duplicate serial numbers or stock records in this file. Nothing was imported.')
@@ -906,10 +912,13 @@ def import_equipment(payload, connection=None):
             raise ValueError('Inventory columns changed. Refresh and try importing again.')
         existing = {identity for row in con.execute('SELECT * FROM equipment WHERE inventory_id=?', (inventory_id,)) if (identity := equipment_identity(dict(row))) is not None}
         existing_custom = {profile_identifier(equipment_record(saved),profile) for saved in con.execute('SELECT * FROM equipment WHERE inventory_id=?',(inventory_id,))}
+        existing_locations = {saved['location'].strip().casefold() for saved in con.execute('SELECT location FROM equipment WHERE inventory_id=?',(inventory_id,)) if saved['location']} if profile.get('unique_location') else set()
         added = 0
         for row in rows:
             custom_id = profile_identifier(row,profile)
             if custom_id and custom_id in existing_custom: continue
+            location_key=row['location'].strip().casefold()
+            if location_key and location_key in existing_locations: continue
             identity = None if custom_id else equipment_identity(row)
             if identity is not None and identity in existing:
                 continue
@@ -919,6 +928,7 @@ def import_equipment(payload, connection=None):
             con.execute('UPDATE equipment SET custom_values=? WHERE id=?',(json.dumps(row['custom_values'],sort_keys=True),item_id))
             added += 1
             if custom_id: existing_custom.add(custom_id)
+            if location_key: existing_locations.add(location_key)
             if identity is not None:
                 existing.add(identity)
     result={'added': added, 'skipped': len(rows)-added+zero_count}

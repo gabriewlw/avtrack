@@ -758,7 +758,7 @@ main, dialog {
 
 /* The import stays in one workspace as its steps change. */
 #import-workspace{width:min(1260px,calc(100vw - 48px));max-width:1260px;max-height:94vh;padding:28px;overflow:auto}
-#import-workspace[data-panel="inventory-import-review"]{width:min(1600px,calc(100vw - 24px));max-width:calc(100vw - 24px);height:calc(100dvh - 24px);max-height:calc(100dvh - 24px);padding:12px 16px;overflow:hidden;display:flex;flex-direction:column}
+#import-workspace[data-panel="inventory-import-review"]{width:min(1600px,calc(100vw - 16px));max-width:calc(100vw - 16px);height:calc(100dvh - 16px);max-height:calc(100dvh - 16px);padding:8px 12px;overflow:hidden;display:flex;flex-direction:column}
 #import-workspace[data-panel="inventory-import-review"] .import-workspace-top,
 #import-workspace[data-panel="inventory-import-review"] .import-steps{display:none}
 #import-workspace .import-step{width:100%;max-width:none;margin:0}
@@ -778,7 +778,7 @@ main, dialog {
 .batch-review-table th.batch-sticky{z-index:4}.batch-review-table .batch-identity{position:sticky;left:150px;z-index:2;background:var(--card);min-width:150px}
 .batch-review-table th.batch-identity{z-index:4}.batch-review-table .batch-row-result{position:sticky;right:0;z-index:2;background:var(--card);min-width:150px}
 #import-workspace .batch-review-table th,#import-workspace .batch-review-table td{width:auto;min-width:120px;max-width:210px;padding:8px}
-#import-workspace .batch-review-table th,#import-workspace .batch-review-table td{padding:4px 6px;height:36px}#import-workspace .batch-review-table input,#import-workspace .batch-review-table select{min-height:28px;height:28px;padding-top:3px;padding-bottom:3px}#import-workspace .batch-review-table textarea{min-height:28px;height:28px;padding:4px 6px}.batch-row-flags{font-size:10px;line-height:1.25;margin:3px 0 0}.batch-review-table .batch-notes-button{height:28px;min-height:28px}
+#import-workspace .batch-review-table th,#import-workspace .batch-review-table td{padding:3px 5px;height:30px}#import-workspace .batch-review-table input,#import-workspace .batch-review-table select{min-height:24px;height:24px;padding:2px 5px;font-size:11px}#import-workspace .batch-review-table textarea{min-height:24px;height:24px;padding:2px 5px;font-size:11px}.batch-row-flags{font-size:9px;line-height:1.15;margin:2px 0 0}.batch-review-table .batch-notes-button{height:24px;min-height:24px;padding:2px 6px}
 #import-workspace .batch-review-table .batch-sticky{min-width:150px;width:150px;max-width:150px}#import-workspace .batch-review-table .batch-row-result{max-width:180px}
 #import-workspace .batch-review-table .choice-buttons{flex-wrap:wrap}.batch-notes-button{max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .batch-review-table .batch-field-confirmation{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;color:#e7bd72}
