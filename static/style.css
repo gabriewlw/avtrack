@@ -346,8 +346,10 @@ input.equipment-confirm{width:18px;height:18px;min-height:18px;margin:0;padding:
 .device-directory.iptv-directory{--directory-columns:minmax(170px,1.2fr) 164px 280px 115px minmax(160px,.8fr) 104px}
 .udp-field{display:flex;align-items:center;gap:6px}
 .udp-field .udp-address{flex:1;min-width:0;min-height:30px;height:30px;padding:5px 7px;font:11px var(--mono)}
-.udp-field .udp-copy{display:flex;align-items:center;justify-content:center;flex:0 0 30px;min-height:30px;height:30px;padding:6px;border:1px solid var(--border);background:var(--secondary)}
-.udp-copy svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.udp-field .udp-copy,.udp-field .udp-vlc{display:flex;align-items:center;justify-content:center;flex:0 0 30px;width:30px;min-height:30px;height:30px;padding:6px;border:1px solid var(--border);border-radius:5px;background:var(--secondary);color:var(--muted-foreground);text-decoration:none}
+.udp-copy svg,.udp-vlc svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.udp-vlc:hover,.udp-vlc:focus-visible{border-color:#f28c28;color:#f28c28;background:color-mix(in oklab,#f28c28 10%,var(--secondary))}
+.udp-vlc.disabled{pointer-events:none;opacity:.45}
 .directory-head,.device-directory .device-row{display:grid;grid-template-columns:var(--directory-columns);gap:0;min-width:1010px;align-items:start;padding:0;border:0;border-radius:0}
 .directory-head{position:sticky;top:0;z-index:2;background:var(--secondary);border-bottom:1px solid var(--border);font:600 11px var(--font-ui);letter-spacing:1px;color:var(--muted-foreground)}
 .directory-head>span{padding:12px 10px}

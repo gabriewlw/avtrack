@@ -587,6 +587,7 @@ async function load() {
   } finally { $('loading').hidden = true; $('refresh').disabled = false; }
 }
 const copyIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>';
+const vlcIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 4.8 14H7.2L12 3Z"/><path d="M8.7 12h6.6M7.6 16h8.8M6 20h12"/></svg>';
 function udpCell(device) {
   const cell = element('div', 'udp-cell');
   const field = element('div', 'udp-field');
@@ -612,7 +613,13 @@ function udpCell(device) {
       toast(copied ? 'UDP address copied.' : 'UDP address selected. Copy it using your browser’s menu.');
     }
   };
-  field.append(input, copy); cell.append(field); return cell;
+  const vlc = element('a', 'udp-vlc');
+  vlc.setAttribute('aria-label', `Open ${deviceLabel(device)} network stream in VLC`);
+  vlc.title = input.value ? 'Open network stream in VLC' : 'Add an IP address and port to open this stream in VLC';
+  vlc.innerHTML = vlcIcon;
+  if (input.value) vlc.href = `vlc://${input.value}`;
+  else { vlc.classList.add('disabled'); vlc.setAttribute('aria-disabled', 'true'); }
+  field.append(input, copy, vlc); cell.append(field); return cell;
 }
 function ipCopyButton(device, addressText) {
   const button = element('button', 'ip-copy'); button.type = 'button';
