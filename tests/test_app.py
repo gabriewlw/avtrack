@@ -182,9 +182,9 @@ class AppTests(unittest.TestCase):
                 self.assertIn(f'{token}: {value};', style)
         self.assertIn('body { margin: 0; background: var(--background); color: var(--foreground); }', style)
         self.assertIn('.primary { background: var(--primary); color: var(--primary-foreground); }', style)
-        self.assertIn("const CACHE = 'avtrack-offline-v59'", self.request('/service-worker.js')[1].decode())
+        self.assertIn("const CACHE = 'avtrack-offline-v60'", self.request('/service-worker.js')[1].decode())
         body = self.request('/')[1]
-        self.assertIn(b'AVTrack \xc2\xb7 v0.0.160', body)
+        self.assertIn(b'AVTrack \xc2\xb7 v0.0.161', body)
         self.assertNotIn(b'Reload workspace', body)
 
     def test_batch_delete_only_selected_ids_and_retry(self):

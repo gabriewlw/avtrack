@@ -21,6 +21,11 @@ class ExportTests(unittest.TestCase):
     tearDown = test_app.AppTests.tearDown
     request = test_app.AppTests.request
 
+    def test_demo_pdf_export(self):
+        status,raw=self.request('/api/demo/export.pdf','POST',{'title':'IPTV Channels · Exhibition demo','columns':['Channel','Multicast IP','Port'],'rows':[['Ocean View','239.60.1.14','1234']]})
+        self.assertEqual(status,200)
+        self.assertTrue(raw.startswith(b'%PDF'))
+
     def download(self, path, mime, filename):
         with urlopen(self.url + path) as response:
             self.assertEqual(response.status, 200)

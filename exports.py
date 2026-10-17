@@ -290,6 +290,11 @@ def network_pdf(rows, record_type=None):
     return pdf_report(title, sections)
 
 
+def demo_pdf(title, labels, rows):
+    """Create a print-friendly report from the fictional exhibition table."""
+    return pdf_report(title, [('Exhibition sample', labels, [1 / len(labels)] * len(labels), rows)])
+
+
 def equipment_pdf(rows, inventory_name='Equipment inventory', layout=None):
     if layout:
         from inventory_profiles import column_value

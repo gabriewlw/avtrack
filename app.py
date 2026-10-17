@@ -19,7 +19,7 @@ from urllib.parse import parse_qs, urlsplit
 from spreadsheets import preview as spreadsheet_preview
 from reconciliation import reconcile, reconcile_profile
 from inventory_profiles import DEFAULT_PROFILE, SCALA_PROFILE, validate_profile, custom_values, profile_identifier, column_value, normalize_template_row
-from exports import network_xlsx, equipment_xlsx, network_pdf, equipment_pdf
+from exports import network_xlsx, equipment_xlsx, network_pdf, equipment_pdf, demo_pdf
 
 ROOT = Path(__file__).resolve().parent
 # AVTRACK_DB is canonical; legacy names keep existing deployments on their data.
@@ -1075,6 +1075,22 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header('Content-Length', '0')
             self.end_headers()
             return
+        if self.command == 'POST' and path == '/api/demo/export.pdf':
+            value=self.body()
+            if not isinstance(value,dict) or not isinstance(value.get('title'),str) or not value['title'].strip():
+                raise ValueError('Choose a demo table to export.')
+            labels=value.get('columns');rows=value.get('rows')
+            if not isinstance(labels,list) or not 1<=len(labels)<=12 or any(not isinstance(label,str) or not label.strip() or len(label)>120 for label in labels):
+                raise ValueError('Choose between 1 and 12 named demo columns.')
+            if not isinstance(rows,list) or len(rows)>1000 or any(not isinstance(row,list) or len(row)!=len(labels) for row in rows):
+                raise ValueError('Provide demo rows matching the selected columns.')
+            cleaned=[]
+            for row in rows:
+                if any(isinstance(cell,(dict,list)) or len(str(cell if cell is not None else ''))>2000 for cell in row):
+                    raise ValueError('Demo PDF cells must contain short text values.')
+                cleaned.append(['' if cell is None else str(cell) for cell in row])
+            slug=re.sub(r'[^a-z0-9]+','-',value['title'].lower()).strip('-') or 'demo'
+            return self.send(200,demo_pdf(value['title'].strip(),[label.strip() for label in labels],cleaned),'application/pdf',f'avtrack-demo-{slug}.pdf')
         exports = {
             '/api/export': (lambda rows: {'version':1, 'devices':rows}, inventory, 'application/json; charset=utf-8', 'avtrack-network.json'),
             '/api/export.csv': (network_csv, inventory, 'text/csv; charset=utf-8', 'avtrack-network.csv'),
