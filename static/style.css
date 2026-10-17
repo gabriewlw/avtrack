@@ -822,3 +822,6 @@ main, dialog {
 /* Keep the inventory transfer controls on one aligned desktop row. */
 #equipment-transfer{flex-wrap:nowrap}
 @media(max-width:900px){#equipment-panel .panel-heading{display:block}#equipment-transfer{margin-top:18px;justify-content:flex-start;flex-wrap:wrap}}
+
+/* Keep the primary workspace destinations visually consistent with the AVTrack wordmark. */
+#main-navigation a{text-transform:uppercase;letter-spacing:.08em}
