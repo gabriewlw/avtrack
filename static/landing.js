@@ -43,10 +43,6 @@ const terminalCommands = {
   help: [
     {text: 'AVTRACK COMMANDS', tone: 'command-accent'},
     {text: 'status      Show workspace capabilities', command: 'status'},
-    {text: 'devices     Open the device workspace', command: 'devices'},
-    {text: 'iptv        Open the IPTV channel workspace', command: 'iptv'},
-    {text: 'inventory   Open equipment inventory', command: 'inventory'},
-    {text: 'backups     Open the recovery-file archive', command: 'backups'},
     {text: 'demo        Explore AVTrack with sample data', command: 'demo'},
     {text: 'aboutme     Meet the technician behind AVTrack', command: 'aboutme'},
     {text: 'purpose     See who AVTrack is designed to help', command: 'purpose'},
@@ -77,26 +73,6 @@ const terminalCommands = {
     {text: '  Inventory    READY   · Excel import, locations and stock checks'},
     {text: '  Backups   READY   · Local configuration recovery files'},
     {text: 'Runtime: local Python + SQLite · designed to work offline', tone: 'command-dim'}
-  ],
-  devices: [
-    {text: 'DEVICES', tone: 'command-accent'},
-    {text: 'Search equipment by name, venue, system, IP address or VLAN.'},
-    {text: 'Open Devices workspace →', href: '/#av'}
-  ],
-  iptv: [
-    {text: 'IPTV CHANNELS', tone: 'command-accent'},
-    {text: 'Track onboard and satellite streams with IP, UDP port and source.'},
-    {text: 'Open IPTV workspace →', href: '/#iptv'}
-  ],
-  inventory: [
-    {text: 'EQUIPMENT INVENTORY', tone: 'command-accent'},
-    {text: 'Paste Excel tables, review missing data by location and confirm stock.'},
-    {text: 'Open Inventory workspace →', href: '/inventory'}
-  ],
-  backups: [
-    {text: 'BACKUPS', tone: 'command-accent'},
-    {text: 'Keep known-good Videohub, ATEM, receiver and OBS files ready.'},
-    {text: 'Open Backups workspace →', href: '/backups'}
   ],
   demo: [
     {text: 'EXHIBITION DEMO', tone: 'command-accent'},

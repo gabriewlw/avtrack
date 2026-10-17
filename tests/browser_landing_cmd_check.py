@@ -42,25 +42,30 @@ with tempfile.TemporaryDirectory() as temporary:
             page.get_by_role('button',name='purpose →',exact=True).click()
             assert 'WHY AVTRACK EXISTS' in page.locator('#command-output').inner_text()
             page.get_by_role('button',name='Next: help →',exact=True).click()
-            assert page.get_by_role('button',name='inventory   Open equipment inventory',exact=True).count()==1
+            assert page.get_by_role('button',name='demo        Explore AVTrack with sample data',exact=True).count()==1
+            assert page.get_by_role('button',name='devices     Open the device workspace',exact=True).count()==0
             terminal.fill('help');terminal.press('Enter')
             assert 'AVTRACK COMMANDS' in page.locator('#command-output').inner_text()
-            terminal.fill('inventory');terminal.press('Enter')
-            inventory_link=page.get_by_role('link',name='Open Inventory workspace →',exact=True)
-            assert inventory_link.get_attribute('href')=='/inventory'
-            terminal.press('ArrowUp');assert terminal.input_value()=='inventory'
+            assert page.locator('.command-accent').first.evaluate('(node)=>getComputedStyle(node).color')=='rgb(230, 230, 230)'
+            assert page.locator('.command-option button').first.evaluate('(node)=>getComputedStyle(node).textDecorationLine')=='none'
+            terminal.fill('demo');terminal.press('Enter')
+            demo_link=page.get_by_role('link',name='Launch the interactive demo →',exact=True)
+            assert demo_link.get_attribute('href')=='/demo'
+            terminal.press('ArrowUp');assert terminal.input_value()=='demo'
             terminal.fill('clear');terminal.press('Enter')
             assert page.locator('#command-output p').count()==0
             assert terminal.evaluate('(node)=>node===document.activeElement')
             storage_logo=page.locator('.storage-brand-mark')
             storage_logo.scroll_into_view_if_needed()
             assert storage_logo.inner_text()=='AVTRACK'
-            assert page.locator('.storage-visual>svg').count()==0
+            assert page.locator('.storage-brand-mark i').count()==0
+            assert page.locator('.storage-visual>svg path').get_attribute('d')=='M190 66L258 190M410 66L342 190M300 428V323'
             assert page.locator('.storage-core strong').count()==0
             actions=page.locator('.hero-copy .hero-actions .button')
             assert actions.count()==2
             widths=actions.evaluate_all('(nodes)=>nodes.map(node=>node.getBoundingClientRect().width)')
             assert abs(widths[0]-widths[1])<1,widths
+            assert actions.nth(1).evaluate('(node)=>getComputedStyle(node).whiteSpace')=='nowrap'
             cards=page.locator('.workflow-track article')
             heights=cards.evaluate_all('(nodes)=>nodes.map(node=>node.getBoundingClientRect().height)')
             assert max(heights)-min(heights)<1,heights
