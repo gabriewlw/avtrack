@@ -818,3 +818,7 @@ main, dialog {
 @media(max-width:540px){.paste-heading-inputs{grid-template-columns:1fr}}
 .paste-preview-settings h3{font-size:15px;margin:0 0 12px}.paste-analysis-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}.paste-analysis-card{border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--card)}.paste-analysis-card strong{display:block;font-size:12px;margin-bottom:4px}.paste-analysis-card span{font-size:11px;line-height:1.5;color:var(--muted)}.paste-choice-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px;border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:14px}.paste-choice-options label{align-items:flex-start}.batch-review-table td.batch-cell-missing{background:rgba(231,189,114,.12);box-shadow:inset 0 0 0 1px rgba(231,189,114,.35)}.batch-review-table td.batch-cell-missing:after{content:'Missing — fill later or import blank';display:block;margin-top:5px;font-size:10px;color:#e7bd72}
 @media(max-width:800px){.paste-analysis-grid,.paste-choice-options{grid-template-columns:1fr}}
+
+/* Keep the inventory transfer controls on one aligned desktop row. */
+#equipment-transfer{flex-wrap:nowrap}
+@media(max-width:900px){#equipment-panel .panel-heading{display:block}#equipment-transfer{margin-top:18px;justify-content:flex-start;flex-wrap:wrap}}
