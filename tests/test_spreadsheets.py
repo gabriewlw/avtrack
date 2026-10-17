@@ -39,6 +39,14 @@ class SpreadsheetParserTests(unittest.TestCase):
         self.assertEqual(result['rows'][1][8], 'H.264')
         self.assertEqual(result['rows'][2][4], '239.252.2.17')
 
+    def test_pasted_excel_rows_can_expand_beyond_header_width(self):
+        raw = b'Channel\tIP\tPort\nForward Cam\t239.252.4.2\t1234\nESPN\t239.252.1.5\t2000\tH.264\n'
+        result = preview(encoded(raw, 'channels.csv', pasted=True, delimiter='\t'))
+        self.assertTrue(result['generated_headers'])
+        self.assertEqual(result['headers'], ['Channel','IP','Port','Column 4'])
+        self.assertEqual(result['rows'][0], ['Forward Cam','239.252.4.2','1234',''])
+        self.assertEqual(result['rows'][1], ['ESPN','239.252.1.5','2000','H.264'])
+
     def test_worksheet_catalog_does_not_depend_on_header_row(self):
         result = preview(encoded(workbook_bytes(), sheets_only=True, header_row=50))
         self.assertEqual(result, {'sheets':['Cover','Devices']})

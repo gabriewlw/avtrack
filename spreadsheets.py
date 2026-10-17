@@ -184,7 +184,18 @@ def preview(payload):
                 headers = [values[i] or f'Column {i + 1}' for i in kept_columns]
             else:
                 if len(values) > column_count:
-                    raise ValueError(f'Row {number} has more columns than the chosen header row.')
+                    if not pasted:
+                        raise ValueError(f'Row {number} has more columns than the chosen header row.')
+                    # Excel omits empty cells at the end of copied rows. If a later
+                    # pasted row contains data in one of those cells, retain it as a
+                    # temporary column instead of blocking the whole import.
+                    previous_count=column_count
+                    column_count=len(values)
+                    kept_columns.extend(range(previous_count,column_count))
+                    headers.extend(f'Column {index + 1}' for index in range(previous_count,column_count))
+                    for saved_row in rows:
+                        saved_row.extend(['']*(column_count-len(saved_row)))
+                    generated_headers=True
                 values += [''] * (column_count - len(values))
                 values = ['' if values[i].lower() == 'o.o' else values[i] for i in kept_columns]
                 # Rows containing only IDs or placeholders do not describe a device.
