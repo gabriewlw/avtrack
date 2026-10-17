@@ -54,15 +54,18 @@ button { cursor: pointer; }
 button:disabled { opacity: .55; cursor: wait; }
 a { color: var(--accent-text); }
 button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 4px; }
-.topbar { border-bottom: 1px solid oklch(30% .012 260 / .7); background: oklch(16% .008 260 / .85); backdrop-filter: blur(8px); }
-.header-inner { max-width: 1152px; margin: auto; padding: 16px 20px; height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--foreground); font-size: 12px; font-weight: 700; letter-spacing: 2.5px; white-space: nowrap; }
+.topbar { position: sticky; z-index: 100; top: 0; border-bottom: 1px solid color-mix(in oklab,var(--border) 70%,transparent); background: color-mix(in oklab,var(--background) 85%,transparent); box-shadow: 0 10px 36px oklch(0 0 0 / 24%); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+.header-inner { width: 100%; max-width: 1152px; margin: auto; padding: 0 20px; height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--foreground); white-space: nowrap; text-transform: uppercase; }
+.brand-tally { width: 10px; height: 10px; flex: 0 0 10px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 12px 2px color-mix(in oklab,var(--primary) 60%,transparent); animation: tally-pulse 2.2s ease-in-out infinite; }
+.brand-credit { padding-left: 10px; border-left: 1px solid var(--border); color: var(--muted-foreground); font: 500 8px var(--mono); letter-spacing: .14em; }
 .status-dot, .eyebrow::before { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; background: var(--primary); box-shadow: 0 0 12px 2px color-mix(in oklab, var(--primary) 60%, transparent); animation: tally-pulse 2.2s ease-in-out infinite; }
 @keyframes tally-pulse { 50% { box-shadow: 0 0 5px 1px color-mix(in oklab, var(--primary) 32%, transparent); opacity: .82; } }
-nav { display: flex; align-items: center; gap: 4px; }
-nav a { text-decoration: none; color: oklch(62% .015 260); padding: 0 12px; font: 400 12px/18px var(--mono); letter-spacing: .1em; text-transform: uppercase; border-radius: 6px; height: 32px; min-height: 32px; display: flex; align-items: center; transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to; transition-duration: 150ms; transition-timing-function: cubic-bezier(.4, 0, .2, 1); }
-nav .nav-active { color: oklch(63% .24 25); background: oklch(27% .014 260); }
-nav a:hover { color: oklch(93% .01 90); }
+nav { display: flex; align-items: center; gap: 26px; }
+nav a { position: relative; display: flex; align-items: center; height: 40px; min-height: 40px; padding: 0; color: var(--muted-foreground); font: 500 13px/1 var(--font-ui); text-decoration: none; transition: color 150ms ease; }
+nav .nav-active { color: var(--foreground); background: transparent; }
+nav .nav-active::after { content:""; position:absolute; right:0; bottom:2px; left:0; height:2px; border-radius:2px; background:var(--primary); }
+nav a:hover { color: var(--foreground); }
 main { max-width: 1140px; margin: auto; padding: 58px 28px 48px; }
 .heading { display: grid; grid-template-columns: 1.45fr 1fr; gap: 72px; align-items: start; margin-bottom: 42px; }
 .eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 7px 11px; border: 1px solid var(--border); border-radius: 20px; background: var(--panel); color: var(--muted); font: 9px var(--font-ui); letter-spacing: 2px; margin: 0 0 20px; }
@@ -379,8 +382,8 @@ button.system-select{display:flex;justify-content:space-between;align-items:cent
 
 .device-ip,.network-ip,.vlan-cell{font-variant-numeric:tabular-nums}
 
-.brand-logo{display:flex;align-items:center;height:32px;font:700 32px/1 var(--font-display);letter-spacing:-1.6px;color:oklch(93% .01 90)}
-@media(max-width:639.98px){.brand-logo{font-size:28px;letter-spacing:-1.4px}}
+.brand-logo{display:flex;align-items:center;font:700 15px/1 var(--font-display);letter-spacing:.18em;color:var(--foreground)}
+@media(max-width:639.98px){.brand-logo{font-size:13px;letter-spacing:.16em}.brand-credit{display:none}}
 
 .network-card-top img{width:32px;height:32px;padding:6px;border:1px solid color-mix(in oklab, var(--primary) 30%, var(--border));border-radius:8px;background:color-mix(in oklab, var(--primary) 6%, var(--card))}
 .network-card-top>span{display:inline-flex;align-items:center;gap:7px}
