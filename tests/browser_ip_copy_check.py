@@ -69,8 +69,7 @@ with tempfile.TemporaryDirectory() as temp:
             page.wait_for_function("() => document.getElementById('toast').textContent === 'IP address copied.'")
             assert page.evaluate('navigator.clipboard.readText()') == '239.252.2.122'
             assert page.locator('.udp-copy').count() == 1
-            vlc = page.get_by_role('link', name='Open News channel network stream in VLC', exact=True)
-            assert vlc.get_attribute('href') == 'vlc://udp://@239.252.2.122:1234'
+            vlc = page.get_by_role('button', name='Open News channel network stream in VLC', exact=True)
             sizes = page.locator('.udp-field').evaluate("node => { const copy=node.querySelector('.udp-copy').getBoundingClientRect(),vlc=node.querySelector('.udp-vlc').getBoundingClientRect(); return [copy.width,copy.height,vlc.width,vlc.height]; }")
             assert sizes == [30,30,30,30],sizes
             # Exports come from saved data, not the website controls.

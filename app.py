@@ -37,6 +37,39 @@ def backup_directory():
     return Path(os.environ.get('AVTRACK_BACKUP_DIR') or DB_PATH.parent / 'backups')
 
 
+def vlc_executable():
+    """Return the locally installed VLC executable, if available."""
+    configured = os.environ.get('AVTRACK_VLC')
+    candidates = [configured] if configured else []
+    candidates.extend(filter(None, (shutil.which('vlc'), shutil.which('vlc.exe'))))
+    if sys.platform == 'win32':
+        for variable in ('ProgramFiles', 'ProgramFiles(x86)', 'LOCALAPPDATA'):
+            base = os.environ.get(variable)
+            if base:
+                candidates.append(str(Path(base) / 'VideoLAN' / 'VLC' / 'vlc.exe'))
+    elif sys.platform == 'darwin':
+        candidates.append('/Applications/VLC.app/Contents/MacOS/VLC')
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file():
+            return candidate
+    return None
+
+
+def open_iptv_in_vlc(device_id):
+    executable = vlc_executable()
+    if not executable:
+        raise LookupError('VLC was not found. Install VLC, then restart AVTrack.')
+    with connect() as con:
+        row = con.execute("SELECT id,name,ip,port FROM devices WHERE id=? AND record_type='iptv'", (device_id,)).fetchone()
+    if not row:
+        raise LookupError('IPTV channel not found.')
+    if not row['ip'] or not row['port']:
+        raise ValueError('This channel needs an IP address and port before it can open in VLC.')
+    stream = f"udp://@{row['ip']}:{row['port']}"
+    subprocess.Popen([executable, stream], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    return {'opened': stream, 'channel': row['name']}
+
+
 def backup_storage_name(backup_id, filename):
     safe = re.sub(r'[^A-Za-z0-9._-]+', '_', filename).strip('._') or 'backup-file'
     return f'{backup_id}-{safe[:160]}'
@@ -976,10 +1009,13 @@ def selected_export_rows(rows, payload):
 
 
 class Handler(BaseHTTPRequestHandler):
-    def can_open_backup_folder(self):
+    def can_launch_desktop_app(self):
         forwarded_host=self.headers.get('Host','').split(':',1)[0].lower().rstrip('.')
         remote=self.client_address[0]
-        return remote in ('127.0.0.1','::1') and os.environ.get('CODESPACES','').lower()!='true' and not forwarded_host.endswith('.app.github.dev') and folder_open_command() is not None
+        return remote in ('127.0.0.1','::1') and os.environ.get('CODESPACES','').lower()!='true' and not forwarded_host.endswith('.app.github.dev')
+
+    def can_open_backup_folder(self):
+        return self.can_launch_desktop_app() and folder_open_command() is not None
 
     def send(self, status, data, content_type='application/json; charset=utf-8', filename=None):
         body = json.dumps(data).encode() if content_type.startswith('application/json') else data
@@ -1222,6 +1258,11 @@ class Handler(BaseHTTPRequestHandler):
             if not self.can_open_backup_folder():raise PermissionError('The backup folder can only be opened when AVTrack is running locally with a desktop file manager.')
             subprocess.Popen(folder_open_command(),stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
             return self.send(200,{'opened':str(backup_directory().resolve())})
+        elif self.command == 'POST' and re.fullmatch(r'/api/iptv/[1-9][0-9]*/open-vlc', path):
+            self.body()
+            if not self.can_launch_desktop_app():
+                raise PermissionError('VLC can only be opened when AVTrack is running locally on this computer.')
+            return self.send(200, open_iptv_in_vlc(int(path.split('/')[3])))
         elif self.command == 'POST' and path == '/api/backups':
             return self.send(201,save_av_backup(self.body()))
         elif self.command == 'DELETE' and re.fullmatch(r'/api/backups/[1-9][0-9]*',path):

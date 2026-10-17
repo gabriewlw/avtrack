@@ -2,6 +2,7 @@ import json
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -118,6 +119,18 @@ class AppTests(unittest.TestCase):
         self.assertEqual(app.inventory(), [])
         self.assertEqual(self.request(f"/api/devices/{saved['id']}", 'DELETE', {})[0], 404)
 
+    def test_iptv_stream_opens_with_local_vlc(self):
+        channel = app.save_device(dict(EXAMPLE, name='News', record_type='iptv', channel_source='Onboard', ip='239.252.2.122', port=1234))
+        with patch.object(app, 'vlc_executable', return_value=r'C:\Program Files\VideoLAN\VLC\vlc.exe'), patch.object(app.subprocess, 'Popen') as launch:
+            result = app.open_iptv_in_vlc(channel['id'])
+        self.assertEqual(result['opened'], 'udp://@239.252.2.122:1234')
+        launch.assert_called_once_with([r'C:\Program Files\VideoLAN\VLC\vlc.exe', 'udp://@239.252.2.122:1234'], stdout=app.subprocess.DEVNULL, stderr=app.subprocess.DEVNULL, start_new_session=True)
+
+    def test_iptv_stream_reports_missing_vlc(self):
+        with patch.object(app, 'vlc_executable', return_value=None):
+            with self.assertRaisesRegex(LookupError, 'VLC was not found'):
+                app.open_iptv_in_vlc(1)
+
     def test_validation(self):
         for ip in ('10.24.176.999', 'hello', '127.0.0.1', '224.0.0.1', '0.0.0.0', '255.255.255.255', '10.24.176.066'):
             with self.subTest(ip=ip):
@@ -186,9 +199,9 @@ class AppTests(unittest.TestCase):
                 self.assertIn(f'{token}: {value};', style)
         self.assertIn('body { margin: 0; background: var(--background); color: var(--foreground); }', style)
         self.assertIn('.primary { background: var(--primary); color: var(--primary-foreground); }', style)
-        self.assertIn("const CACHE = 'avtrack-offline-v74'", self.request('/service-worker.js')[1].decode())
+        self.assertIn("const CACHE = 'avtrack-offline-v75'", self.request('/service-worker.js')[1].decode())
         body = self.request('/')[1]
-        self.assertIn(b'AVTrack \xc2\xb7 v0.0.175', body)
+        self.assertIn(b'AVTrack \xc2\xb7 v0.0.176', body)
         self.assertIn(b'class="brand-tally"', body)
         self.assertIn(b'class="brand" href="/" aria-label="AVTrack homepage"', body)
         self.assertIn(b'class="brand-credit" href="https://broadcastgab.com"', body)

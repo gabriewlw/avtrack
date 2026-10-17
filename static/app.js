@@ -587,7 +587,7 @@ async function load() {
   } finally { $('loading').hidden = true; $('refresh').disabled = false; }
 }
 const copyIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>';
-const vlcIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 4.8 14H7.2L12 3Z"/><path d="M8.7 12h6.6M7.6 16h8.8M6 20h12"/></svg>';
+const vlcIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="vlc-cone" d="M11.2 2.5h1.6l4.3 14H6.9l4.3-14Z"/><path class="vlc-stripe" d="M9.2 9h5.6l1.2 3.8H8L9.2 9Z"/><path class="vlc-base" d="M6.2 16h11.6l2 3.2c.5.8-.1 1.8-1 1.8H5.2c-.9 0-1.5-1-1-1.8l2-3.2Z"/><path class="vlc-base-line" d="M6.1 18.2h11.8"/></svg>';
 function udpCell(device) {
   const cell = element('div', 'udp-cell');
   const field = element('div', 'udp-field');
@@ -613,12 +613,20 @@ function udpCell(device) {
       toast(copied ? 'UDP address copied.' : 'UDP address selected. Copy it using your browser’s menu.');
     }
   };
-  const vlc = element('a', 'udp-vlc');
+  const vlc = element('button', 'quiet udp-vlc');
+  vlc.type = 'button';
   vlc.setAttribute('aria-label', `Open ${deviceLabel(device)} network stream in VLC`);
   vlc.title = input.value ? 'Open network stream in VLC' : 'Add an IP address and port to open this stream in VLC';
   vlc.innerHTML = vlcIcon;
-  if (input.value) vlc.href = `vlc://${input.value}`;
-  else { vlc.classList.add('disabled'); vlc.setAttribute('aria-disabled', 'true'); }
+  vlc.disabled = !input.value;
+  vlc.onclick = async () => {
+    vlc.disabled = true;
+    try {
+      await api(`/api/iptv/${device.id}/open-vlc`, 'POST', {});
+      toast(`Opening ${deviceLabel(device)} in VLC.`);
+    } catch (error) { toast(error.message); }
+    finally { vlc.disabled = !input.value; }
+  };
   field.append(input, copy, vlc); cell.append(field); return cell;
 }
 function ipCopyButton(device, addressText) {
