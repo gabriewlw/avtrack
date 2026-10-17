@@ -58,7 +58,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
 .header-inner { width: 100%; max-width: 1152px; margin: auto; padding: 0 20px; height: 64px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 20px; }
 .brand-group { display:flex; align-items:center; justify-self:start; min-width:0; }
 .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--foreground); white-space: nowrap; text-transform: uppercase; }
-.brand-tally { width: 10px; height: 10px; flex: 0 0 10px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 12px 2px color-mix(in oklab,var(--primary) 60%,transparent); animation: tally-pulse 2.2s ease-in-out infinite; }
+.brand-tally { width: 10px; height: 10px; flex: 0 0 10px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 12px 2px color-mix(in oklab,var(--primary) 60%,transparent); }
 .brand-credit { margin-left:12px; padding-left:10px; border-left:1px solid var(--border); color:var(--muted-foreground); font:500 8px var(--mono); letter-spacing:.14em; text-decoration:none; white-space:nowrap; }
 .brand-credit:hover { color:var(--primary); }
 .status-dot, .eyebrow::before { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; background: var(--primary); box-shadow: 0 0 12px 2px color-mix(in oklab, var(--primary) 60%, transparent); animation: tally-pulse 2.2s ease-in-out infinite; }

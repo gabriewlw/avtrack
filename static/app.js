@@ -1741,16 +1741,6 @@ $('import-file').onchange = async event => {
 };
 load();
 
-if (location.hostname.endsWith('.app.github.dev')) {
-  $('broadcastgab-cache-status').textContent='Saved homepage · offline cache available when hosted locally';
-} else if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/service-worker.js').then(() => navigator.serviceWorker.ready).then(() => {
-    $('broadcastgab-offline-link').title = 'Saved BroadcastGab copy · available offline';
-    $('broadcastgab-cache-status').textContent = 'Available offline';
-  }).catch(() => {
-    $('broadcastgab-offline-link').title = 'Saved copy · offline storage unavailable in this browser';
-    $('broadcastgab-cache-status').textContent = 'Offline storage unavailable';
-  });
-} else {
-  $('broadcastgab-cache-status').textContent = 'Offline storage requires HTTPS and a supported browser';
+if (!location.hostname.endsWith('.app.github.dev') && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/service-worker.js').catch(() => {});
 }
