@@ -89,7 +89,7 @@
       $('equipment-panel').classList.toggle('inventory-catalog-empty', inventoryCatalogEmpty);
       if (inventoryCatalogEmpty) {
         inventoryId = placeholder?.id || 1; inventories = []; items = []; inventoryReady = true;
-        $('equipment-inventory-select').replaceChildren(new Option('No inventories added', ''));
+        $('equipment-inventory-select').replaceChildren(new Option('No inventories yet', ''));
         $('equipment-inventory-title').textContent = '';
         try { localStorage.removeItem('avtrack-equipment-inventory'); } catch (_) {}
         updatePageSummary([], '', {location_role:'none'});

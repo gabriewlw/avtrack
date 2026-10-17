@@ -71,6 +71,7 @@ class AppTests(unittest.TestCase):
             self.assertEqual(status, 200)
             self.assertNotIn(b'import-history-panel', page)
             self.assertNotIn(b'>Import history<', page)
+        self.assertIn(b'<option value="">No inventories yet</option>', page)
         workflow = self.request('/import-workflow.js')[1]
         self.assertNotIn(b'refreshHistory', workflow)
         self.assertIn(b'Resume previous import', workflow)
@@ -202,9 +203,9 @@ class AppTests(unittest.TestCase):
                 self.assertIn(f'{token}: {value};', style)
         self.assertIn('body { margin: 0; background: var(--background); color: var(--foreground); }', style)
         self.assertIn('.primary { background: var(--primary); color: var(--primary-foreground); }', style)
-        self.assertIn("const CACHE = 'avtrack-offline-v80'", self.request('/service-worker.js')[1].decode())
+        self.assertIn("const CACHE = 'avtrack-offline-v81'", self.request('/service-worker.js')[1].decode())
         body = self.request('/')[1]
-        self.assertIn(b'AVTrack \xc2\xb7 v0.0.181', body)
+        self.assertIn(b'AVTrack \xc2\xb7 v0.0.182', body)
         self.assertIn(b'class="brand-tally"', body)
         self.assertIn(b'class="brand" href="/" aria-label="AVTrack homepage"', body)
         self.assertIn(b'class="brand-credit" href="https://broadcastgab.com"', body)
