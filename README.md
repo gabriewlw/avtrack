@@ -149,6 +149,18 @@ To make a complete manual backup:
 
 To move AVTrack to another computer, copy the whole project folder, including `data`, and recreate `.venv` using the installation commands above. Virtual environments should be recreated after moving a folder because their launch files may contain paths from the previous computer.
 
+### Export or move the complete workspace
+
+On the homepage, use **Export all data** beside **Your workspace at a glance**:
+
+- **Complete backup ZIP** is recommended when moving computers. One file includes every workspace, inventory layout, custom field, note, confirmation, saved history, and uploaded backup file/icon.
+- **Complete backup JSON** contains the same restorable data in an uncompressed file.
+- **Excel workbook** and **CSV files ZIP** are reports of saved records, without the uploaded file contents. They cannot restore the whole app.
+
+On the other computer, run the same AVTrack version, choose **Workspace import** in the top menu (inside the navigation menu on mobile), select the complete ZIP or JSON backup, and confirm **Replace all current workspaces**. The app reloads with the restored data. Export the destination's data first if you need to keep it: this is a complete replacement, not a merge.
+
+Complete transfers support files up to 200 MB, including the uncompressed backup contents. For larger workspaces, stop AVTrack and copy the entire `data` folder instead. Custom `AVTRACK_DB` and `AVTRACK_BACKUP_DIR` locations remain configured on the destination computer.
+
 ### Custom storage locations
 
 Set `AVTRACK_DB` to place the SQLite database elsewhere and `AVTRACK_BACKUP_DIR` to choose another folder for equipment backup files.

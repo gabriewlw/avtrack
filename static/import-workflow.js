@@ -110,7 +110,7 @@ window.importWorkflow = (() => {
     }
     if(sheets.length && !queue.length)queue=[...choices.querySelectorAll('input:checked')].map(input=>input.value);
     choices.querySelectorAll('input').forEach(input=>input.disabled=completed.size>0);
-    if(spreadsheetInventory && sheets.length && !spreadsheetFile.default_location && !['geographic','none'].includes(spreadsheetInventory.layout?.location_role) && spreadsheetInventory.layout?.columns.some(column=>column.key==='location'))spreadsheetFile.sheet_location=byId('sheet-choice').value;else delete spreadsheetFile.sheet_location;
+    if(spreadsheetInventory && sheets.length && !spreadsheetFile.default_location && spreadsheetInventory.layout?.location_role!=='none' && (spreadsheetInventory.layout || defaultInventoryLayout).columns.some(column=>column.key==='location'))spreadsheetFile.sheet_location=byId('sheet-choice').value;else delete spreadsheetFile.sheet_location;
   }
   async function finish(stopped){
     await checkpoint(stopped?'paused':queueIndex+1<queue.length?'reviewing':'complete');

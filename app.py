@@ -4,6 +4,7 @@ import base64
 import binascii
 from contextlib import nullcontext
 import import_sessions
+import workspace_transfer
 import io
 import ipaddress
 import json
@@ -31,6 +32,18 @@ BACKUP_ICON_TYPES = {
     'image/jpeg': ('.jpg', lambda content: content.startswith(b'\xff\xd8\xff')),
     'image/webp': ('.webp', lambda content: len(content) >= 12 and content[:4] == b'RIFF' and content[8:12] == b'WEBP'),
 }
+
+
+def source_revision():
+    """Use the checked-out commit as the displayed build identifier."""
+    try:
+        revision = subprocess.run(['git', 'rev-parse', '--short=7', 'HEAD'], cwd=ROOT,
+                                  capture_output=True, text=True, check=True, timeout=2).stdout.strip()
+        count = subprocess.run(['git', 'rev-list', '--count', 'HEAD'], cwd=ROOT,
+                               capture_output=True, text=True, check=True, timeout=2).stdout.strip()
+        return f'v0.0.{count} · {revision}' if count.isdigit() and re.fullmatch(r'[0-9a-f]{7,40}', revision) else 'unversioned'
+    except (OSError, subprocess.SubprocessError):
+        return 'unversioned'
 
 
 def backup_directory():
@@ -659,6 +672,36 @@ def save_equipment(value, item_id=None):
         return equipment_record(con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
 
 
+def remove_equipment_unit(item_id, value):
+    """Remove the chosen unit without overwriting concurrent stock edits."""
+    if not isinstance(value, dict):
+        raise ValueError('Choose the unit to remove.')
+    inventory_id = equipment_inventory_id(value.get('inventory_id', 1))
+    with connect() as con:
+        con.execute('BEGIN IMMEDIATE')
+        current = con.execute('SELECT * FROM equipment WHERE id=? AND inventory_id=?', (item_id, inventory_id)).fetchone()
+        if current is None:
+            raise LookupError('Inventory item not found.')
+        if current['quantity'] != value.get('original_quantity') or current['serial_number'] != value.get('original_serial_number'):
+            raise ValueError('Stock changed. Close this dialog and refresh before removing a unit.')
+        if (equipment_inventory_details(con, inventory_id).get('layout') or {}).get('stock_mode') == 'tv_counts':
+            raise ValueError('Edit the stock count for the location to remove a television unit.')
+        if current['quantity'] is None or current['quantity'] <= 1:
+            raise ValueError('Use Delete equipment to remove the last unit.')
+        serials = list(dict.fromkeys(re.sub(r'\s+', '', serial) for serial in re.split(r'[\r\n,|;]+', current['serial_number']) if serial.strip()))
+        serial = value.get('serial')
+        if serial is None:
+            if len(serials) >= current['quantity']:
+                raise ValueError('Choose the serial number of the unit to remove.')
+        elif serial not in serials:
+            raise ValueError('Choose a serial number from this row.')
+        else:
+            serials.remove(serial)
+        con.execute('UPDATE equipment SET quantity=quantity-1, serial_number=?, data_checked=0, data_checked_at=NULL, item_confirmed=0, updated_at=CURRENT_TIMESTAMP WHERE id=? AND inventory_id=?',
+                    (', '.join(serials), item_id, inventory_id))
+        return equipment_record(con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
+
+
 def set_equipment_notes(item_id, value):
     if not isinstance(value,dict) or not isinstance(value.get('notes'),str) or len(value['notes'].strip())>2000 or not isinstance(value.get('original_notes'),str):
         raise ValueError('Provide notes up to 2,000 characters and their original value.')
@@ -1064,6 +1107,24 @@ class Handler(BaseHTTPRequestHandler):
     def dispatch(self):
         path = urlsplit(self.path).path
         query = parse_qs(urlsplit(self.path).query, keep_blank_values=True)
+        if self.command == 'GET' and path == '/api/workspace/export':
+            data = workspace_transfer.snapshot(connect, backup_directory)
+            content, mime, filename = workspace_transfer.pack(data, query.get('format', ['zip'])[0])
+            return self.send(200, content, mime, filename)
+        if self.command == 'POST' and path == '/api/workspace/restore':
+            origin = self.headers.get('Origin')
+            if origin and urlsplit(origin).netloc != self.headers.get('Host'):
+                raise PermissionError('Cross-origin writes are not allowed.')
+            if self.headers.get('X-AVTrack-Restore') != 'replace-all':
+                raise ValueError('Confirm that this backup will replace all workspaces.')
+            try:
+                size = int(self.headers.get('Content-Length', '0'))
+            except ValueError:
+                raise ValueError('Invalid request size.') from None
+            if not 0 < size <= workspace_transfer.MAX_BYTES:
+                raise ValueError('Choose a complete backup smaller than 200 MB.')
+            data = workspace_transfer.unpack(self.rfile.read(size))
+            return self.send(200, workspace_transfer.restore(data, connect, backup_directory))
         if path.startswith('/api/import-sessions'):
             with connect() as con:
                 if path=='/api/import-sessions' and self.command=='GET':
@@ -1243,6 +1304,7 @@ class Handler(BaseHTTPRequestHandler):
             assets['/landing.js'] = ('landing.js', 'text/javascript')
             assets['/inventory'] = ('index.html', 'text/html')
             assets['/backups'] = ('index.html', 'text/html')
+            assets['/workspace-transfer.js'] = ('workspace-transfer.js', 'text/javascript')
             assets['/backups.js'] = ('backups.js', 'text/javascript')
             assets['/service-worker.js'] = ('service-worker.js', 'text/javascript')
             assets['/broadcastgab-offline'] = ('broadcastgab/index.html', 'text/html')
@@ -1254,6 +1316,7 @@ class Handler(BaseHTTPRequestHandler):
             if path in assets:
                 file, mime = assets[path]
                 data=(ROOT / 'static' / file).read_bytes()
+                if file=='index.html':data=data.replace(b'{{AVTRACK_REVISION}}',source_revision().encode('utf-8'))
                 if mime=='application/json':data=json.loads(data)
                 return self.send(200, data, mime + '; charset=utf-8' if mime.startswith('text/') or mime == 'image/svg+xml' else mime)
         elif self.command == 'POST' and path == '/api/backups/open-folder':
@@ -1292,6 +1355,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, manage_equipment_location(self.body()))
         elif self.command == 'POST' and path == '/api/equipment/import':
             return self.send(200, import_equipment(self.body()))
+        elif self.command == 'POST' and re.fullmatch(r'/api/equipment/[1-9][0-9]*/remove-unit', path):
+            return self.send(200, remove_equipment_unit(int(path.split('/')[3]), self.body()))
         elif self.command == 'POST' and path.startswith('/api/equipment/') and path.endswith('/notes'):
             try:
                 item_id=int(path.removeprefix('/api/equipment/').removesuffix('/notes'))

@@ -525,6 +525,7 @@ document.addEventListener('keydown', event => {
 });
 document.querySelectorAll('.export-links a[download]').forEach(link => {
   link.addEventListener('click', async event => {
+    if (link.closest('#workspace-export-menu')) return;
     event.preventDefault();
     if (link.getAttribute('aria-disabled') === 'true') return;
     link.setAttribute('aria-disabled', 'true');
@@ -1016,25 +1017,25 @@ function mappedRows(applyVenueEdits = true) {
       const quantityOriginal=String(mapped.quantity ?? '').trim(),quantityMatch=quantityOriginal.match(/^(\d+)\s+(.+)$/);
       if(quantityMatch){mapped.quantity=quantityMatch[1];mapped.notes=[mapped.notes,`Quantity detail: ${quantityOriginal}`].filter(Boolean).join(' · ');sourceIssues.push(`Quantity contained extra text: ${quantityOriginal}`);}
       else if(quantityOriginal&&!/^\d+$/.test(quantityOriginal))sourceIssues.push(`Quantity is not numeric: ${quantityOriginal}`);
-      const extras = ['name','storage_position','condition','unit','quantity_original'];
       const read = name => { const index = spreadsheetData.headers.findIndex(header => header.trim().toLowerCase() === name); return index < 0 ? '' : String(row[index] ?? '').trim(); };
       if (!mapped.description && importFields().some(([key])=>key==='description') && $('map-description').value!=='') mapped.description = read('name');
       const tvProfile=spreadsheetInventory?.layout || window.equipmentUI.profile();
       if(tvProfile.stock_mode==='tv_counts'){
         const description=read('description') || read('item');
         if(!mapped.brand && $('map-brand')?.value===''){const brand=description.match(/\b(Samsung|LG|Sony|Panasonic|Philips|Sharp|Toshiba|TCL|Hisense|NEC|Planar)\b/i);if(brand)mapped.brand=brand[1].toUpperCase()==='LG'?'LG':brand[1].toUpperCase()==='TCL'?'TCL':brand[1].toUpperCase()==='NEC'?'NEC':brand[1][0].toUpperCase()+brand[1].slice(1).toLowerCase();}
-        if(description)mapped.notes=[mapped.notes,'Description: '+description].filter(Boolean).join(' · ');
-        const limelight=spreadsheetData.headers.findIndex(header=>normalizedHeader(header)==='deck 4 limelight');
-        if(limelight>=0&&String(row[limelight]).trim())mapped.notes=[mapped.notes,'Deck 4 Limelight: '+row[limelight]].filter(Boolean).join(' · ');
       }
       const hasMapped=Object.entries(mapped).some(([key,value])=>key==='custom_values'?Object.values(value).some(v=>String(v).trim()):String(value??'').trim());
-      const details = extras.filter(name => hasMapped && name !== 'name' && read(name)).map(name => `${name.replaceAll('_',' ')}: ${read(name)}`);
-      if(hasMapped && spreadsheetData.headers.filter(header=>normalizedHeader(header)==='location').length>1){spreadsheetData.headers.forEach((header,index)=>{if(normalizedHeader(header)==='location' && String(index)!==$('map-location')?.value && row[index])details.push(`Source Location (column ${index+1}): ${row[index]}`);});}
-      mapped.notes = [mapped.notes, ...details].filter(Boolean).join(' · ');
       if(hasMapped && spreadsheetFile?.force_location)mapped.location=spreadsheetFile.default_location;
       else if(hasMapped && !mapped.location && (spreadsheetFile?.default_location || spreadsheetFile?.sheet_location))mapped.location=spreadsheetFile.default_location || spreadsheetFile.sheet_location;
       mapped.item_confirmed = ''; // Old files do not establish a new physical location check.
     }
+    // Preserve every unselected source column, including blank/duplicate headings.
+    const selectedColumns=new Set(importFields().map(([key])=>$('map-'+key)?.value).filter(value=>value!==''&&value!=null).map(Number));
+    const extraNotes=spreadsheetData.headers.flatMap((header,index)=>{
+      const value=String(row[index] ?? '').trim();
+      return !selectedColumns.has(index)&&value ? [`${String(header).trim() || 'Column '+(index+1)} ${value}`] : [];
+    });
+    mapped.notes=[mapped.notes,...extraNotes].filter(Boolean).join('\n');
     if (currentTab !== 'equipment') mapped.record_type = currentTab;
     if (currentTab === 'iptv') mapped.channel_source = channelSourceFromName(mapped.name);
     const field = currentTab === 'equipment' ? 'location' : 'venue';

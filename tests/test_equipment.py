@@ -13,6 +13,32 @@ class EquipmentTests(unittest.TestCase):
     tearDown = test_app.AppTests.tearDown
     request = test_app.AppTests.request
 
+    def test_remove_chosen_unit_preserves_other_serials_and_rejects_stale_stock(self):
+        _, item = self.request('/api/equipment', 'POST', dict(ITEM, quantity=3, serial_number='A, B, C'))
+        payload = dict(inventory_id=item['inventory_id'], serial='B', original_quantity=3, original_serial_number=item['serial_number'])
+        path = f"/api/equipment/{item['id']}/remove-unit"
+        status, updated = self.request(path, 'POST', payload)
+        self.assertEqual(status, 200)
+        self.assertEqual(updated['quantity'], 2)
+        self.assertEqual(updated['serial_number'], 'A, C')
+        self.assertFalse(updated['data_checked'])
+        self.assertEqual(self.request(path, 'POST', payload)[0], 400)
+        payload.update(original_quantity=2, original_serial_number='A, C', serial=None)
+        self.assertEqual(self.request(path, 'POST', payload)[0], 400)
+        payload['serial']='missing'
+        self.assertEqual(self.request(path, 'POST', payload)[0], 400)
+        self.assertEqual(app.equipment_inventory()[0]['quantity'], 2)
+
+    def test_remove_unit_without_serial_and_last_unit(self):
+        _, item = self.request('/api/equipment', 'POST', dict(ITEM, quantity=2, serial_number='A'))
+        path = f"/api/equipment/{item['id']}/remove-unit"
+        payload = dict(serial=None, original_quantity=2, original_serial_number='A')
+        status, updated = self.request(path, 'POST', payload)
+        self.assertEqual(status, 200)
+        self.assertEqual((updated['quantity'], updated['serial_number']), (1, 'A'))
+        payload['original_quantity']=1
+        self.assertEqual(self.request(path, 'POST', payload)[0], 400)
+
     def test_crud_quantity_and_persistence(self):
         status, item = self.request('/api/equipment', 'POST', ITEM)
         self.assertEqual(status, 201)

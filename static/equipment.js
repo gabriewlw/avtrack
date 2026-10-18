@@ -135,6 +135,12 @@
     const reviewFilter = recordReview ? $('equipment-review-filter').value : '';
     document.querySelector('.equipment-review-filter').hidden = !recordReview;
     $('equipment-review-summary').hidden = !recordReview;
+    const stockProgress=$('equipment-stock-progress');
+    stockProgress.hidden=!recordReview;
+    const confirmed=items.filter(item=>item.data_checked).length;
+    $('equipment-stock-progress-count').textContent=`${confirmed} / ${items.length} records (${items.length?Math.round(confirmed/items.length*100):0}%)`;
+    $('equipment-stock-progress-bar').max=items.length || 1;
+    $('equipment-stock-progress-bar').value=confirmed;
     const flaggedCount=items.filter(i => !i.data_checked && equipmentIssues(i).length).length;
     const flaggedLink=element('a','',`${flaggedCount} flagged`);
     flaggedLink.href='#equipment-table';flaggedLink.onclick=showFlaggedEquipment;
@@ -250,7 +256,7 @@
           const review = element('td', 'equipment-review'); review.dataset.label = 'Stock check';
           const issues = recordIssues;
           const checkedDate=item.data_checked_at?new Date(item.data_checked_at):null;
-          const button = element('button', item.data_checked ? 'quiet record-checked' : 'quiet', checkedDate?checkedDate.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):'Confirm stock');
+          const button = element('button', item.data_checked ? 'primary equipment-stock-confirm record-checked' : 'primary equipment-stock-confirm', checkedDate?checkedDate.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):'Confirm stock');
           button.type = 'button'; button.disabled = pendingConfirmations.has(item.id);
           button.title = checkedDate?`Stock confirmed ${checkedDate.toLocaleString()}. Click to view history or confirm again.`:'Confirm this item against the inventory record';
           button.setAttribute('aria-label', `Confirm stock for ${displayName(item)}`);
@@ -322,6 +328,15 @@
       remove.onclick = () => {
         deletingItem = item;
         $('equipment-delete-description').textContent = `${displayName(item)} · Quantity ${item.quantity} · ${item.location}`;
+        const choices=$('equipment-delete-unit');
+        choices.replaceChildren(new Option('Delete the entire row (all units)','all'));
+        const serials=serialNumbers(item);
+        if(Number(item.quantity)>1 && !isTVInventory()){
+          serials.forEach(serial=>choices.append(new Option(`Remove one unit: ${serial}`,'serial:'+serial)));
+          if(serials.length<Number(item.quantity))choices.append(new Option('Remove one unit without a serial number','unserialized'));
+          choices.value=serials.length?'serial:'+serials[0]:'unserialized';
+        }
+        $('equipment-delete-unit-label').hidden=Number(item.quantity)<=1 || isTVInventory();
         $('equipment-delete-error').hidden = true;
         $('equipment-delete-dialog').showModal(); $('cancel-equipment-delete').focus();
       };
@@ -640,7 +655,10 @@
   $('cancel-equipment-delete').onclick = () => $('equipment-delete-dialog').close();
   $('confirm-equipment-delete').onclick = async () => {
     $('confirm-equipment-delete').disabled = true;
-    try { await api(`/api/equipment/${deletingItem.id}`, 'DELETE', {inventory_id:deletingItem.inventory_id}); $('equipment-delete-dialog').close(); toast('Equipment deleted.'); await loadEquipment(); }
+    try {
+      const unit=$('equipment-delete-unit').value;
+      if(unit==='all')await api(`/api/equipment/${deletingItem.id}`, 'DELETE', {inventory_id:deletingItem.inventory_id});
+      else await api(`/api/equipment/${deletingItem.id}/remove-unit`, 'POST', {inventory_id:deletingItem.inventory_id,serial:unit==='unserialized'?null:unit.slice(7),original_quantity:deletingItem.quantity,original_serial_number:deletingItem.serial_number}); $('equipment-delete-dialog').close(); toast('Equipment deleted.'); await loadEquipment(); }
     catch(error) { $('equipment-delete-error').textContent = error.message; $('equipment-delete-error').hidden = false; }
     finally { $('confirm-equipment-delete').disabled = false; }
   };

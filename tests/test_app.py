@@ -41,6 +41,17 @@ class AppTests(unittest.TestCase):
             content = response.read()
             return response.status, json.loads(content) if response.headers['Content-Type'].startswith('application/json') else content
 
+    def test_footer_matches_git_revision(self):
+        import subprocess
+        expected = subprocess.check_output(['git', 'rev-parse', '--short=7', 'HEAD'], cwd=app.ROOT).strip()
+        status, page = self.request('/')
+        self.assertEqual(status, 200)
+        count = subprocess.check_output(['git', 'rev-list', '--count', 'HEAD'], cwd=app.ROOT).strip()
+        self.assertIn(b'AVTrack \xc2\xb7 v0.0.' + count + b' \xc2\xb7 ' + expected, page)
+        self.assertNotIn(b'{{AVTRACK_REVISION}}', page)
+        with patch('app.subprocess.run', side_effect=FileNotFoundError):
+            self.assertEqual(app.source_revision(), 'unversioned')
+
     def test_codespaces_signin_connection_policy(self):
         from unittest.mock import patch
         for codespaces,host,allowed in (('',None,False),('false',None,False),('true',None,True),('false','test-8000.app.github.dev',True),('false','test-8000.app.github.dev.other.example',False)):
@@ -203,9 +214,9 @@ class AppTests(unittest.TestCase):
                 self.assertIn(f'{token}: {value};', style)
         self.assertIn('body { margin: 0; background: var(--background); color: var(--foreground); }', style)
         self.assertIn('.primary { background: var(--primary); color: var(--primary-foreground); }', style)
-        self.assertIn("const CACHE = 'avtrack-offline-v83'", self.request('/service-worker.js')[1].decode())
+        self.assertIn("const CACHE = 'avtrack-offline-v84'", self.request('/service-worker.js')[1].decode())
         body = self.request('/')[1]
-        self.assertIn(b'AVTrack \xc2\xb7 v0.0.184', body)
+        self.assertIn(b'AVTrack \xc2\xb7 ' + app.source_revision().encode('utf-8'), body)
         self.assertIn(b'class="brand-tally"', body)
         self.assertIn(b'class="brand" href="/" aria-label="AVTrack homepage"', body)
         self.assertIn(b'class="brand-credit" href="https://broadcastgab.com"', body)
