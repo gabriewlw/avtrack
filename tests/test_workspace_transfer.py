@@ -60,12 +60,13 @@ class WorkspaceTransferTests(unittest.TestCase):
         data=transfer.snapshot(app.connect,app.backup_directory)
         content,_,_=transfer.pack(data,'xlsx')
         book=load_workbook(io.BytesIO(content))
-        self.assertEqual(set(book.sheetnames),set(data['tables']))
-        self.assertNotIn('Content',[cell.value for cell in book['av_backups'][1]])
+        self.assertTrue({'Devices','IPTV','Spare Parts','Equipment backups'}.issubset(book.sheetnames))
+        self.assertNotIn('import_preferences',book.sheetnames)
+        self.assertNotIn('Content',[cell.value for cell in book['Equipment backups'][1]])
         content,_,_=transfer.pack(data,'csv')
         with zipfile.ZipFile(io.BytesIO(content)) as archive:
-            self.assertIn('devices.csv',archive.namelist())
-            self.assertIn('equipment_inventories.csv',archive.namelist())
+            self.assertIn('Devices.csv',archive.namelist())
+            self.assertIn('Spare Parts.csv',archive.namelist())
         with self.assertRaises(ValueError):transfer.unpack(content)
 
     def test_http_export_restore_requires_confirmation_and_blocks_other_origins(self):
@@ -74,7 +75,7 @@ class WorkspaceTransferTests(unittest.TestCase):
         self.populate()
         with urlopen(self.url+'/api/workspace/export?format=zip') as response:
             content=response.read()
-            self.assertIn('avtrack-all-data.zip',response.headers['Content-Disposition'])
+            self.assertRegex(response.headers['Content-Disposition'],r'avtrack-all-data-.*\.zip')
         def restore(headers):
             request=Request(self.url+'/api/workspace/restore',data=content,method='POST',headers=headers)
             try:response=urlopen(request)
@@ -85,6 +86,46 @@ class WorkspaceTransferTests(unittest.TestCase):
         status,result=restore({'X-AVTrack-Restore':'replace-all','Content-Type':'application/octet-stream'})
         self.assertEqual(status,200)
         self.assertEqual(result['restored']['devices'],1)
+
+    def test_restore_can_be_retried_without_mutating_the_backup(self):
+        self.populate()
+        data=transfer.snapshot(app.connect,app.backup_directory)
+        original=copy.deepcopy(data)
+        transfer.restore(data,app.connect,app.backup_directory)
+        self.assertEqual(data,original)
+        transfer.restore(data,app.connect,app.backup_directory)
+        self.assertEqual(app.av_backup_file(1)[1],b'{"profile":"test"}')
+
+    def test_malformed_records_and_json_cannot_replace_working_data(self):
+        self.populate()
+        original=transfer.snapshot(app.connect,app.backup_directory)
+        for table,field,value in [('equipment','quantity','many'),('equipment','quantity',-1),
+                                  ('equipment','custom_values','[]'),('equipment_inventories','layout','{"columns":null}'),
+                                  ('import_preferences','settings','not json')]:
+            with self.subTest(table=table,field=field,value=value):
+                bad=copy.deepcopy(original)
+                bad['tables'][table][-1][field]=value
+                with self.assertRaises(ValueError):transfer.restore(bad,app.connect,app.backup_directory)
+                self.assertEqual(transfer.snapshot(app.connect,app.backup_directory)['tables'],original['tables'])
+                self.assertEqual(transfer.snapshot(app.connect,app.backup_directory)['files'],original['files'])
+
+    def test_truncated_attachment_cannot_replace_working_data(self):
+        self.populate()
+        data=transfer.snapshot(app.connect,app.backup_directory)
+        data['files'][next(iter(data['files']))]=base64.b64encode(b'truncated').decode()
+        with self.assertRaises(ValueError):transfer.restore(data,app.connect,app.backup_directory)
+        self.assertEqual(app.av_backup_file(1)[1],b'{"profile":"test"}')
+
+    def test_checksum_detects_changed_export_contents_and_legacy_backups_still_work(self):
+        self.populate()
+        original=transfer.snapshot(app.connect,app.backup_directory)
+        content,_,_=transfer.pack(original,'json')
+        changed=json.loads(content)
+        changed['tables']['devices'][0]['name']='Unexpected change'
+        with self.assertRaises(ValueError):transfer.unpack(json.dumps(changed).encode())
+        # Existing backups from before integrity checks remain importable.
+        transfer.restore(transfer.unpack(json.dumps(original).encode()),app.connect,app.backup_directory)
+        self.assertEqual(app.inventory()[0]['name'],test_app.EXAMPLE['name'])
 
     def test_bad_archive_schema_and_paths_rejected(self):
         self.populate()

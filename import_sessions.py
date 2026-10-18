@@ -71,12 +71,13 @@ def save_receipt(con,session_id,value,apply):
         receipt=json.loads(existing[0]['receipt'])
         return dict(receipt['result'],_receipt=receipt)
     result=apply(session,row) if action=='import' else {'added':0,'skippedRow':True,**({'skipped_zero':1} if action=='zero' else {})}
-    outcome='added' if result.get('added') else 'zero' if result.get('skipped_zero') else 'existing' if result.get('skipped') else action
+    changes=result.pop('_changes',[])
+    outcome='updated' if result.get('updated') else 'added' if result.get('added') else 'zero' if result.get('skipped_zero') else 'existing' if result.get('skipped') else action
     issues=value.get('issues',[])
     if not isinstance(issues,list) or any(not isinstance(i,str) or len(i)>4000 for i in issues):raise ValueError('Invalid review notes.')
     receipt={'key':keys[0],'keys':keys,'location':str(row.get('location') or row.get('venue') or value.get('sheet') or 'Unassigned')[:240],
              'sheet':str(value.get('sheet') or '')[:240],'label':str(row.get('model') or row.get('name') or row.get('serial_number') or row.get('description') or 'Item')[:240],
-             'outcome':outcome,'issues':issues,'result':result,'merged':max(0,len(keys)-1)}
+             'outcome':outcome,'issues':issues,'result':result,'merged':max(0,len(keys)-1),'changes':changes}
     serialized=json.dumps(receipt)
     con.executemany('INSERT INTO import_receipts (session_id,source_key,receipt) VALUES (?,?,?)',[(session_id,key,serialized) for key in keys])
     con.execute("UPDATE import_sessions SET status='reviewing',updated_at=CURRENT_TIMESTAMP WHERE id=?",(session_id,))

@@ -10,7 +10,7 @@ window.importWorkflow = (() => {
   function showPanel(panel){
     panels.forEach(id=>{byId(id).hidden=id!==panel.id;});active=panel;
     byId('import-workspace').dataset.panel=panel.id;
-    const stage=panel.id==='paste-inventory-dialog'?0:['paste-confirmation-dialog','paste-layout-dialog','paste-field-dialog','spreadsheet-dialog'].includes(panel.id)?1:panel.id==='inventory-import-review'?2:3;
+    const stage=panel.id==='paste-inventory-dialog'?0:['paste-confirmation-dialog','paste-layout-dialog','paste-field-dialog','spreadsheet-dialog'].includes(panel.id)?1:panel.id==='inventory-import-review'?1:2;
     byId('import-workspace-steps').querySelectorAll('li').forEach((li,index)=>{li.classList.toggle('current',index===stage);li.classList.toggle('finished',index<stage);if(index===stage)li.setAttribute('aria-current','step');else li.removeAttribute('aria-current');});
     byId('import-workspace').setAttribute('aria-labelledby',panel.getAttribute('aria-labelledby') || 'import-workspace-title');
     byId('import-workspace-caption').textContent=(currentTab==='equipment'?(panel.id==='paste-inventory-dialog'?pasteInventory?.name:spreadsheetInventory?.name) || 'Inventory':currentTab==='iptv'?'IPTV Channels':'Devices')+(stage!==0 && queue.length>1?` · Worksheet ${queueIndex+1} of ${queue.length}`:'');
@@ -59,6 +59,7 @@ window.importWorkflow = (() => {
   function remaining(entries){return entries.filter(entry=>!sourceKeys(entry).every(key=>completed.has(key))).map(entry=>({...entry,row:edited[sourceKeys(entry)[0]] || entry.row}));}
   async function write(entry,row,action='import'){
     if(!session)throw new Error('Start or resume an import session before adding rows.');
+    if(action==='import'&&!applied)await applySetup();
     const keys=sourceKeys(entry);
     const result=await api(`/api/import-sessions/${session.id}/rows`,'POST',{keys,row,action,sheet:byId('sheet-choice').value || spreadsheetFile.source_label || '',issues:entry.issues || []},20000);
     keys.forEach(key=>{completed.add(key);delete edited[key];});
@@ -118,23 +119,24 @@ window.importWorkflow = (() => {
     if(!stopped && queueIndex+1<queue.length){
       queueIndex++;applied=false;venueEdits=new Map();skippedImportLocations.clear();byId('header-row').value='1';byId('sheet-choice').value=queue[queueIndex];delete $('header-row').dataset.manual;
       session.state.mappings=null;session.state.sheet=null;
-      byId('spreadsheet-dialog').showModal();await loadSpreadsheet();await checkpoint();return;
+      byId('paste-layout-dialog').showModal();await loadSpreadsheet();showPastedLayoutSuggestion();await checkpoint();return;
     }
     showSummary(stopped);
   }
   function showSummary(stopped=session?.status!=='complete'){
     const groups=new Map();receipts.forEach(receipt=>{if(!groups.has(receipt.location))groups.set(receipt.location,[]);groups.get(receipt.location).push(receipt);});
-    byId('import-summary-title').textContent=session.retired?'Saved report — inventory deleted':stopped?'Import paused — progress saved':'Import complete';
+    byId('import-summary-title').textContent=session.state?.undone?'Import undone':session.retired?'Saved report — inventory deleted':stopped?'Import paused — progress saved':'Import complete';
     byId('import-summary-intro').textContent=`${session.name} · ${completed.size} source rows accounted for · ${receipts.reduce((sum,r)=>sum+(r.result.added || 0),0)} records added. ${session.retired?'This report is read-only because its inventory was deleted.':stopped?'Unfinished rows are available when you resume.':'Physical location, IP reachability and TV stock checks remain separate.'}`;
     byId('import-summary-groups').replaceChildren(...[...groups].map(([location,rows])=>{
       const detail=el('details','cross-check-location'),summary=el('summary');
-      summary.textContent=location+' · '+['added','existing','skip','exclude','zero'].map(outcome=>`${rows.filter(row=>row.outcome===outcome).length} ${outcome==='exclude'?'excluded':outcome==='zero'?'zero stock':outcome}`).join(' · ')+` · ${rows.reduce((sum,row)=>sum+row.merged,0)} source rows combined · ${rows.filter(row=>row.issues.length).length} flagged`;
+      summary.textContent=location+' · '+['added','updated','existing','skip','exclude','zero'].map(outcome=>`${rows.filter(row=>row.outcome===outcome).length} ${outcome==='exclude'?'excluded':outcome==='zero'?'zero stock':outcome}`).join(' · ')+` · ${rows.reduce((sum,row)=>sum+row.merged,0)} source rows combined · ${rows.filter(row=>row.issues.length).length} flagged`;
       const list=el('ul');rows.forEach(row=>list.append(el('li','',`${row.sheet || 'Pasted table'} · ${row.keys.map(key=>key.split(':').pop()).join(', ')} · ${row.label} · ${row.outcome}${row.issues.length?' · '+row.issues.join(' · '):''}`)));detail.append(summary,list);return detail;
     }));
     byId('import-summary-resume-option').hidden=!stopped || !!session.retired;byId('import-summary-add-option').hidden=!!session.retired;byId('import-summary-compare-option').hidden=!!session.retired || !session.target.startsWith('equipment:');
     byId('import-summary-original-option').hidden=!!session.retired || !session.target.startsWith('equipment:');
     byId('import-summary-comparison-details').replaceChildren();
     byId('import-summary-comparison').textContent=session.reconciliation?`Last source comparison: ${session.reconciliation.complete?'All source rows matched':'Differences need review'}. Download the report for details.`:'';
+    window.desktopUI?.importSummary(session);
     byId('import-summary-panel').showModal();
   }
   async function resume(id){

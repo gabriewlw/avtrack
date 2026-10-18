@@ -5,6 +5,7 @@ import binascii
 from contextlib import nullcontext
 import import_sessions
 import workspace_transfer
+import operations
 import io
 import ipaddress
 import json
@@ -261,6 +262,7 @@ def connect():
         write_stored_backup(storage_name,row['content'])
         con.execute("UPDATE av_backups SET storage_name=?,content=X'' WHERE id=?",(storage_name,row['id']))
     import_sessions.initialize(con)
+    operations.initialize(con)
     return con
 
 
@@ -343,6 +345,7 @@ def inventory():
 
 
 def save_device(value, device_id=None):
+    creating=device_id is None
     row = validate(value)
     with connect() as con:
         if device_id is None:
@@ -353,6 +356,7 @@ def save_device(value, device_id=None):
             cursor = con.execute('UPDATE devices SET ' + ','.join(f + '=?' for f in ALL_FIELDS) + ', ip_confirmed=CASE WHEN ip=? AND vlan IS ? AND port IS ? THEN ip_confirmed ELSE 0 END, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row[f] for f in ALL_FIELDS] + [row['ip'], row['vlan'], row['port'], device_id])
             if cursor.rowcount == 0:
                 raise LookupError('Device not found.')
+        operations.audit(con,row['record_type'],device_id,'created' if creating else 'record_edited',{'initials':str(value.get('initials',''))[:40]})
         return serialize(con.execute('SELECT * FROM devices WHERE id=?', (device_id,)).fetchone())
 
 
@@ -376,6 +380,7 @@ def confirm_ip(device_id, value):
         cursor = con.execute('UPDATE devices SET ip_confirmed=1, updated_at=CURRENT_TIMESTAMP WHERE id=? AND ip=? AND vlan IS ?', (device_id, row['ip'], row['vlan']))
         if not cursor.rowcount:
             raise ValueError('The assignment has changed. Refresh before confirming.')
+        operations.audit(con,row['record_type'],device_id,'ip_manually_verified',{'method':'Manual reachability check','initials':str(value.get('initials',''))[:40]})
         return serialize(con.execute('SELECT * FROM devices WHERE id=?', (device_id,)).fetchone())
 
 
@@ -415,6 +420,8 @@ def set_device_notes(device_id, value):
     with connect() as con:
         if not con.execute('UPDATE devices SET notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', (notes, device_id)).rowcount:
             raise LookupError('Device not found.')
+        current=con.execute('SELECT record_type FROM devices WHERE id=?',(device_id,)).fetchone()
+        operations.audit(con,current['record_type'],device_id,'notes_edited',{'initials':str(value.get('initials',''))[:40]})
         return serialize(con.execute('SELECT * FROM devices WHERE id=?', (device_id,)).fetchone())
 
 
@@ -643,6 +650,7 @@ def equipment_inventory(inventory_id=1):
 
 
 def save_equipment(value, item_id=None):
+    creating=item_id is None
     row = validate_equipment(value)
     inventory_id = equipment_inventory_id(value.get('inventory_id', 1))
     with connect() as con:
@@ -669,6 +677,7 @@ def save_equipment(value, item_id=None):
                 raise LookupError('Inventory item not found.')
         con.execute('UPDATE equipment SET custom_values=?, data_checked=CASE WHEN custom_values=? THEN data_checked ELSE 0 END, item_confirmed=CASE WHEN custom_values=? THEN item_confirmed ELSE 0 END WHERE id=?', (json.dumps(values,sort_keys=True), json.dumps(values,sort_keys=True), json.dumps(values,sort_keys=True),item_id))
         con.execute('UPDATE equipment SET data_checked_at=CASE WHEN data_checked=1 THEN data_checked_at ELSE NULL END WHERE id=?',(item_id,))
+        operations.audit(con,'equipment',item_id,'created' if creating else 'record_edited',{'initials':str(value.get('initials',''))[:40]})
         return equipment_record(con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
 
 
@@ -699,6 +708,7 @@ def remove_equipment_unit(item_id, value):
             serials.remove(serial)
         con.execute('UPDATE equipment SET quantity=quantity-1, serial_number=?, data_checked=0, data_checked_at=NULL, item_confirmed=0, updated_at=CURRENT_TIMESTAMP WHERE id=? AND inventory_id=?',
                     (', '.join(serials), item_id, inventory_id))
+        operations.audit(con,'equipment',item_id,'unit_removed',{'serial':serial,'quantity_before':current['quantity'],'quantity_after':current['quantity']-1,'reason':str(value.get('reason',''))[:1000],'initials':str(value.get('initials',''))[:40]})
         return equipment_record(con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
 
 
@@ -715,6 +725,7 @@ def set_equipment_notes(item_id, value):
         notes=value['notes'].strip()
         con.execute('UPDATE equipment SET data_checked=CASE WHEN notes=? THEN data_checked ELSE 0 END, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND inventory_id=?',(notes,notes,item_id,inventory_id))
         con.execute('UPDATE equipment SET data_checked_at=CASE WHEN data_checked=1 THEN data_checked_at ELSE NULL END WHERE id=?',(item_id,))
+        operations.audit(con,'equipment',item_id,'notes_edited',{'initials':str(value.get('initials',''))[:40]})
         return equipment_record(con.execute('SELECT * FROM equipment WHERE id=?',(item_id,)).fetchone())
 
 
@@ -744,6 +755,7 @@ def set_equipment_confirmation(item_id, value):
             [int(value['item_confirmed']), item_id] + [row[f] for f in EQUIPMENT_CONFIRM_FIELDS])
         if not cursor.rowcount:
             raise ValueError('This item changed. Refresh the inventory before confirming it.')
+        operations.audit(con,'equipment',item_id,'location_checked',{'method':'Manual location check','initials':str(value.get('initials',''))[:40],'located':value['item_confirmed']})
         return equipment_record(con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
 
 
@@ -769,6 +781,7 @@ def set_equipment_review(item_id, value):
         if not cursor.rowcount:
             raise ValueError('This item changed. Refresh the inventory before reviewing it.')
         checked=equipment_record(con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
+        operations.audit(con,'equipment',item_id,'source_record_reviewed',{'method':'Compared with source inventory','initials':str(value.get('initials',''))[:40]})
         if value['data_checked']:
             con.execute('INSERT INTO equipment_record_checks (equipment_id,checked_at,snapshot) VALUES (?,?,?)',(item_id,checked['data_checked_at'],json.dumps(checked)))
         return checked
@@ -785,7 +798,9 @@ def equipment_record_history(item_id):
 BACKUP_TYPES=('Videohub','ATEM','Satellite receiver','OBS profile','Other')
 def av_backups():
     with connect() as con:
-        return [dict(row) for row in con.execute("SELECT id,equipment_type,device_name,filename,size,notes,created_at,icon_storage_name!='' AS has_icon FROM av_backups ORDER BY created_at DESC,id DESC")]
+        rows=[dict(row) for row in con.execute("SELECT id,equipment_type,device_name,filename,size,notes,created_at,icon_storage_name!='' AS has_icon FROM av_backups ORDER BY created_at DESC,id DESC")]
+        details={row['backup_id']:json.loads(row['details']) for row in con.execute('SELECT * FROM backup_details')}
+        return [dict(row,recovery=details.get(row['id'],{'state':'untested'})) for row in rows]
 
 
 def backup_icon(value):
@@ -886,6 +901,7 @@ def set_equipment_stock_check(item_id, value):
         checked=equipment_record(con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
         con.execute('INSERT INTO equipment_stock_checks (equipment_id,checked_at,snapshot) VALUES (?,?,?)',
             (item_id,checked['last_checked_at'],json.dumps(checked)))
+        operations.audit(con,'equipment',item_id,'physical_count_checked',{'method':'Manual physical stock count','initials':str(value.get('initials',''))[:40]})
         return checked
 
 
@@ -1064,7 +1080,7 @@ class Handler(BaseHTTPRequestHandler):
         return self.can_launch_desktop_app() and folder_open_command() is not None
 
     def send(self, status, data, content_type='application/json; charset=utf-8', filename=None):
-        body = json.dumps(data).encode() if content_type.startswith('application/json') else data
+        body = json.dumps(data).encode() if content_type.startswith('application/json') and not isinstance(data, bytes) else data
         self.send_response(status)
         self.send_header('Content-Type', content_type)
         self.send_header('Content-Length', str(len(body)))
@@ -1107,15 +1123,26 @@ class Handler(BaseHTTPRequestHandler):
     def dispatch(self):
         path = urlsplit(self.path).path
         query = parse_qs(urlsplit(self.path).query, keep_blank_values=True)
+        if operations.dispatch(self, sys.modules[__name__]):return
+        if self.command=='GET' and path=='/api/workspace/recovery':
+            directory=DB_PATH.parent/'recovery'
+            name=query.get('file',[''])[0]
+            if name:
+                if not re.fullmatch(r'avtrack-recovery-[a-zA-Z0-9-]+\.zip',name):raise ValueError('Choose a saved recovery backup.')
+                saved=directory/name
+                if not saved.is_file():raise LookupError('Recovery backup not found.')
+                return self.send(200,saved.read_bytes(),'application/zip',name)
+            return self.send(200,{'backups':[{'name':saved.name,'size':saved.stat().st_size} for saved in sorted(directory.glob('avtrack-recovery-*.zip'),reverse=True)]})
         if self.command == 'GET' and path == '/api/workspace/export':
             data = workspace_transfer.snapshot(connect, backup_directory)
+            data['app_version']=source_revision()
             content, mime, filename = workspace_transfer.pack(data, query.get('format', ['zip'])[0])
             return self.send(200, content, mime, filename)
-        if self.command == 'POST' and path == '/api/workspace/restore':
+        if self.command == 'POST' and path in ('/api/workspace/restore','/api/workspace/preview'):
             origin = self.headers.get('Origin')
             if origin and urlsplit(origin).netloc != self.headers.get('Host'):
                 raise PermissionError('Cross-origin writes are not allowed.')
-            if self.headers.get('X-AVTrack-Restore') != 'replace-all':
+            if path.endswith('/restore') and self.headers.get('X-AVTrack-Restore') != 'replace-all':
                 raise ValueError('Confirm that this backup will replace all workspaces.')
             try:
                 size = int(self.headers.get('Content-Length', '0'))
@@ -1124,7 +1151,12 @@ class Handler(BaseHTTPRequestHandler):
             if not 0 < size <= workspace_transfer.MAX_BYTES:
                 raise ValueError('Choose a complete backup smaller than 200 MB.')
             data = workspace_transfer.unpack(self.rfile.read(size))
-            return self.send(200, workspace_transfer.restore(data, connect, backup_directory))
+            if path.endswith('/preview'):
+                return self.send(200, workspace_transfer.preview(data,connect))
+            recovery=workspace_transfer.save_recovery(connect,backup_directory,DB_PATH.parent / 'recovery',version=source_revision())
+            result=workspace_transfer.restore(data, connect, backup_directory)
+            result['recovery_backup']=recovery.name
+            return self.send(200,result)
         if path.startswith('/api/import-sessions'):
             with connect() as con:
                 if path=='/api/import-sessions' and self.command=='GET':
@@ -1155,9 +1187,7 @@ class Handler(BaseHTTPRequestHandler):
                         if not isinstance(value,dict):raise ValueError('Provide a source row.')
                         con.execute('BEGIN IMMEDIATE')
                         def apply(session,row):
-                            if session['target'].startswith('equipment:'):
-                                return import_equipment(dict(version=1,inventory_id=int(session['target'].split(':')[1]),equipment=[dict(row,item_confirmed=False)]),con)
-                            return import_devices(dict(version=1,devices=[dict(row,record_type=session['target'])],source='spreadsheet',confirmation_required=session['state'].get('confirmation_mode',session['target']=='device') in (True,'ip')),con)
+                            return operations.apply_import(sys.modules[__name__],con,session,row)
                         result=import_sessions.save_receipt(con,session_id,value,apply);con.commit()
                         return self.send(200,result)
                     if self.command=='PUT' and match[2]=='/reconciliation':
@@ -1304,6 +1334,7 @@ class Handler(BaseHTTPRequestHandler):
             assets['/landing.js'] = ('landing.js', 'text/javascript')
             assets['/inventory'] = ('index.html', 'text/html')
             assets['/backups'] = ('index.html', 'text/html')
+            assets['/desktop.js'] = ('desktop.js','text/javascript')
             assets['/workspace-transfer.js'] = ('workspace-transfer.js', 'text/javascript')
             assets['/backups.js'] = ('backups.js', 'text/javascript')
             assets['/service-worker.js'] = ('service-worker.js', 'text/javascript')
@@ -1340,7 +1371,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, save_equipment_inventory(self.body(), inventory_id))
         elif self.command == 'DELETE' and path.startswith('/api/equipment/inventories/'):
             inventory_id = equipment_inventory_id(path.removeprefix('/api/equipment/inventories/'))
-            return self.send(200, delete_equipment_inventory(inventory_id, self.body()))
+            value=self.body()
+            workspace_transfer.save_recovery(connect,backup_directory,DB_PATH.parent/'recovery',version=source_revision())
+            return self.send(200, delete_equipment_inventory(inventory_id,value))
         elif self.command == 'POST' and path == '/api/equipment':
             return self.send(201, save_equipment(self.body()))
         elif self.command == 'POST' and path == '/api/equipment/reconcile':
@@ -1386,7 +1419,11 @@ class Handler(BaseHTTPRequestHandler):
             ids = payload.get('ids') if isinstance(payload, dict) else None
             if not isinstance(ids, list) or not ids or len(ids) > 10000 or any(type(value) is not int or value < 1 for value in ids):
                 raise ValueError('Choose between 1 and 10,000 device IDs, using positive whole numbers.')
+            workspace_transfer.save_recovery(connect,backup_directory,DB_PATH.parent/'recovery',version=source_revision())
             with connect() as con:
+                for record_id in dict.fromkeys(ids):
+                    saved=con.execute('SELECT record_type FROM devices WHERE id=?',(record_id,)).fetchone()
+                    if saved:operations.audit(con,saved['record_type'],record_id,'deleted',{'reason':'Bulk deletion'})
                 deleted = con.executemany('DELETE FROM devices WHERE id=?', ((value,) for value in dict.fromkeys(ids))).rowcount
             return self.send(200, {'deleted': deleted})
         elif self.command in ('PUT','DELETE') and path.startswith('/api/equipment/'):
@@ -1402,6 +1439,8 @@ class Handler(BaseHTTPRequestHandler):
             inventory_id = equipment_inventory_id(payload.get('inventory_id', 1))
             with connect() as con:
                 equipment_inventory_details(con, inventory_id)
+                saved=con.execute('SELECT * FROM equipment WHERE id=? AND inventory_id=?',(item_id,inventory_id)).fetchone()
+                if saved:operations.audit(con,'equipment',item_id,'stock_record_deleted',{'serial':saved['serial_number'],'description':saved['description'],'quantity_before':saved['quantity'],'quantity_after':0,'reason':str(payload.get('reason',''))[:1000],'initials':str(payload.get('initials',''))[:40]})
                 if not con.execute('DELETE FROM equipment WHERE id=? AND inventory_id=?', (item_id, inventory_id)).rowcount:
                     raise LookupError('Inventory item not found.')
             return self.send(200, {'deleted':item_id})

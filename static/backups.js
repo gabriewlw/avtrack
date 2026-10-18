@@ -28,7 +28,8 @@
       const name = element('h3', '', item.device_name);
       const file = element('div', 'backup-file');
       file.append(element('span', 'backup-file-icon', '↧'), element('span', 'backup-filename', item.filename), element('small', '', formatSize(item.size)));
-      card.append(top, name, file);
+      card.append(top,name,file);
+      const recovery=item.recovery||{};card.append(element('p','backup-recovery-summary',`${(recovery.state||'untested').replaceAll('_',' ')}${recovery.firmware?' · Firmware '+recovery.firmware:''} · Captured: ${recovery.captured_on||'not recorded'} · Restore tested: ${recovery.tested_on||'not recorded'}`));
       if (item.notes) card.append(element('p', 'backup-notes', item.notes));
       const actions = element('div', 'backup-actions');
       const download = element('a', 'primary compact', 'Download');
@@ -42,7 +43,7 @@
         $('delete-backup-error').hidden = true;
         deleteDialog.showModal();
       };
-      actions.append(download, remove); card.append(actions); return card;
+      const details=element('button','secondary compact','Recovery details');details.type='button';details.onclick=()=>window.desktopUI.openBackup(item);actions.append(download,details,remove); card.append(actions); return card;
     }));
     if (backups.length && !visible.length) $('backups-grid').append(element('p', 'backup-no-results', 'No backups match these filters.'));
   }

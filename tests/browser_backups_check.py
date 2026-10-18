@@ -26,7 +26,7 @@ with tempfile.TemporaryDirectory() as temp:
             page.goto(f'http://127.0.0.1:{server.server_port}/backups')
             page.locator('#backups-panel').wait_for(state='visible')
             assert page.locator('#backups-tab').get_attribute('aria-current') == 'page'
-            assert page.locator('#workspace-page-title').text_content() == 'Backups'
+            assert page.locator('#workspace-page-title').text_content() == 'Equipment backups'
             assert str(Path(temp) / 'backups') in page.locator('#backup-folder-path').text_content()
             assert page.locator('#open-backup-folder').is_visible()
             page.locator('#add-backup').click()

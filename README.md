@@ -37,9 +37,9 @@ Paste cells directly from Excel or import CSV/XLSX files. AVTrack reads the head
 
 Use the source comparison tools after an import to check that spreadsheet records reached AVTrack. Blank values remain available for later inspection instead of blocking the entire import.
 
-### Backups
+### Equipment backups
 
-Save known-good files for Videohubs, ATEM switchers, satellite receivers, OBS profiles, and other AV systems. Each record includes the device name, equipment type, date, notes, and an optional card icon.
+Save configuration files for Videohubs, ATEM switchers, satellite receivers, OBS profiles, and other AV systems. Each record includes the device name, equipment type, date, notes, and an optional card icon. **Recovery details** lets you link a file to a saved device or inventory item, record model/serial and firmware compatibility, and distinguish untested, known-good, and superseded files with capture and restore-test dates.
 
 The actual files are stored in a normal local folder, so they remain easy to copy or synchronize. AVTrack stores their descriptions and file references in SQLite. Each uploaded backup can be up to 25 MB.
 
@@ -100,20 +100,22 @@ A useful starting order is:
 1. Add one AV device manually and confirm that its layout fits your workflow.
 2. Paste a small section from an existing spreadsheet and review the suggested columns.
 3. Create the inventory types you need and import one location at a time.
-4. Add known-good recovery files under Backups.
-5. Export a report and copy the `data` folder to safe storage.
+4. Add recovery files under Equipment backups and record their tested status.
+5. Use **Back up entire app → Complete backup ZIP** on Overview and keep the file somewhere safe.
 
 ## Importing spreadsheets
 
-**Paste from Excel** is the quickest import method. Copy a rectangular group of cells in Excel, including the heading row, and paste it into AVTrack. The first pasted row is always treated as the column-heading row, and headings containing multiple words remain together when they come from one Excel cell.
+Choose the red **Import data** button in the destination workspace. Paste a rectangular group of cells copied from Excel, including the heading row, or upload CSV/XLSX/record JSON. The first pasted row is treated as the column-heading row, and headings containing multiple words remain together when they come from one Excel cell.
 
 AVTrack then:
 
-1. previews the pasted table;
-2. suggests matches between the source headings and AVTrack fields;
-3. asks for the confirmation and stock-check behavior needed by that table;
-4. shows complete and flagged rows for review;
-5. imports accepted records and retains an import report for comparison.
+1. previews the source, destination, detected columns, and worksheet choices;
+2. shows an editable final review, with incomplete or uncertain rows flagged;
+3. saves only when you explicitly import the selected rows, then shows results and the source report.
+
+Column matching and verification controls remain available under **Advanced settings**. Source columns without a selected destination are preserved in Notes, one piece of information per line. For inventories, worksheet names supply missing locations; an explicit Location column takes precedence. New custom inventories can infer columns directly from the source headings.
+
+**Add new records only** is the default. Choose **Review changes to existing records** to compare recognized matches and explicitly select updates. A preview never saves business records or changes the inventory layout. After saving, **Stop and keep saved rows** preserves progress. **Undo this import** reverses tracked additions and updates only if those records have no later activity; older imports remain read-only reports.
 
 File upload remains available for `.csv` and `.xlsx` files, including workbooks with multiple worksheets. Excel files preserve worksheets and cell structure better; CSV is smaller and easier to inspect manually.
 
@@ -124,8 +126,12 @@ Spreadsheet layouts can differ from one job to another. Always review the detect
 - Devices searches names, IP addresses, venues, systems, VLANs, categories, and notes.
 - IPTV searches channel names, IP addresses, ports, sources, and notes.
 - Inventory searches every visible and custom field, including model and all stored serial numbers.
+- Active filter chips and **Clear all filters** make the current search scope visible. **Find anywhere** searches Devices, IPTV, named inventories, and equipment backups together.
+- Click a device name or an inventory row's **Details** action for multiline notes, copy actions, verification history, tracked import sources, and related recovery files.
 - Confirmation buttons save a manual check. They do not perform automatic network or physical verification.
-- Inventory stock checks retain dated history when enabled for that inventory.
+- Source review, physical location, and physical counts are separate checks. Spare parts enable dated physical counts by default. Unknown quantities remain visible instead of implying a complete count.
+- Removing one unit requires choosing its serial or an unserialized unit. The confirmation shows the resulting quantity; history records the movement and optional reason/reviewer initials.
+- **Handover** lists missing counts, unlocated items, pending source reviews, checks older than 90 days, devices without a linked known-good configuration, and recent stock movements.
 - Exports support JSON, CSV, XLSX, and PDF. You can export the current filtered view, selected rows, or the complete active list.
 
 JSON is the best format for restoring AVTrack records. CSV and XLSX are convenient for spreadsheet work. PDF is intended for a clear printable or shareable report.
@@ -137,6 +143,7 @@ By default, AVTrack uses:
 ```text
 data/inventory.sqlite3   Main database
 data/backups/            Uploaded backup files and icons
+data/recovery/           Automatic complete recovery backups
 ```
 
 The SQLite database stores Devices, IPTV channels, inventories, import history, confirmation history, and backup metadata. The `data/backups` folder stores the actual equipment backup files.
@@ -151,13 +158,15 @@ To move AVTrack to another computer, copy the whole project folder, including `d
 
 ### Export or move the complete workspace
 
-On the homepage, use **Export all data** beside **Your workspace at a glance**:
+On Overview, use **Back up entire app** beside **Your workspace at a glance**:
 
 - **Complete backup ZIP** is recommended when moving computers. One file includes every workspace, inventory layout, custom field, note, confirmation, saved history, and uploaded backup file/icon.
 - **Complete backup JSON** contains the same restorable data in an uncompressed file.
-- **Excel workbook** and **CSV files ZIP** are reports of saved records, without the uploaded file contents. They cannot restore the whole app.
+- **Excel workbook** and **CSV files ZIP** contain readable Devices, IPTV, named-inventory, and Equipment backups reports, without uploaded file contents or internal import tables. They cannot restore the whole app.
 
-On the other computer, run the same AVTrack version, choose **Workspace import** beside **Export all data** on the homepage, select the complete ZIP or JSON backup, and confirm **Replace all current workspaces**. The app reloads with the restored data. Export the destination's data first if you need to keep it: this is a complete replacement, not a merge.
+On the other computer, run the same AVTrack version, choose **Restore app backup** on Overview, and select the complete ZIP or JSON. Review its date, app version, workspace names, record counts, and attached files, then confirm **Replace all current workspaces**. This is a complete replacement, not a merge. AVTrack saves a complete recovery copy of the destination before replacement; existing copies can be downloaded from the restore dialog. Recovery copies are also made before deleting an entire inventory or a batch of devices.
+
+New complete backups have integrity checks and timestamped filenames. The desktop hardening release also accepts the previous v0.0.187 backup schema; compatibility with arbitrary older or future schemas is not guaranteed. Keep recovery copies on another drive as well: files on the same disk do not protect against disk failure.
 
 Complete transfers support files up to 200 MB, including the uncompressed backup contents. For larger workspaces, stop AVTrack and copy the entire `data` folder instead. Custom `AVTRACK_DB` and `AVTRACK_BACKUP_DIR` locations remain configured on the destination computer.
 
@@ -304,6 +313,7 @@ Useful references:
 
 - [Sample equipment inventory CSV](docs/examples/equipment-inventory.csv)
 - [Import usability review](docs/import-usability-review.md)
+- [Desktop hardening release changes](docs/desktop-release-changes.md)
 - [IPTV satellite channel reference](docs/satellite-channel-reference.md)
 
 ## Development checks

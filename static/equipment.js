@@ -8,7 +8,7 @@
   const layout = () => inventories.find(i => i.id === inventoryId)?.layout || defaultInventoryLayout;
   const displayColumns = () => layout().columns;
   const isTVInventory = () => layout().template === 'tv' || layout().stock_mode === 'tv_counts';
-  const stockChecksEnabled = () => layout().stock_check_history ?? isTVInventory();
+  const stockChecksEnabled = () => layout().stock_check_history ?? (isTVInventory() || layout().template==='spare_parts');
   const recordChecksEnabled = () => layout().show_record_check ?? !isTVInventory();
   const ipConfirmation = () => layout().confirmation_mode === 'ip';
   const confirmedLabel = () => ipConfirmation() ? 'IP confirmed' : 'Located';
@@ -130,6 +130,7 @@
     renderInventoryColumns();
     renderLocationButtons();
     renderCustomFilters();
+    window.desktopUI?.renderFilters();
     const query = $('equipment-search').value.trim().toLowerCase(),serialQuery=serialKey(query);
     const recordReview = recordChecksEnabled();
     const reviewFilter = recordReview ? $('equipment-review-filter').value : '';
@@ -145,12 +146,12 @@
     const flaggedLink=element('a','',`${flaggedCount} flagged`);
     flaggedLink.href='#equipment-table';flaggedLink.onclick=showFlaggedEquipment;
     $('equipment-review-summary').replaceChildren(
-      document.createTextNode(`${items.filter(i => !i.data_checked).length} awaiting stock confirmation · `),
+      document.createTextNode(`${items.filter(i => !i.data_checked).length} awaiting record review · `),
       flaggedCount ? flaggedLink : document.createTextNode('0 flagged'),
       document.createTextNode(showLocatedStatus() ? ` · ${items.filter(i => !i.item_confirmed).length} ${ipConfirmation()?'IPs':'locations'} not confirmed` : ''));
     const results = items.filter(item => (layout().stock_mode!=='tv_counts'||$('equipment-show-zero').checked||item.quantity!==0) && ([...fields.map(field=>item[field]),...Object.values(item.custom_values || {}),
       ...(showLocatedStatus() ? [item.item_confirmed ? confirmedLabel() : pendingLabel()] : []),
-      ...(recordReview ? [item.data_checked ? 'Stock confirmed' : 'Confirm stock'] : [])
+      ...(recordReview ? [item.data_checked ? 'Record reviewed' : 'Review record'] : [])
     ].some(value => String(value ?? '').toLowerCase().includes(query)) || (serialQuery && serialKey(item.serial_number).includes(serialQuery))) &&
       [...customFilterValues].every(([key,value]) => !value || String(inventoryValue(item,key)) === value) &&
       (!$('equipment-location-filter').value || item.location === $('equipment-location-filter').value) &&
@@ -171,16 +172,19 @@
     if(!displayColumns().some(col=>col.key==='quantity'||col.type==='count'||col.type==='calculated')){$('equipment-units').textContent=items.length;}
     const quantityTracked=displayColumns().some(col=>col.key==='quantity'||col.type==='count'||col.type==='calculated');
     const totalUnits=quantityTracked?items.reduce((total,item) => total + (Number(item.quantity) || 0), 0):items.length;
-    const confirmedUnits=items.filter(item=>item.item_confirmed).reduce((total,item)=>total+(quantityTracked?(Number(item.quantity)||0):1),0);
-    const confirmedPercent=totalUnits?confirmedUnits/totalUnits*100:0;
-    const confirmedPercentLabel=Number.isInteger(confirmedPercent)?String(confirmedPercent):confirmedPercent.toFixed(1);
-    $('equipment-records').textContent = items.length;
-    $('equipment-units').textContent = totalUnits;
-    $('equipment-units').title = 'Sum of known quantities; blank quantities are not counted.';
-    $('equipment-locations').textContent = new Set(items.map(i => i.location).filter(Boolean)).size;
-    $('equipment-found').textContent = items.filter(item => item.item_confirmed).length;
-    $('equipment-found-percent').textContent = `${confirmedPercentLabel}% of units`;
-    $('equipment-found-percent').title = `${confirmedUnits} of ${totalUnits} ${quantityTracked?'known units':'records'} confirmed`;
+    const unknown=quantityTracked?items.filter(item=>item.quantity==null).length:0;
+    const located=items.filter(item=>item.item_confirmed);
+    const grouped=new Map();items.filter(item=>item.location).forEach(item=>{if(!grouped.has(item.location))grouped.set(item.location,[]);grouped.get(item.location).push(item);});
+    const fullyLocated=[...grouped.values()].filter(rows=>rows.every(item=>item.item_confirmed)).length;
+    $('equipment-records').textContent=items.length;
+    $('equipment-units').textContent=String(totalUnits);
+    $('equipment-units').title='Sum of known quantities; blank quantities are not counted.';
+    let note=$('equipment-unknown-count');if(!note){note=element('small');note.id='equipment-unknown-count';$('equipment-units').after(note);}
+    note.textContent=unknown?`${unknown} record${unknown===1?'':'s'} awaiting count`:quantityTracked?'All quantities recorded':'';
+    $('equipment-locations').textContent=grouped.size;
+    $('equipment-found').textContent=ipConfirmation()?located.length:fullyLocated;
+    $('equipment-found-percent').textContent=ipConfirmation()?`${located.length} / ${items.length} records`:`${fullyLocated} / ${grouped.size} locations · ${unknown} unknown counts`;
+    $('equipment-found-percent').title='A location is confirmed only when every record there is marked Located.';
     const confirmedStat=$('equipment-found').closest('.equipment-confirmed-stat');
     confirmedStat.previousElementSibling.textContent=ipConfirmation()?'Confirmed IPs':'Confirmed locations';
     $('equipment-result-count').textContent = results.length;
@@ -256,17 +260,17 @@
           const review = element('td', 'equipment-review'); review.dataset.label = 'Stock check';
           const issues = recordIssues;
           const checkedDate=item.data_checked_at?new Date(item.data_checked_at):null;
-          const button = element('button', item.data_checked ? 'primary equipment-stock-confirm record-checked' : 'primary equipment-stock-confirm', checkedDate?checkedDate.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):'Confirm stock');
+          const button = element('button', item.data_checked ? 'primary equipment-stock-confirm record-checked' : 'primary equipment-stock-confirm', checkedDate?checkedDate.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):'Review record');
           button.type = 'button'; button.disabled = pendingConfirmations.has(item.id);
-          button.title = checkedDate?`Stock confirmed ${checkedDate.toLocaleString()}. Click to view history or confirm again.`:'Confirm this item against the inventory record';
-          button.setAttribute('aria-label', `Confirm stock for ${displayName(item)}`);
+          button.title = checkedDate?`Record reviewed ${checkedDate.toLocaleString()}. Click to view history or confirm again.`:'Confirm this item against the inventory record';
+          button.setAttribute('aria-label', `Review record for ${displayName(item)}`);
           button.onclick = async () => {
             $('equipment-record-review-details').textContent = recordReviewDetails(item);
             $('equipment-record-review-issues').textContent = issues.length ? issues.join(' · ') + '. Use Edit to correct the record, or acknowledge these blanks after checking the source.' : 'Check these details against the old inventory file.';
             $('equipment-record-review-error').hidden = true;
             let history=$('equipment-record-review-history');if(!history){history=element('div','stock-check-history');history.id='equipment-record-review-history';$('equipment-record-review-error').before(history);}
             history.replaceChildren(element('p','dialog-intro','Loading confirmation history…'));
-            api(`/api/equipment/${item.id}/record-checks`).then(({checks})=>{if(!checks.length)history.replaceChildren(element('p','dialog-intro','No previous stock confirmations.'));else{const list=element('ul');checks.forEach(check=>list.append(element('li','',new Date(check.checked_at).toLocaleString())));history.replaceChildren(element('strong','','Stock confirmation history'),list);}}).catch(error=>history.replaceChildren(element('p','error','Could not load stock confirmation history: '+error.message)));
+            api(`/api/equipment/${item.id}/record-checks`).then(({checks})=>{if(!checks.length)history.replaceChildren(element('p','dialog-intro','No previous record reviews.'));else{const list=element('ul');checks.forEach(check=>list.append(element('li','',new Date(check.checked_at).toLocaleString())));history.replaceChildren(element('strong','','Record review history'),list);}}).catch(error=>history.replaceChildren(element('p','error','Could not load stock confirmation history: '+error.message)));
             $('edit-equipment-record-review').onclick = () => { $('equipment-record-review-dialog').close(); openEquipment(item); };
             $('save-equipment-record-review').onclick = async () => {
               const control = $('save-equipment-record-review'); control.disabled = true;
@@ -329,14 +333,16 @@
         deletingItem = item;
         $('equipment-delete-description').textContent = `${displayName(item)} · Quantity ${item.quantity} · ${item.location}`;
         const choices=$('equipment-delete-unit');
-        choices.replaceChildren(new Option('Delete the entire row (all units)','all'));
+        choices.replaceChildren(new Option('Choose an action…',''),new Option('Delete entire record (all units)','all'));
         const serials=serialNumbers(item);
         if(Number(item.quantity)>1 && !isTVInventory()){
           serials.forEach(serial=>choices.append(new Option(`Remove one unit: ${serial}`,'serial:'+serial)));
           if(serials.length<Number(item.quantity))choices.append(new Option('Remove one unit without a serial number','unserialized'));
-          choices.value=serials.length?'serial:'+serials[0]:'unserialized';
+          choices.value='';
         }
         $('equipment-delete-unit-label').hidden=Number(item.quantity)<=1 || isTVInventory();
+        if($('equipment-delete-unit-label').hidden)choices.value='all';
+        window.desktopUI?.prepareUnitRemoval(item);
         $('equipment-delete-error').hidden = true;
         $('equipment-delete-dialog').showModal(); $('cancel-equipment-delete').focus();
       };
@@ -544,10 +550,12 @@
       if(col.type==='location'){const name=element('input');name.type='text';name.maxLength=120;name.placeholder='New storage location';name.setAttribute('aria-label','New storage location');name.hidden=true;const add=element('button','quiet','New location');add.type='button';add.onclick=()=>{if(name.hidden){name.hidden=false;add.textContent='Add location';name.focus();return;}if(name.value.trim()){control.add(new Option(name.value.trim(),name.value.trim()));control.value=name.value.trim();name.value='';name.hidden=true;add.textContent='New location';}};wrapper.append(name,add);}
     });
     formCustomControls=new Map();
-    $('equipment-custom-fields').replaceChildren(...displayColumns().filter(col=>!inventoryBaseFields.has(col.key)).map(col=>{const group=element('div');group.append(element('span','',col.label));const initial=inventoryValue(item || {},col.key) || (col.type==='count'&&col.minimum===0?'0':'');const {wrapper,control}=inventoryInput(col,initial);group.append(wrapper);formCustomControls.set(col.key,control);return group;}));
+    $('equipment-custom-fields').replaceChildren(...displayColumns().filter(col=>!inventoryBaseFields.has(col.key)).map(col=>{const group=element('div');group.append(element('span','',col.label));const initial=inventoryValue(item || {},col.key) || (col.type==='count'&&col.minimum===0?'0':'');const {wrapper,control}=inventoryInput(col,initial);control.dataset.draftField=col.key;group.append(wrapper);formCustomControls.set(col.key,control);return group;}));
     const updateTotal=()=>{const row=inventoryCalculate({custom_values:Object.fromEntries([...formCustomControls].map(([key,input])=>[key,input.value]))},layout());displayColumns().filter(col=>col.type==='calculated').forEach(col=>{formCustomControls.get(col.key).value=inventoryValue(row,col.key);});};
     formCustomControls.forEach((input,key)=>{if(displayColumns().some(col=>col.key===key&&col.type==='count'))input.onchange=updateTotal;});updateTotal();
     equipmentForm.dataset.originalCustom=JSON.stringify(item?.custom_values || {});
+    window.desktopUI?.restoreDraft(equipmentForm,editingId?null:'equipment-'+formInventoryId);
+    updateTotal();
     $('equipment-dialog').showModal();
   }
   equipmentForm.onsubmit = async event => {
@@ -555,7 +563,9 @@
     $('equipment-form-error').hidden = true;
     try {
       await api(editingId ? `/api/equipment/${editingId}` : '/api/equipment', editingId ? 'PUT' : 'POST', {...Object.fromEntries(new FormData(equipmentForm)), inventory_id:formInventoryId,custom_values:{...JSON.parse(equipmentForm.dataset.originalCustom||'{}'),...Object.fromEntries([...formCustomControls].map(([key,input])=>[key,input.value]))}});
-      $('equipment-dialog').close(); toast(editingId ? 'Equipment updated.' : 'Equipment added.'); await loadEquipment();
+      window.desktopUI?.clearDraft(equipmentForm);
+      const again=$('equipment-add-another')?.checked,location=equipmentForm.elements.location.value;
+      $('equipment-dialog').close();if(again&&!editingId){openEquipment();equipmentForm.elements.location.value=location;} toast(editingId ? 'Equipment updated.' : 'Equipment added.'); await loadEquipment();
     } catch(error) { $('equipment-form-error').textContent = error.message; $('equipment-form-error').hidden = false; }
     finally { $('save-equipment').disabled = false; }
   };
@@ -574,7 +584,7 @@
     $('equipment-inventory-form').reset();
     $('equipment-inventory-name').value = rename ? currentInventory().name : '';
     $('equipment-inventory-form-title').textContent = rename ? 'Rename inventory' : 'New inventory';
-    $('save-equipment-inventory').textContent = rename ? 'Save name' : 'Continue to paste';
+    $('save-equipment-inventory').textContent = rename ? 'Save name' : 'Create inventory';
     $('equipment-inventory-form-error').hidden = true;
     $('equipment-inventory-dialog').showModal(); $('equipment-inventory-name').focus();
   }
@@ -625,7 +635,7 @@
         await inventoryTemplatesReady;
         const profile=structuredClone(inventoryTemplates.find(template=>template.id===$('equipment-template').value)?.layout || defaultInventoryLayout);
         const inventory=await api('/api/equipment/inventories','POST',{name,layout:profile});
-        $('equipment-inventory-dialog').close();await loadEquipment(inventory.id);await openPastedImport({fromHeaders:$('equipment-template').value==='custom'});return;
+        $('equipment-inventory-dialog').close();await loadEquipment(inventory.id);window.desktopUI?.chooseInventoryStart({...inventory,fromHeaders:$('equipment-template').value==='custom'});return;
       }
       const inventory = await api(renamingInventoryId ? `/api/equipment/inventories/${renamingInventoryId}` : '/api/equipment/inventories', renamingInventoryId ? 'PUT' : 'POST', {name:$('equipment-inventory-name').value});
       $('equipment-inventory-dialog').close();
@@ -656,9 +666,9 @@
   $('confirm-equipment-delete').onclick = async () => {
     $('confirm-equipment-delete').disabled = true;
     try {
-      const unit=$('equipment-delete-unit').value;
-      if(unit==='all')await api(`/api/equipment/${deletingItem.id}`, 'DELETE', {inventory_id:deletingItem.inventory_id});
-      else await api(`/api/equipment/${deletingItem.id}/remove-unit`, 'POST', {inventory_id:deletingItem.inventory_id,serial:unit==='unserialized'?null:unit.slice(7),original_quantity:deletingItem.quantity,original_serial_number:deletingItem.serial_number}); $('equipment-delete-dialog').close(); toast('Equipment deleted.'); await loadEquipment(); }
+      const unit=$('equipment-delete-unit').value;if(!unit)throw new Error('Choose the unit or entire record to remove.');
+      if(unit==='all')await api(`/api/equipment/${deletingItem.id}`, 'DELETE', {inventory_id:deletingItem.inventory_id,reason:$('unit-removal-reason')?.value||'',initials:$('reviewer-initials')?.value||''});
+      else await api(`/api/equipment/${deletingItem.id}/remove-unit`, 'POST', {inventory_id:deletingItem.inventory_id,serial:unit==='unserialized'?null:unit.slice(7),reason:$('unit-removal-reason')?.value || '',initials:$('reviewer-initials')?.value || '',original_quantity:deletingItem.quantity,original_serial_number:deletingItem.serial_number}); $('equipment-delete-dialog').close(); toast(unit==='all'?'Entire record deleted.':`One unit removed. ${deletingItem.quantity-1} remain.`); await loadEquipment(); }
     catch(error) { $('equipment-delete-error').textContent = error.message; $('equipment-delete-error').hidden = false; }
     finally { $('confirm-equipment-delete').disabled = false; }
   };

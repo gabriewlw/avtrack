@@ -909,3 +909,52 @@ main, dialog {
   .workspace-transfer .export-dropdown { position:static; }
   .workspace-transfer .export-links { left:0; right:auto; width:min(300px,100%); }
 }
+
+/* Desktop operational views. Existing mobile layout remains separate. */
+@media(min-width:900px) {
+  body.desktop-working main>.heading { display:none; }
+  body.desktop-working main { padding-top:24px; }
+  #main-navigation { gap:16px; }
+  #main-navigation button { font:11px var(--mono); padding:7px 9px; }
+  #equipment-table .equipment-actions { min-width:140px; width:140px!important; }
+}
+.active-filter-chips { display:flex; flex-wrap:wrap; gap:7px; grid-column:1/-1; }
+.active-filter-chips:empty { display:none; }
+.active-filter-chips button { min-height:28px; border:1px solid var(--primary); border-radius:20px; padding:4px 10px; font-size:11px; background:var(--surface-accent); color:var(--foreground); }
+.details-trigger { cursor:pointer; text-decoration:underline; text-decoration-color:var(--border); text-underline-offset:4px; }
+.details-trigger:focus-visible { outline:2px solid var(--primary); outline-offset:4px; }
+#desktop-record-dialog { width:min(850px,95vw); }
+.record-detail-grid { display:grid; grid-template-columns:180px minmax(0,1fr); gap:10px 20px; }
+.record-detail-grid dt { color:var(--muted); text-transform:capitalize; }
+.record-detail-grid dd { margin:0; overflow-wrap:anywhere; }
+.record-detail-grid dd button { margin-left:12px; }
+.record-full-notes { white-space:pre-wrap; line-height:1.7; padding:12px; border:1px solid var(--border); border-radius:6px; }
+.record-details-button { font-size:10px; min-height:28px; padding:4px!important; }
+#desktop-search-dialog,#desktop-handover-dialog { width:min(850px,95vw); }
+.search-result { display:block; width:100%; text-align:left; padding:12px; border:1px solid var(--border); border-radius:5px; margin:7px 0; background:var(--panel); color:var(--foreground); }
+.search-result:hover { border-color:var(--primary); }
+.handover-group { padding:14px 0; border-bottom:1px solid var(--border); }
+.handover-group summary { cursor:pointer; font-weight:600; }
+.history-entry { font-size:12px; line-height:1.7; border-bottom:1px solid var(--border); padding:8px 0; }
+.import-policy { padding:12px 0; max-width:650px; }
+.import-policy small,.reviewer-label { color:var(--muted); font-size:12px; }
+.import-advanced { margin:12px 0; padding:12px; border:1px solid var(--border); border-radius:6px; }
+.import-advanced summary { cursor:pointer; font-size:12px; font-weight:600; }
+.review-differences { max-width:320px; white-space:normal; font-size:11px; line-height:1.5; color:var(--foreground); background:var(--surface-accent); padding:8px; }
+.restore-preview { margin:16px 0; padding:14px; border:1px solid var(--primary); border-radius:6px; }
+.restore-preview p { margin:7px 0; }
+#workspace-recovery-list { font-size:11px; line-height:1.8; overflow-wrap:anywhere; }
+#equipment-unknown-count { display:block; font-size:11px; color:var(--muted); margin-top:8px; }
+.add-another { display:flex; flex-direction:row; align-items:center; gap:7px; font-size:11px; }
+.add-another input { width:16px; min-height:16px; }
+.reviewer-label input { max-width:180px; }
+.export-scope-caption { padding:7px; margin:0; font-size:11px; color:var(--muted); }
+
+@media(min-width:900px) {
+  .header-inner { display:flex; align-items:center; gap:28px; }
+  #main-navigation { margin-left:auto; }
+  .brand-group { flex-shrink:0; }
+  #main-navigation a { font-size:11px; }
+  .workspace-transfer-actions .export-toggle { width:auto; min-width:170px; }
+  .workspace-transfer-actions #workspace-restore-open { width:auto; min-width:170px; }
+}

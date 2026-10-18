@@ -21,7 +21,8 @@ function reviewEquipmentBatch(entries, index, total, inventory, fields, filename
       const label=element('label','batch-row-selection');
       const check=element('input');check.type='checkbox';check.checked=!entry.issues.length;check.setAttribute('aria-label',`Select row ${entry.number}`);
       label.append(check,element('strong','',`Row ${entry.number}`));selection.append(label);
-      const flags=element('p','batch-row-flags',entry.issues.join(' · '));flags.hidden=!entry.issues.length;selection.append(flags);row.append(selection);
+      const flags=element('p','batch-row-flags',entry.issues.join(' · '));
+      if(entry.row._update){const changes=element('p','review-differences',entry.row._update.differences.map(diff=>`${diff.field}: ${JSON.stringify(diff.before)} → ${JSON.stringify(diff.after)}`).join(' · '));selection.append(changes);}flags.hidden=!entry.issues.length;selection.append(flags);row.append(selection);
       const controls=new Map(),confirmations=new Map();
       fields.forEach(([key,label]) => {
         const cell=element('td');
@@ -111,7 +112,7 @@ function reviewEquipmentBatch(entries, index, total, inventory, fields, filename
       state.done=true;state.check.checked=false;
       state.row.querySelectorAll('input,select,textarea,button').forEach(control=>{control.disabled=true;});
       state.status.classList.remove('error');
-      state.status.textContent=result.skippedRow?'Skipped by you':result.skipped?'Already saved · skipped':'Imported';
+      state.status.textContent=result.skippedRow?'Skipped by you':result.skipped?'Already saved · skipped':result.updated?'Existing record updated':'Imported';
       state.row.classList.add('batch-row-done');outcomes.push({entry:state.entry,result});
     }
     $('inventory-import-review-all').onchange=event=>{states.filter(state=>!state.done).forEach(state=>{state.check.checked=event.target.checked;});updateSelection();};
@@ -122,7 +123,7 @@ function reviewEquipmentBatch(entries, index, total, inventory, fields, filename
       try {
         for(const [position,state] of selected.entries()) {
           const row=editedRow(state);
-          if(inventory.layout?.stock_mode==='tv_counts'&&row.quantity===0){complete(state,await window.importWorkflow.write(state.entry,row,'zero'));state.status.textContent='Zero total · skipped';continue;}
+          if(!row._update&&inventory.layout?.stock_mode==='tv_counts'&&row.quantity===0){complete(state,await window.importWorkflow.write(state.entry,row,'zero'));state.status.textContent='Zero total · skipped';continue;}
           if(!meaningfulImportRow(row)){complete(state,await window.importWorkflow.write(state.entry,row,'skip'));continue;}
           state.status.textContent=`Importing ${position+1} of ${selected.length}…`;
           try {
@@ -146,6 +147,7 @@ function reviewEquipmentBatch(entries, index, total, inventory, fields, filename
     $('inventory-import-review-close').onclick=$('inventory-import-review-stop').onclick=()=>finish(true);
     dialog.oncancel=event=>{event.preventDefault();finish(true);};
     dialog.onkeydown=event=>{if(event.altKey && ['ArrowDown','ArrowUp'].includes(event.key)){event.preventDefault();const current=states.findIndex(state=>state.row.contains(document.activeElement));const next=states[Math.max(0,Math.min(states.length-1,current+(event.key==='ArrowDown'?1:-1)))];next?.row.querySelector('input:not([type=hidden]),select,button')?.focus();}};
+    $('inventory-import-review-stop').textContent='Stop and keep saved rows';
     updateSelection();dialog.showModal();$('inventory-import-review-all').focus();
   });
 }

@@ -36,6 +36,7 @@ let overviewSnapshot;
 const onHomeRoute = () => location.pathname === '/' && !location.hash;
 function syncHomePresentation() {
   const home = onHomeRoute();
+  document.body.classList.toggle('desktop-working',!home);
   const waiting = home && overviewSnapshot === undefined;
   const empty = home && overviewSnapshot && (overviewSnapshot.av_total + overviewSnapshot.iptv_total + overviewSnapshot.inventory_total === 0);
   document.body.classList.toggle('home-data-pending', waiting);
@@ -51,7 +52,7 @@ async function loadOverview() {
     $('overview-av-caption').textContent = totals.av_validated === 1 ? 'IP validated' : 'IPs validated';
     $('overview-av-total').textContent = `${totals.av_validated} of ${totals.av_total} ${totals.av_total === 1 ? 'device' : 'devices'}`;
     $('overview-iptv-total').textContent = totals.iptv_total;
-    $('overview-iptv-caption').textContent = totals.iptv_total === 1 ? 'channel running' : 'channels running';
+    $('overview-iptv-caption').textContent = totals.iptv_total === 1 ? 'channel saved' : 'channels saved';
     $('overview-iptv-sources').textContent = `${totals.iptv_onboard} onboard · ${totals.iptv_satellite} satellite`;
     $('overview-inventory-total').textContent = totals.inventory_total;
     $('overview-inventory-locations').textContent = `${totals.inventory_total === 1 ? 'item' : 'items'} across ${totals.inventory_locations} ${totals.inventory_locations === 1 ? 'location' : 'locations'}`;
@@ -74,7 +75,7 @@ async function loadOverview() {
 }
 function updatePageSummary(equipmentItems, inventoryName, profile = {}) {
   if (equipmentItems) equipmentPageSummary = {count:equipmentItems.length, locations:new Set(equipmentItems.map(item => item.location).filter(Boolean)).size, name:inventoryName,storage:profile.location_role!=='geographic'&&profile.location_role!=='none'&&!inventoryName?.toLowerCase().includes('scala')};
-  $('workspace-page-title').textContent = currentTab === 'backups' ? 'Backups' : currentTab === 'equipment' ? `Inventory${equipmentPageSummary?.name ? ' · ' + equipmentPageSummary.name : ''}` : currentTab === 'iptv' ? 'IPTV' : 'Devices';
+  $('workspace-page-title').textContent = currentTab === 'backups' ? 'Equipment backups' : currentTab === 'equipment' ? `Inventory${equipmentPageSummary?.name ? ' · ' + equipmentPageSummary.name : ''}` : currentTab === 'iptv' ? 'IPTV' : 'Devices';
   if (currentTab === 'backups') {
     $('workspace-page-summary').textContent = 'Configuration files ready for recovery';
   } else if (currentTab === 'equipment') {
@@ -85,7 +86,7 @@ function updatePageSummary(equipmentItems, inventoryName, profile = {}) {
     $('workspace-page-summary').textContent = currentTab === 'iptv' ? 'Loading IPTV channels…' : 'Loading devices…';
   } else if (currentTab === 'iptv') {
     const count = devices.filter(item => item.record_type === 'iptv').length;
-    $('workspace-page-summary').textContent = `${count} ${count === 1 ? 'channel' : 'channels'} running`;
+    $('workspace-page-summary').textContent = `${count} ${count === 1 ? 'channel' : 'channels'} saved`;
   } else {
     const count = devices.filter(item => (item.record_type || 'device') === 'device' && item.ip_confirmed && item.ip && !isDHCP(item.ip)).length;
     $('workspace-page-summary').textContent = `${count} ${count === 1 ? 'IP' : 'IPs'} validated`;
@@ -400,6 +401,7 @@ function toast(message) {
 }
 async function api(path, method = 'GET', body, timeoutMs = method === 'GET' ? 20000 : 60000) {
   const options = {method, headers: method==='GET'?{}:{'Content-Type':'application/json'}};
+  if(body&&method!=='GET'&&typeof body==='object'&&!Array.isArray(body))body={...body,initials:body.initials||window.desktopUI?.initials()||''};
   if (body !== undefined) options.body = JSON.stringify(body);
   const request = (async () => {
     const controller=new AbortController();
@@ -673,6 +675,7 @@ function render() {
   syncButtons('source-buttons', $('source-filter').value);
   updatePageSummary();
   const current = tabDevices();
+  window.desktopUI?.renderFilters();
   const selected = networkSelections[currentTab];
   $('total').textContent = current.length;
   $('venue-count').textContent = savedVenues().length;
@@ -708,7 +711,7 @@ function render() {
       logo.src = channel.logo; logo.alt = ''; logo.loading = 'lazy';
       logo.onerror = () => logo.remove();
       name.append(element('span', '', device.name), logo);
-    } else name.textContent = device.name;
+    } else name.textContent = device.name || 'Incomplete record — add a name';
     title.append(name, element('span', 'device-category', device.category));
     const notes = element('textarea', 'device-notes-editor');
     notes.rows = 1; notes.maxLength = 2000; notes.value = device.notes;
@@ -830,6 +833,8 @@ function openForm(device = null) {
   const venues = savedVenues();
   $('venue-suggestions').hidden = iptv || !venues.length;
   makeButtons('form-venue-buttons', venues, form.elements.venue.value, value => { form.elements.venue.value = value; syncButtons('form-venue-buttons', value); });
+  form.dataset.allowIncomplete='false';
+  window.desktopUI?.restoreDraft(form,editing?null:'device-'+currentTab);
   $('device-dialog').showModal();
 }
 form.elements.venue.addEventListener('input', () => syncButtons('form-venue-buttons', form.elements.venue.value));
@@ -844,15 +849,19 @@ $('refresh').onclick = load;
 form.onsubmit = async event => {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(form));
+  if(!data.name?.trim()&&!data.ip?.trim()&&form.dataset.allowIncomplete!=='true'){ $('form-error').textContent='This record has no name or IP address. Add an identity or choose Save as incomplete.';$('form-error').hidden=false;window.desktopUI?.offerIncomplete();return;}
   $('save-device').disabled = true; $('form-error').hidden = true;
   try {
     // Finish any inline note save before submitting newer changes from Edit.
     if (editing && pendingNoteSaves.has(editing)) await pendingNoteSaves.get(editing).catch(() => {});
     await api(editing ? `/api/devices/${editing}` : '/api/devices', editing ? 'PUT' : 'POST', data);
+    window.desktopUI?.clearDraft(form);
+    const again=$('device-add-another')?.checked,previousVenue=form.elements.venue.value;
     $('device-dialog').close();
+    if(again&&!editing){openForm();form.elements.venue.value=previousVenue;}
     toast(editing ? 'Record updated.' : currentTab === 'iptv' ? 'Channel added to IPTV inventory.' : 'Device added to inventory.');
     await load();
-  } catch (error) { $('form-error').textContent = error.message; $('form-error').hidden = false; }
+  } catch (error) { $('form-error').textContent = error.message; $('form-error').hidden = false;window.desktopUI?.offerDuplicate(data.ip); }
   finally { $('save-device').disabled = false; }
 };
 $('cancel-delete').onclick = () => $('delete-dialog').close();
@@ -986,6 +995,7 @@ const importFields = () => currentTab === 'equipment' ? customImportFields() : c
   : iptvImportFields;
 const normalizedHeader = value => value.toLowerCase().replace(/[_-]/g, ' ').replace(/\s+/g, ' ').trim();
 function mappedRows(applyVenueEdits = true) {
+  if(spreadsheetFile?.json_records)return spreadsheetFile.json_records.map(original=>{const row=structuredClone(original);delete row.id;delete row._update;row.item_confirmed='';if(currentTab==='equipment')return inventoryCalculate(row,spreadsheetInventory?.layout||defaultInventoryLayout);row.record_type=currentTab;row.venue=cleanVenue(row.venue||'');return row;});
   return spreadsheetData.rows.map(row => {
     const mapped = Object.fromEntries(importFields().map(([field]) => {
       const column = $('map-' + field).value;
@@ -1199,6 +1209,7 @@ async function loadSpreadsheet(options={}) {
     const data = await api('/api/spreadsheet-preview', 'POST', {...spreadsheetFile, sheet: $('sheet-choice').value, header_row: Number($('header-row').value),detect_header:!spreadsheetFile.pasted && !options.manualHeader && !$('header-row').dataset.manual,header_aliases:importFields().flatMap(([key,label,aliases])=>[label,...aliases]),keep_headers:currentTab==='equipment'?customImportFields().flatMap(([key,label,aliases])=>[label,...aliases]):[]});
     if(spreadsheetFile!==loadingFile)return;
     spreadsheetData = data;
+    window.desktopUI?.suggestCustomColumns(data);
     $('header-row').value=data.header_row;
     $('header-row').disabled=!!spreadsheetFile.pasted;
     $('import-confirmation-choice').replaceChildren(new Option('No confirmation','none'),new Option('Confirm IP','ip'),...(currentTab==='equipment'?[new Option('To be found / Located','storage')]:[]));
@@ -1403,7 +1414,7 @@ $('spreadsheet-form').onsubmit = async event => {
   try{
     const tab=currentTab;
     if(window.importWorkflow.queue.length){const selected=$('sheet-choice').value;if(selected!==window.importWorkflow.queue[window.importWorkflow.queueIndex])throw new Error('Choose the first selected worksheet before starting.');}
-    await window.importWorkflow.applySetup();
+    // Setup is applied only when an explicit Import action saves rows.
     const allEntries=spreadsheetEntries();
     for(const entry of window.importWorkflow.remaining(allEntries.filter(entry=>entry.skippedLocation)))await window.importWorkflow.write(entry,entry.row,'exclude');
     let entries=tab==='equipment'?combineTVEntries(allEntries.filter(entry=>!entry.skippedLocation)):allEntries.filter(entry=>!entry.skippedLocation);
@@ -1411,11 +1422,6 @@ $('spreadsheet-form').onsubmit = async event => {
     if(tab==='equipment')entries=orderEquipmentReview(entries);
     else entries=entries.map(entry=>({...entry,issues:networkIssues(entry.row)}));
     const profile=tab==='equipment'?spreadsheetInventory.layout || defaultInventoryLayout:null;
-    if(profile?.stock_mode==='tv_counts'){
-      const zero=entries.filter(entry=>entry.row.quantity===0&&!entry.row.source_issues?.length);
-      for(const entry of zero)await window.importWorkflow.write(entry,entry.row,'zero');
-      entries=entries.filter(entry=>entry.row.quantity!==0||entry.row.source_issues?.length);
-    }
     let stopped=false;
     for(let index=0;index<entries.length;){
       if(stopSpreadsheetReview){stopped=true;break;}
@@ -1424,10 +1430,10 @@ $('spreadsheet-form').onsubmit = async event => {
       if(profile?.unique_location) end=Math.min(index+50,entries.length);
       else while(end<entries.length && (tab==='equipment'?entries[end].row.location:entries[end].row.venue || '')===location)end++;
       const batch=entries.slice(index,end),remaining=[];
-      for(const entry of batch){
-        const complete=profile && $('import-complete-rows').checked && !profile.columns.some(column=>column.require_confirmation) && !entry.issues.length && profile.columns.filter(column=>column.key!=='orientation'&&column.type!=='calculated').every(column=>(($('map-'+column.key)?.value ?? '')!=='' || column.key==='brand'&&profile.stock_mode==='tv_counts' || column.key==='location'&&(spreadsheetFile.default_location || spreadsheetFile.sheet_location)) && String(inventoryValue(entry.row,column.key)).trim()!=='');
-        if(!complete){remaining.push(entry);continue;}
-        try{await window.importWorkflow.write(entry,entry.row);}catch(error){entry.issues.push(error.message);remaining.push(entry);}
+      for(const entry of batch)remaining.push(entry);
+      if($('import-existing-mode')?.value==='review'){
+        const comparison=await api('/api/desktop/import-preview','POST',{target:tab==='equipment'?`equipment:${spreadsheetInventory.id}`:tab,rows:remaining.map(entry=>entry.row)});
+        remaining.forEach((entry,i)=>{const match=comparison.matches[i];if(match&&match.differences.length){entry.row._update=match;entry.issues=[...(entry.issues||[]),'Existing record: review changes before selecting this row'];}});
       }
       if(remaining.length){
         const review=await reviewEquipmentBatch(remaining,index,entries.length,spreadsheetInventory || {name:tab==='iptv'?'IPTV Channels':'Devices',layout:{columns:[]}},profile?profile.columns.map(column=>[column.key,column.label]):importFields().map(([key,label])=>[key,label]),spreadsheetFile.filename,[...new Set(entries.map(entry=>entry.row.location).filter(Boolean))],tab!=='equipment');
@@ -1476,7 +1482,7 @@ function showPastedLayoutSuggestion() {
   }));
   const unmatched=[...spreadsheetData.headers.filter((header,index)=>!used.has(index)),...(spreadsheetData.ignored_columns || [])];
   $('paste-layout-unmatched').hidden=!unmatched.length;
-  $('paste-layout-unmatched').textContent='Headings without a direct field match: '+unmatched.join(', ')+'. Review these in field matching; some source details may be kept in Notes.';
+  $('paste-layout-unmatched').textContent='Headings without a direct field match: '+unmatched.join(', ')+'. Review these in field matching; every unmatched source value will be added to Notes, one field per line.';
   $('paste-layout-summary').textContent=`${spreadsheetInventory?.name || (currentTab==='iptv'?'IPTV Channels':'Devices')} · Heading row ${spreadsheetData.header_row} · ${spreadsheetData.rows.length} source rows · ${matched} suggested field matches · Showing ${Math.min(5,preview.length)} sample rows`;
   $('continue-paste-layout').disabled=false;$('keep-paste-layout').disabled=false;
   window.pasteWorkflow.render();
@@ -1610,6 +1616,7 @@ $('paste-field-form').onsubmit=async event=>{
 $('close-paste-field').onclick=()=>{if($('next-paste-field').disabled)return;try{readPastedHeading();}catch(_){}$('paste-field-dialog').close();$('paste-layout-dialog').showModal();window.importWorkflow.checkpoint().catch(error=>toast(error.message));};
 $('paste-field-dialog').addEventListener('cancel',event=>{if($('next-paste-field').disabled){event.preventDefault();return;}try{readPastedHeading();}catch(_){}$('paste-layout-dialog').showModal();window.importWorkflow.checkpoint().catch(error=>toast(error.message));});
 async function startSpreadsheetImport(file,inventory) {
+  if(inventory&&file.source_label&&inventory.layout?.location_role!=='none')file.default_location=file.source_label;
   spreadsheetFile=file;spreadsheetInventory=inventory;spreadsheetData=null;pastedFieldSetup=null;
   $('confirm-import').disabled=true;$('spreadsheet-error').hidden=true;
   await window.importWorkflow.begin(file,inventory);
@@ -1619,7 +1626,7 @@ async function startSpreadsheetImport(file,inventory) {
   $('import-venue-list').replaceChildren();$('header-row').value='1';$('sheet-choice').replaceChildren();$('sheet-choice').disabled=/\.csv$/i.test(file.filename);
   $('column-mappings').replaceChildren();$('spreadsheet-preview').replaceChildren();
   $('spreadsheet-summary').textContent='Reading '+file.filename+'…';
-  if(file.pasted || file.from_headers){
+  if(file.pasted || file.from_headers || file.simple_preview){
     $('paste-preview-settings').hidden=true;$('paste-start-review').hidden=true;$('paste-start-review').disabled=true;$('paste-preview-error').hidden=true;$('paste-preview-help').textContent='';
     $('paste-layout-summary').textContent='Reading the first row and suggesting columns…';
     $('paste-layout-head').replaceChildren();$('paste-layout-rows').replaceChildren();$('paste-layout-unmatched').hidden=true;$('continue-paste-layout').disabled=true;$('keep-paste-layout').disabled=true;
@@ -1627,8 +1634,8 @@ async function startSpreadsheetImport(file,inventory) {
   }else $('spreadsheet-dialog').showModal();
   await loadSpreadsheet();
   if(spreadsheetFile!==file)return;
-  if((file.pasted || file.from_headers) && spreadsheetData && $('paste-layout-dialog').open)showPastedLayoutSuggestion();
-  else if((file.pasted || file.from_headers) && $('paste-layout-dialog').open){$('paste-layout-dialog').close();$('spreadsheet-dialog').showModal();}
+  if((file.pasted || file.from_headers || file.simple_preview) && spreadsheetData && $('paste-layout-dialog').open)showPastedLayoutSuggestion();
+  else if((file.pasted || file.from_headers || file.simple_preview) && $('paste-layout-dialog').open){$('paste-layout-dialog').close();$('spreadsheet-dialog').showModal();}
 }
 let pasteInventory=null,pasteInventorySaving=false,pasteTargetTab=null,pasteFromHeaders=false,pasteSavedPreferences={};
 const normalizedLocation=value=>cleanVenue(value).normalize('NFKC').toLocaleLowerCase();
@@ -1680,9 +1687,7 @@ $('paste-inventory-form').onsubmit=async event=>{
     const sourceLabel=$('paste-inventory-sheet').value.trim();
     const file={filename:(sourceLabel || 'Pasted spreadsheet')+'.csv',content,pasted:true,from_headers:pasteFromHeaders,source_label:sourceLabel,...(text.includes('\t')?{delimiter:'\t'}:{})};
     $('paste-inventory-dialog').close();
-    if(pasteUsesBatchLocation(pasteInventory)){
-      pendingPastedBatch={file,inventory:pasteInventory};$('paste-batch-location').value='';$('paste-location-error').hidden=true;$('paste-location-dialog').showModal();$('paste-batch-location').focus();
-    }else await continuePastedBatch(file,pasteInventory);
+    await startSpreadsheetImport(file,pasteInventory);
   }catch(error){$('paste-inventory-error').textContent=error.message;$('paste-inventory-error').hidden=false;}
   finally{pasteInventorySaving=false;updatePasteContinue();}
 };
@@ -1736,14 +1741,16 @@ $('import-file').onchange = async event => {
       const content = await new Promise((resolve, reject) => {
         const reader = new FileReader(); reader.onload = () => resolve(reader.result.split(',')[1]); reader.onerror = () => reject(new Error('Could not read file.')); reader.readAsDataURL(file);
       });
-      await startSpreadsheetImport({filename:file.name,content,from_headers:pasteFromHeaders},importInventory);
+      await startSpreadsheetImport({filename:file.name,content,from_headers:pasteFromHeaders,simple_preview:true},importInventory);
     } else if (/\.json$/i.test(file.name)) {
-      const payload = JSON.parse(await file.text());
-      if (importInventory && payload && typeof payload === 'object' && !Array.isArray(payload)) payload.inventory_id = importInventory.id;
-      const result = await api(importTab === 'equipment' ? '/api/equipment/import' : '/api/import', 'POST', payload);
-      if (currentTab === 'device') importWarnings = result.warnings || [];
-      toast(`Imported ${result.added} records. Skipped ${result.skipped} existing assignments.`);
-      await load();
+      const payload=JSON.parse(await file.text());
+      if(payload?.format==='avtrack-workspace')throw new Error('This is a complete app backup. Use Restore app backup on the overview.');
+      const records=importInventory?payload.equipment:payload.devices;
+      if(!Array.isArray(records))throw new Error('Choose an AVTrack record export or a CSV/XLSX file.');
+      const headers=[...new Set(records.flatMap(row=>Object.keys(row).filter(key=>!['id','custom_values'].includes(key))))];
+      const text=[headers.join('\t'),...records.map(row=>headers.map(key=>String(row[key]??'').replace(/[\t\r\n]/g,' ')).join('\t'))].join('\n');
+      const content=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=reject;reader.readAsDataURL(new Blob([text],{type:'text/csv'}));});
+      await startSpreadsheetImport({filename:'records.csv',content,pasted:true,delimiter:'\t',simple_preview:true,json_records:records},importInventory);
     } else throw new Error('Choose .xlsx, .csv, or an avtrack .json export.');
   } catch(error) { toast('Import failed: ' + error.message); }
   finally { event.target.value = ''; $('import').disabled = false; }
