@@ -31,7 +31,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
             for target,path in files:
                 page.locator('#iptv-tab' if target=='iptv' else '#device-tab').click()
-                page.locator('#network-paste').click();page.locator('#upload-paste-inventory').click()
+                page.locator('#import').click();page.locator('#upload-paste-inventory').click()
                 page.locator('#import-file').set_input_files(str(path))
                 page.locator('#spreadsheet-dialog').wait_for(state='visible')
                 page.wait_for_function("() => !document.getElementById('confirm-import').disabled")

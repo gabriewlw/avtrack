@@ -19,7 +19,8 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#device-tab').click()
             def paste(text,mode):
                 assert page.locator('#transfer button').first.get_attribute('id')=='add-device'
-                assert page.locator('#transfer button').nth(1).get_attribute('id')=='network-paste'
+                assert page.locator('#transfer #import').count()==1
+                assert page.locator('#transfer').get_by_role('button',name='Paste from Excel',exact=True).count()==0
                 page.locator('#import').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
                 assert page.locator('#paste-inventory-location-label').is_hidden()
                 page.locator('#paste-inventory-text').fill(text);page.locator('#continue-paste-inventory').click()

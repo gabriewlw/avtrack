@@ -74,7 +74,7 @@
     const version = ++loadVersion, previouslyReady = inventoryReady;
     inventoryReady = false;
     $('equipment-refresh').disabled = true;
-    ['equipment-inventory-select','new-equipment-inventory','rename-equipment-inventory','delete-equipment-inventory','equipment-import','equipment-paste'].forEach(id => { $(id).disabled = true; });
+    ['equipment-inventory-select','new-equipment-inventory','rename-equipment-inventory','delete-equipment-inventory','equipment-import'].forEach(id => { $(id).disabled = true; });
     $('equipment-rows').inert = true;
     try {
       await Promise.all([...pendingConfirmations.values()]);
@@ -119,7 +119,7 @@
       if (version === loadVersion) {
         $('equipment-refresh').disabled = false;
         $('new-equipment-inventory').disabled = !inventoryReady;
-        ['equipment-inventory-select','rename-equipment-inventory','delete-equipment-inventory','equipment-import','equipment-paste'].forEach(id => { $(id).disabled = !inventoryReady || inventoryCatalogEmpty; });
+        ['equipment-inventory-select','rename-equipment-inventory','delete-equipment-inventory','equipment-import'].forEach(id => { $(id).disabled = !inventoryReady || inventoryCatalogEmpty; });
         $('equipment-rows').inert = !inventoryReady;
       }
     }

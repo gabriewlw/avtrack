@@ -24,6 +24,17 @@ with tempfile.TemporaryDirectory() as temporary:
             page.goto(origin+'/')
             heading=page.get_by_role('heading',name='Your workspace at a glance.')
             heading.wait_for()
+            assert page.locator('#main-navigation #workspace-restore-open').count()==0
+            assert page.locator('.workspace-transfer-actions #workspace-restore-open').is_visible()
+            assert page.locator('#workspace-restore-open').evaluate("el=>el.classList.contains('primary')")
+            assert page.locator('#workspace-export-menu summary svg').count()==2
+            assert page.locator('#network-paste, #equipment-paste, #address-filter-group').count()==0
+            assert page.locator('#import').evaluate("el=>el.classList.contains('primary')")
+            page.locator('#import').click()
+            page.locator('#paste-inventory-dialog').wait_for(state='visible')
+            assert page.locator('#paste-inventory-title').inner_text()=='Import data'
+            assert page.locator('#upload-paste-inventory').is_visible()
+            page.locator('#cancel-paste-inventory').click()
             page.locator('#workspace-export-menu summary').click()
             page.screenshot(path='/tmp/avtrack-workspace-transfer-desktop.png',full_page=True)
             with page.expect_download() as download:

@@ -25,7 +25,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
             page.locator('#device-tab').click()
             def paste(text,mode=None):
-                page.locator('#network-paste' if page.locator('#equipment-panel').is_hidden() else '#equipment-paste').click()
+                page.locator('#import' if page.locator('#equipment-panel').is_hidden() else '#equipment-import').click()
                 page.locator('#paste-inventory-text').fill(text);page.locator('#continue-paste-inventory').click()
                 page.wait_for_function("() => document.getElementById('paste-location-dialog').open || document.getElementById('paste-layout-dialog').open")
                 if page.locator('#paste-location-dialog').is_visible():
@@ -50,7 +50,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#inventory-import-review-stop').click();page.locator('#import-summary-panel').wait_for(state='visible')
             assert app.inventory()[0]['notes']=='Edited floating notes'
             assert app.inventory()[0]['confirmation_required']==0
-            page.reload();page.locator('#network-paste').click();page.get_by_role('button',name='Resume previous import',exact=True).click()
+            page.reload();page.locator('#import').click();page.get_by_role('button',name='Resume previous import',exact=True).click()
             page.locator('#spreadsheet-dialog').wait_for(state='visible');page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
             assert page.locator('#inventory-import-review-rows tr').count()==1
@@ -62,7 +62,7 @@ with tempfile.TemporaryDirectory() as tmp:
             assert 'Start another Excel paste' in page.locator('#import-summary-add-option').inner_text()
             page.locator('#import-summary-close-action').click()
             # Each new paste can reorder, rename, add or omit headings independently.
-            page.locator('#network-paste').click()
+            page.locator('#import').click()
             page.locator('#paste-inventory-text').fill('Notes\tIP Address\tDevice Name\tMaintenance owner\nnew note\t10.20.1.3\tThird\tTara')
             page.locator('#continue-paste-inventory').click()
             page.wait_for_function("() => document.getElementById('paste-layout-dialog').open || document.getElementById('paste-confirmation-dialog').open")
@@ -89,7 +89,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#cancel-spreadsheet').click()
             assert next(i for i in app.equipment_inventories() if i['id']==parts['id'])==before
             # Whole workbook: header detection, per-sheet matching and blank-location defaults.
-            page.locator('#equipment-paste').click();page.locator('#upload-paste-inventory').click();page.locator('#import-file').set_input_files(str(file))
+            page.locator('#equipment-import').click();page.locator('#upload-paste-inventory').click();page.locator('#import-file').set_input_files(str(file))
             page.locator('#spreadsheet-dialog').wait_for(state='visible');page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             assert page.locator('#header-row').input_value()=='5'
             page.locator('#import-sheet-choices input[value="Locker B"]').check()

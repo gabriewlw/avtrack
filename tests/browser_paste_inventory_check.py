@@ -27,7 +27,7 @@ with tempfile.TemporaryDirectory() as temporary:
                 page.locator('#equipment-inventory-select').select_option(str(inventory['id']))
                 page.wait_for_function('(name)=>document.getElementById("equipment-inventory-title").textContent===name && !document.getElementById("equipment-inventory-select").disabled',arg=inventory['name'])
             def paste(text,location=''):
-                page.locator('#equipment-paste').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
+                page.locator('#equipment-import').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
                 assert page.locator('#continue-paste-inventory').is_disabled()
                 page.locator('#paste-inventory-text').fill(text)
                 page.locator('#continue-paste-inventory').click()
@@ -93,7 +93,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert {row['location'] for row in app.equipment_inventory(parts['id'])}=={'Locker B'}
             page.locator('#import-summary-panel').wait_for(state='visible');page.locator('#close-import-summary').click()
             # Another worksheet appends in the same inventory; its location fills blanks only.
-            page.locator('#equipment-paste').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
+            page.locator('#equipment-import').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
             page.locator('#paste-inventory-sheet').fill('Locker C worksheet')
             page.locator('#paste-inventory-text').fill('Description\tBrand\tModel\tSerial Number\tQuantity\tLocation\tNotes\nCable\tSony\tZ\tS3\t1\t\tnote\nCable\tSony\tZ\tS4\t1\tLocker D\tnote\n\t\t\t\t\t\t\n')
             page.locator('#continue-paste-inventory').click()
@@ -125,7 +125,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert 'Source sheet:' not in next(row for row in saved if row['serial_number']=='S3')['notes']
             page.locator('#close-import-summary').click()
             # Repeated stock models can be merged deliberately; quantities with comments stay reviewable.
-            page.locator('#equipment-paste').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
+            page.locator('#equipment-import').click();page.locator('#paste-inventory-dialog').wait_for(state='visible')
             page.locator('#paste-inventory-text').fill('Description\tBrand\tModel\tSerial Number\tQuantity\tLocation\tNotes\nReceiver\tAtlona\tRX-1\t\t2 USED\tLocker E\tFirst\nReceiver\tAtlona\tRX-1\t\t3\tLocker E\tSecond\n')
             page.locator('#continue-paste-inventory').click();page.locator('#paste-batch-location').fill('Locker E');page.locator('#continue-paste-location').click();page.locator('#paste-layout-dialog').wait_for(state='visible')
             page.wait_for_function("() => !document.getElementById('paste-start-review').disabled")

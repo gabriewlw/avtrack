@@ -4,7 +4,6 @@
   let restoring=false;
   get('workspace-restore-open').onclick=()=>{
     get('workspace-export-menu').open=false;
-    setNavigationOpen(false);
     get('workspace-restore-form').reset();
     get('workspace-restore-error').hidden=true;
     get('workspace-restore-status').textContent='';

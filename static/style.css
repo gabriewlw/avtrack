@@ -888,19 +888,24 @@ main, dialog {
 .workspace-transfer p { margin:0; }
 .workspace-transfer .export-links { width:300px; }
 .workspace-transfer .export-links small { display:block; padding:8px 12px; font-size:11px; line-height:1.5; color:var(--muted); }
-.workspace-transfer .export-links button { width:100%; text-align:left; }
 #workspace-restore-dialog { width:min(600px,calc(100vw - 40px)); }
 #workspace-restore-dialog p { line-height:1.6; }
 .workspace-restore-confirm { display:flex; align-items:center; gap:10px; margin:18px 0; }
 .workspace-restore-confirm input { width:18px; min-height:18px; flex-shrink:0; }
 @media(max-width:700px) { .workspace-transfer { align-items:flex-start; width:100%; } .workspace-transfer .export-links { left:0; right:auto; width:min(300px,calc(100vw - 48px)); } }
 
-.workspace-transfer-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.workspace-transfer-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; justify-content:flex-end; }
 
-#main-navigation .nav-workspace-import { display:flex; align-items:center; min-height:40px; padding:0; border:0; background:transparent; color:var(--muted-foreground); font:500 13px var(--mono); text-transform:uppercase; letter-spacing:.08em; white-space:nowrap; }
-#main-navigation .nav-workspace-import:hover { color:var(--foreground); }
-@media(min-width:640px) and (max-width:1050px) { .header-inner { grid-template-columns:auto 1fr; gap:16px; } #main-navigation { justify-self:end; gap:14px; } #main-navigation a,#main-navigation .nav-workspace-import { font-size:11px; } .brand-credit { display:none; } }
 
 .overview-heading { display:flex; align-items:center; justify-content:space-between; gap:24px; }
 .overview-description { max-width:560px; margin:8px 0 0; font-size:12px; line-height:1.7; color:var(--muted); }
 @media(max-width:700px) { .overview-heading { flex-direction:column; align-items:flex-start; gap:16px; } }
+
+.workspace-transfer { flex-shrink:0; }
+.workspace-transfer-actions .export-toggle { white-space:nowrap; }
+@media(max-width:700px) { .workspace-transfer-actions { justify-content:flex-start; } }
+@media(max-width:700px) {
+  .workspace-transfer-actions { position:relative; width:100%; margin-top:0; }
+  .workspace-transfer .export-dropdown { position:static; }
+  .workspace-transfer .export-links { left:0; right:auto; width:min(300px,100%); }
+}

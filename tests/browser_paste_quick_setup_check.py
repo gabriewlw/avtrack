@@ -20,7 +20,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
             page.locator('#device-tab').click()
             def paste(text,equipment=False):
-                page.locator('#equipment-paste' if equipment else '#network-paste').click()
+                page.locator('#equipment-import' if equipment else '#import').click()
                 page.locator('#paste-inventory-text').fill(text);page.locator('#continue-paste-inventory').click()
                 page.locator('#paste-layout-dialog').wait_for(state='visible')
                 page.wait_for_function("() => !document.getElementById('paste-start-review').disabled")

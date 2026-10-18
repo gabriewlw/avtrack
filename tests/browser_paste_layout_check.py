@@ -18,7 +18,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
             page.locator('#device-tab').click()
             text='Venue\tDevice Name\tIP Address\tVLAN\tNotes\tOdd heading\nSports Bar\tWall TV\t10.20.30.40\t50\t\t<test>'
-            page.locator('#network-paste').click();page.locator('#paste-inventory-text').fill(text)
+            page.locator('#import').click();page.locator('#paste-inventory-text').fill(text)
             page.locator('#continue-paste-inventory').click()
             page.locator('#paste-layout-dialog').wait_for(state='visible')
             page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
@@ -38,7 +38,7 @@ with tempfile.TemporaryDirectory() as tmp:
             assert not app.inventory()
             page.locator('#cancel-spreadsheet').click()
             assert not app.inventory()
-            page.locator('#network-paste').click();page.locator('#paste-inventory-text').fill(text)
+            page.locator('#import').click();page.locator('#paste-inventory-text').fill(text)
             page.locator('#continue-paste-inventory').click();page.locator('#paste-layout-dialog').wait_for(state='visible')
             page.locator('#cancel-paste-layout').click()
             assert page.locator('#import-workspace').is_hidden()

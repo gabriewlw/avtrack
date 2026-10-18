@@ -33,7 +33,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.goto(f'http://127.0.0.1:{server.server_port}/');page.wait_for_function("() => !document.getElementById('refresh').disabled")
 
             def upload_guided(path,equipment=False):
-                page.locator('#equipment-paste' if equipment else '#network-paste').click()
+                page.locator('#equipment-import' if equipment else '#import').click()
                 page.locator('#upload-paste-inventory').click();page.locator('#import-file').set_input_files(str(path))
                 page.locator('#spreadsheet-dialog').wait_for(state='visible');page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
                 if equipment and page.locator('#import-complete-rows').is_checked():page.locator('#import-complete-rows').uncheck()
@@ -42,7 +42,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 assert page.locator('#import-summary-title').inner_text()=='Import complete';page.locator('#close-import-summary').click()
 
             def upload_json(path,equipment=False):
-                page.locator('#equipment-paste' if equipment else '#network-paste').click()
+                page.locator('#equipment-import' if equipment else '#import').click()
                 page.locator('#upload-paste-inventory').click();page.locator('#import-file').set_input_files(str(path))
 
             page.locator('#device-tab').click()

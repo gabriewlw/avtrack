@@ -598,8 +598,8 @@ with tempfile.TemporaryDirectory() as temp:
             review_action('#accept-review-row')
             assert len(app.inventory()) == before + 6
             assert page.locator('#import-warnings').is_hidden()
-            assert page.locator('#address-buttons').get_by_role('button', name='DHCP', exact=True).count() == 1
-            page.locator('#address-buttons').get_by_role('button', name='DHCP', exact=True).click()
+            assert page.locator('#address-filter-group').count() == 0
+            page.locator('#search').fill('DHCP')
             assert page.locator('.device-row').count() == 3
             assert not page.locator('.device-row .ip-confirm').count()
             page.locator('#venue-filter').select_option('DHCP LOUNGE')
@@ -668,7 +668,7 @@ with tempfile.TemporaryDirectory() as temp:
                 notes_input.press('Tab')
             assert next(r for r in app.inventory() if r['name'] == 'Unassigned camera')['notes'] == ''
             assert page.locator('#venue-filter option[value="Main Lounge"]').evaluate('(n) => getComputedStyle(n).color') == main_color
-            page.locator('#address-buttons').get_by_role('button', name='DHCP', exact=True).click()
+            page.locator('#search').fill('DHCP')
             assert page.locator('.device-row').count() == 4
             assert not page.locator('.device-row .ip-confirm').count()
             clear_network_filters()

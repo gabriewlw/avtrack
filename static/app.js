@@ -101,7 +101,7 @@ const tabSortOrders = {device: '', iptv: ''};
 const nameCollator = new Intl.Collator(undefined, {sensitivity: 'base', numeric: true});
 const tabDevices = () => devices.filter(d => (d.record_type || 'device') === currentTab);
 const form = $('device-form');
-const filters = ['search', 'venue-filter', 'system-filter', 'source-filter', 'address-filter'];
+const filters = ['search', 'venue-filter', 'system-filter', 'source-filter'];
 const element = (tag, className, text) => {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -266,7 +266,6 @@ function updateVenueFilter() {
 }
 makeButtons('system-buttons', systems, '', value => { $('system-filter').value = value; render(); }, 'All systems');
 makeButtons('source-buttons', ['Onboard','Satellite'], '', value => { $('source-filter').value = value; render(); }, 'All sources');
-makeButtons('address-buttons', ['DHCP'], '', value => { $('address-filter').value = value; render(); }, 'All addresses');
 makeButtons('form-source-buttons', ['Onboard','Satellite'], '', value => { form.elements.channel_source.value = form.elements.channel_source.value === value ? '' : value; syncButtons('form-source-buttons', form.elements.channel_source.value); });
 function updateFilterOptions() {
   updateVenueFilter();
@@ -302,7 +301,7 @@ function switchTab(type) {
   }
   $('add-device').hidden = false;
   if (equipment) {
-    $('equipment-transfer').insertBefore($('add-device'), $('equipment-paste'));
+    $('equipment-transfer').insertBefore($('add-device'), $('equipment-import'));
     $('hero-title').replaceChildren(document.createTextNode('Every asset.'), element('br'), document.createTextNode('Every location.'), element('br'), element('span', '', 'One clear view.'));
     $('hero-intro').textContent = 'Manage your broadcast equipment, spare stock, and production tools. Keep brands, models, serial numbers, and quantities organized from the control room to the storeroom.';
     $('example-ip').textContent = 'Advanced Panel 10'; $('example-name').textContent = 'Blackmagic Design';
@@ -310,7 +309,7 @@ function switchTab(type) {
     $('add-device').textContent = 'Add equipment'; $('validation-note').hidden = true;
     window.equipmentUI.load(); return;
   }
-  $('transfer').insertBefore($('add-device'), $('network-paste'));
+  $('transfer').insertBefore($('add-device'), $('refresh'));
   filters.forEach(id => $(id).value = '');
   $('inventory').setAttribute('aria-labelledby', type === 'iptv' ? 'iptv-tab' : 'device-tab');
   const iptv = type === 'iptv';
@@ -672,13 +671,9 @@ function render() {
   colorVenueButton($('venue-filter'), $('venue-filter').value);
   syncButtons('system-buttons', $('system-filter').value);
   syncButtons('source-buttons', $('source-filter').value);
-  syncButtons('address-buttons', $('address-filter').value);
   updatePageSummary();
   const current = tabDevices();
   const selected = networkSelections[currentTab];
-  const hasDHCP = currentTab === 'device' && current.some(d => isDHCP(d.ip));
-  $('address-filter-group').hidden = !hasDHCP;
-  if (!hasDHCP) $('address-filter').value = '';
   $('total').textContent = current.length;
   $('venue-count').textContent = savedVenues().length;
   $('vlan-count').textContent = new Set(current.map(d => d.vlan).filter(v => v !== null)).size;
@@ -688,8 +683,7 @@ function render() {
     [d.name,d.ip,d.venue,d.category,d.discipline,d.notes,d.channel_source || '',String(d.vlan || ''), String(d.port || '')].some(v => v.toLowerCase().includes(query)) &&
     (!$('venue-filter').value || cleanVenue(d.venue) === $('venue-filter').value) &&
     (!$('system-filter').value || d.discipline === $('system-filter').value) &&
-    (!$('source-filter').value || d.channel_source === $('source-filter').value) &&
-    (!$('address-filter').value || isDHCP(d.ip)));
+    (!$('source-filter').value || d.channel_source === $('source-filter').value));
   if ($('sort-order').value) results.sort((a, b) => compareDirectoryRecords(a, b, $('sort-order').value));
   visibleDevices = results;
   const visibleIds = new Set(results.map(row => row.id));
@@ -1660,8 +1654,6 @@ async function openPastedImport(options={}){
     $('paste-inventory-dialog').showModal();$('paste-inventory-text').focus();
   }catch(error){toast('Could not open pasted import: '+error.message);}
 }
-$('equipment-paste').onclick=openPastedImport;
-$('network-paste').onclick=openPastedImport;
 $('paste-inventory-text').oninput=updatePasteContinue;
 for(const id of ['close-paste-inventory','cancel-paste-inventory'])$(id).onclick=()=>{if(!pasteInventorySaving)$('paste-inventory-dialog').close();};
 $('paste-inventory-dialog').addEventListener('cancel',event=>{if(pasteInventorySaving)event.preventDefault();});
