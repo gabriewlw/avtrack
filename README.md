@@ -4,12 +4,12 @@ AVTrack is a local workspace for cruise ship broadcast operations. It brings AV 
 
 ## Why I created it
 
-I designed AVTrack from my experience working as a broadcast technician on cruise ships. Our work involves many devices, IP addresses, television channels, spare parts, storage locations, and configuration files. That information is often spread across spreadsheets, notes, and folders, which makes it slower to find during day-to-day work and much harder to use during an emergency.
+I designed AVTrack from my experience working as a broadcast technician on cruise ships. Our work involves the access of many audio and video devices, IP addresses, television channels, management of spare parts, storage locations, and configuration files. That information is often spread across spreadsheets, notes, and folders, which makes it slower to find during day-to-day work and much harder to use during an emergency.
 
 I wanted one practical tool that could help me:
 
 - find an AV device and copy its IP address quickly when I need to access or configure it;
-- keep the IP address and port for every onboard IPTV channel in one place;
+- keep the IP address and port for every onboard IPTV channel in one place; and be able to open the stream in one click;
 - make physical inventory checks less repetitive and make equipment easier to locate;
 - preserve known-good equipment backups so recovery files are ready when something is lost or reset.
 
