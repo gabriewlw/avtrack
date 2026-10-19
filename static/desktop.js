@@ -59,6 +59,8 @@ window.desktopUI=(()=>{
   }
   function attachDetails(){
     get('device-list').querySelectorAll('.device-row').forEach(row=>{const id=row.querySelector('.row-select')?.dataset.recordId,name=row.querySelector('.device-name');if(!id||!name||name.dataset.details)return;name.dataset.details='true';name.tabIndex=0;name.role='button';name.classList.add('details-trigger');name.title='View full details and recovery files';name.onclick=()=>openRecord(currentTab,Number(id));name.onkeydown=event=>{if(['Enter',' '].includes(event.key)){event.preventDefault();name.click();}};});
+    const profile=window.equipmentUI?.profile()||{};
+    if(profile.template==='tv'||profile.stock_mode==='tv_counts')return;
     get('equipment-rows').querySelectorAll('tr').forEach(row=>{const actions=row.querySelector('.equipment-actions');if(!actions||actions.querySelector('.record-details-button'))return;const details=button('Details',()=>openRecord('equipment',Number(row.dataset.itemId)),'quiet record-details-button');details.setAttribute('aria-label','View equipment details');actions.prepend(details);});
   }
   async function findAnywhere(query=''){
