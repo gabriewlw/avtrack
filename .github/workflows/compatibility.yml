@@ -1,0 +1,29 @@
+name: Backend and full-backup compatibility
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  compatibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - name: Preserve published schemas and historical backups
+        env:
+          COMPATIBILITY_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python scripts/check_backup_history.py
+      - name: Run backend and every historical full-backup restore
+        env:
+          PYTHONPATH: tests
+        run: python -m unittest discover -s tests -p 'test_*.py'

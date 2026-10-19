@@ -164,9 +164,9 @@ On Overview, use **Back up entire app** beside **Your workspace at a glance**:
 - **Complete backup JSON** contains the same restorable data in an uncompressed file.
 - **Excel workbook** and **CSV files ZIP** contain readable Devices, IPTV, named-inventory, and Equipment backups reports, without uploaded file contents or internal import tables. They cannot restore the whole app.
 
-On the other computer, run the same AVTrack version, choose **Restore app backup** on Overview, and select the complete ZIP or JSON. Review its date, app version, workspace names, record counts, and attached files, then confirm **Replace all current workspaces**. This is a complete replacement, not a merge. AVTrack saves a complete recovery copy of the destination before replacement; existing copies can be downloaded from the restore dialog. Recovery copies are also made before deleting an entire inventory or a batch of devices.
+On the other computer, run the current AVTrack version, choose **Restore app backup** on Overview, and select the complete ZIP or JSON. Review its date, app version, workspace names, record counts, attached files, and any automatic schema upgrade, then confirm **Replace all current workspaces**. This is a complete replacement, not a merge. AVTrack saves a complete recovery copy of the destination before replacement; existing copies can be downloaded from the restore dialog. Recovery copies are also made before deleting an entire inventory or a batch of devices.
 
-New complete backups have integrity checks and timestamped filenames. The desktop hardening release also accepts the previous v0.0.187 backup schema; compatibility with arbitrary older or future schemas is not guaranteed. Keep recovery copies on another drive as well: files on the same disk do not protect against disk failure.
+New complete backups have integrity checks, timestamped filenames, and an explicit data-schema version independent of the application version. Backups from v0.0.186 onward have a retained migration path; historical ZIP/JSON restores are checked in CI for future releases. Newer unsupported backup schemas ask you to update AVTrack and leave existing data untouched. See the [complete-backup compatibility policy](docs/backup-compatibility.md). Keep recovery copies on another drive as well: files on the same disk do not protect against disk failure.
 
 Complete transfers support files up to 200 MB, including the uncompressed backup contents. For larger workspaces, stop AVTrack and copy the entire `data` folder instead. Custom `AVTRACK_DB` and `AVTRACK_BACKUP_DIR` locations remain configured on the destination computer.
 
@@ -314,6 +314,7 @@ Useful references:
 - [Sample equipment inventory CSV](docs/examples/equipment-inventory.csv)
 - [Import usability review](docs/import-usability-review.md)
 - [Desktop hardening release changes](docs/desktop-release-changes.md)
+- [Full-backup compatibility and future migration requirements](docs/backup-compatibility.md)
 - [IPTV satellite channel reference](docs/satellite-channel-reference.md)
 
 ## Development checks

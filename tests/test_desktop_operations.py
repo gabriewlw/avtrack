@@ -30,6 +30,7 @@ class DesktopOperationsTests(unittest.TestCase):
     def test_restore_saves_a_recoverable_copy_and_accepts_187_schema(self):
         original=app.save_device(test_app.EXAMPLE)
         data=workspace_transfer.snapshot(app.connect,app.backup_directory)
+        data.pop('schema_version')  # Historical exports did not carry this field.
         for key in operations.OPTIONAL_TABLES:data['columns'].pop(key);data['tables'].pop(key)
         data['tables']['devices'][0]['name']='Restored camera'
         content=workspace_transfer.pack(data,'zip')[0]

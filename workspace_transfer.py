@@ -12,6 +12,7 @@ import uuid
 import re
 from datetime import datetime, timezone
 import zipfile
+import backup_compat
 
 MAX_BYTES = 200_000_000
 
@@ -74,6 +75,7 @@ def snapshot(connect, backup_directory):
     with connect() as con:
         con.execute('BEGIN')
         columns = schema(con)
+        backup_compat.assert_database_contract(con, columns)
         tables = {name: [dict(row) for row in con.execute(f'SELECT * FROM "{name}"')] for name in columns}
         files = {}
         for row in tables['av_backups']:
@@ -87,7 +89,9 @@ def snapshot(connect, backup_directory):
                     if not path.is_file() or path.is_symlink():
                         raise ValueError('A saved backup file is missing. Restore it before exporting all data.')
                     files[name] = base64.b64encode(path.read_bytes()).decode('ascii')
-    return {'format': 'avtrack-workspace', 'version': 1, 'exported_at':datetime.now(timezone.utc).isoformat(), 'columns': columns, 'tables': tables, 'files': files}
+    return {'format': 'avtrack-workspace', 'version': backup_compat.FORMAT_VERSION,
+            'schema_version': backup_compat.CURRENT_SCHEMA_VERSION,
+            'exported_at':datetime.now(timezone.utc).isoformat(), 'columns': columns, 'tables': tables, 'files': files}
 
 
 def export_name(extension):
@@ -168,7 +172,7 @@ def unpack(content):
         data = json.loads(content)
     except (zipfile.BadZipFile, RuntimeError, UnicodeError, ValueError, NotImplementedError, RecursionError) as error:
         raise ValueError('This file is not a readable AVTrack complete backup.') from error
-    if not isinstance(data, dict) or data.get('format') != 'avtrack-workspace' or type(data.get('version')) is not int or data.get('version') != 1:
+    if not isinstance(data, dict):
         raise ValueError('Choose an AVTrack complete ZIP or JSON backup.')
     integrity = data.get('integrity')
     if integrity is not None:
@@ -176,20 +180,14 @@ def unpack(content):
             raise ValueError('The backup integrity information is invalid.')
         if not re.fullmatch(r'[0-9a-f]{64}',integrity['digest']) or not hmac.compare_digest(integrity['digest'], digest(data)):
             raise ValueError('This backup has changed or is damaged. Export a fresh complete backup.')
+    backup_compat.source_version(data)
     return data
 
 
 def prepare(data, con):
     columns = schema(con)
-    from operations import OPTIONAL_TABLES
-    source_columns=data.get('columns',{})
-    source_tables=data.get('tables',{})
-    if isinstance(source_columns,dict) and isinstance(source_tables,dict):
-        missing=set(columns)-set(source_columns)
-        if missing.issubset(OPTIONAL_TABLES):
-            data=dict(data,columns={**source_columns,**{key:columns[key] for key in missing}},tables={**source_tables,**{key:[] for key in missing}})
-    if data.get('columns') != columns or not isinstance(data.get('tables'), dict) or set(data['tables']) != set(columns):
-        raise ValueError('This backup uses a different database layout. Use the same AVTrack version to restore it.')
+    backup_compat.assert_database_contract(con, columns)
+    data, _ = backup_compat.upgrade(data)
     if not isinstance(data.get('files'), dict):
         raise ValueError('The backup file list is invalid.')
     tables = data['tables']
@@ -219,7 +217,10 @@ def prepare(data, con):
 def preview(data, connect):
     with connect() as con:
         tables,files=prepare(data,con)
-    return {'exported_at':data.get('exported_at','Unknown — older backup'), 'app_version':data.get('app_version','Older backup'),
+    return {'source_schema_version':backup_compat.source_version(data),
+            'schema_version':backup_compat.CURRENT_SCHEMA_VERSION,
+            'migration_required':backup_compat.source_version(data)!=backup_compat.CURRENT_SCHEMA_VERSION,
+            'exported_at':data.get('exported_at','Unknown — older backup'), 'app_version':data.get('app_version','Older backup'),
             'format_version':data['version'],'devices':sum(row['record_type']=='device' for row in tables['devices']),
             'iptv':sum(row['record_type']=='iptv' for row in tables['devices']), 'equipment':len(tables['equipment']),
             'inventories':[row['name'] for row in tables['equipment_inventories']], 'backup_records':len(tables['av_backups']), 'files':len(files)}
@@ -268,7 +269,9 @@ def restore(data, connect, backup_directory):
                                 [[row[field] for field in fields] for row in tables[name]])
             if con.execute('PRAGMA foreign_key_check').fetchone():
                 raise ValueError('The backup contains records belonging to a missing inventory.')
-            return {'restored': {name: len(rows) for name, rows in tables.items()}}
+            return {'restored': {name: len(rows) for name, rows in tables.items()},
+                    'source_schema_version':backup_compat.source_version(data),
+                    'schema_version':backup_compat.CURRENT_SCHEMA_VERSION}
     except (TypeError, binascii.Error, sqlite3.DatabaseError) as error:
         for path in created:
             path.unlink(missing_ok=True)

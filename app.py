@@ -1153,6 +1153,8 @@ class Handler(BaseHTTPRequestHandler):
             data = workspace_transfer.unpack(self.rfile.read(size))
             if path.endswith('/preview'):
                 return self.send(200, workspace_transfer.preview(data,connect))
+            # Validate and migrate before writing even a recovery file.
+            workspace_transfer.preview(data,connect)
             recovery=workspace_transfer.save_recovery(connect,backup_directory,DB_PATH.parent / 'recovery',version=source_revision())
             result=workspace_transfer.restore(data, connect, backup_directory)
             result['recovery_backup']=recovery.name
