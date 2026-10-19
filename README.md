@@ -93,7 +93,7 @@ Open [http://127.0.0.1:8000/avtrack](http://127.0.0.1:8000/avtrack) for the stan
 
 ## First use
 
-The home page shows four workspace cards. Use **Add** to open the correct form immediately, or **Open workspace** to see the complete section.
+The home page shows four workspace cards. Use **Add** to open the correct form immediately, or **Open workspace** to see the complete section. Click the AVTrack logo to return to the homepage.
 
 A useful starting order is:
 
@@ -101,7 +101,7 @@ A useful starting order is:
 2. Paste a small section from an existing spreadsheet and review the suggested columns.
 3. Create the inventory types you need and import one location at a time.
 4. Add recovery files under Equipment backups and record their tested status.
-5. Use **Back up entire app → Complete backup ZIP** on Overview and keep the file somewhere safe.
+5. Use **Back up entire app → Complete backup ZIP** on the homepage and keep the file somewhere safe.
 
 ## Importing spreadsheets
 
@@ -126,12 +126,11 @@ Spreadsheet layouts can differ from one job to another. Always review the detect
 - Devices searches names, IP addresses, venues, systems, VLANs, categories, and notes.
 - IPTV searches channel names, IP addresses, ports, sources, and notes.
 - Inventory searches every visible and custom field, including model and all stored serial numbers.
-- Active filter chips and **Clear all filters** make the current search scope visible. **Find anywhere** searches Devices, IPTV, named inventories, and equipment backups together.
+- Active filter chips and **Clear all filters** make the current search scope visible. The blank search field in the top bar searches Devices, IPTV, named inventories, and equipment backups together; press Enter or click its search icon.
 - Click a device name or an inventory row's **Details** action for multiline notes, copy actions, verification history, tracked import sources, and related recovery files.
 - Confirmation buttons save a manual check. They do not perform automatic network or physical verification.
 - Source review, physical location, and physical counts are separate checks. Spare parts enable dated physical counts by default. Unknown quantities remain visible instead of implying a complete count.
 - Removing one unit requires choosing its serial or an unserialized unit. The confirmation shows the resulting quantity; history records the movement and optional reason/reviewer initials.
-- **Handover** lists missing counts, unlocated items, pending source reviews, checks older than 90 days, devices without a linked known-good configuration, and recent stock movements.
 - Exports support JSON, CSV, XLSX, and PDF. You can export the current filtered view, selected rows, or the complete active list.
 
 JSON is the best format for restoring AVTrack records. CSV and XLSX are convenient for spreadsheet work. PDF is intended for a clear printable or shareable report.
@@ -158,13 +157,13 @@ To move AVTrack to another computer, copy the whole project folder, including `d
 
 ### Export or move the complete workspace
 
-On Overview, use **Back up entire app** beside **Your workspace at a glance**:
+On the homepage, use **Back up entire app** beside **Your workspace at a glance**:
 
 - **Complete backup ZIP** is recommended when moving computers. One file includes every workspace, inventory layout, custom field, note, confirmation, saved history, and uploaded backup file/icon.
 - **Complete backup JSON** contains the same restorable data in an uncompressed file.
 - **Excel workbook** and **CSV files ZIP** contain readable Devices, IPTV, named-inventory, and Equipment backups reports, without uploaded file contents or internal import tables. They cannot restore the whole app.
 
-On the other computer, run the current AVTrack version, choose **Restore app backup** on Overview, and select the complete ZIP or JSON. Review its date, app version, workspace names, record counts, attached files, and any automatic schema upgrade, then confirm **Replace all current workspaces**. This is a complete replacement, not a merge. AVTrack saves a complete recovery copy of the destination before replacement; existing copies can be downloaded from the restore dialog. Recovery copies are also made before deleting an entire inventory or a batch of devices.
+On the other computer, run the current AVTrack version, choose **Restore app backup** on the homepage, and select the complete ZIP or JSON. Review its date, app version, workspace names, record counts, attached files, and any automatic schema upgrade, then confirm **Replace all current workspaces**. This is a complete replacement, not a merge. AVTrack saves a complete recovery copy of the destination before replacement; existing copies can be downloaded from the restore dialog. Recovery copies are also made before deleting an entire inventory or a batch of devices.
 
 New complete backups have integrity checks, timestamped filenames, and an explicit data-schema version independent of the application version. Backups from v0.0.186 onward have a retained migration path; historical ZIP/JSON restores are checked in CI for future releases. Newer unsupported backup schemas ask you to update AVTrack and leave existing data untouched. See the [complete-backup compatibility policy](docs/backup-compatibility.md). Keep recovery copies on another drive as well: files on the same disk do not protect against disk failure.
 

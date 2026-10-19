@@ -33,9 +33,10 @@ with tempfile.TemporaryDirectory() as tmp:
    page.locator('#equipment-form [name=description]').fill('Camera');page.locator('#equipment-form [name=brand]').fill('Sony');page.locator('#equipment-form [name=model]').fill('X');page.locator('#equipment-form [name=serial_number]').fill('A, B, C');page.locator('#equipment-form [name=quantity]').fill('3');page.locator('#equipment-form').get_by_role('button',name='New location',exact=True).click();page.get_by_label('New storage location',exact=True).fill('Locker');page.locator('#equipment-form').get_by_role('button',name='Add location',exact=True).click();page.locator('#save-equipment').click();page.locator('#equipment-dialog').wait_for(state='hidden')
    page.locator('#equipment-table .equipment-delete-action').click();assert page.locator('#confirm-equipment-delete').is_disabled();page.locator('#equipment-delete-unit').select_option('serial:B');assert '3 to 2' in page.locator('#unit-removal-impact').inner_text();page.locator('#unit-removal-reason').fill('Installed in studio');page.locator('#confirm-equipment-delete').click();page.locator('#equipment-delete-dialog').wait_for(state='hidden')
    page.locator('#equipment-table .record-details-button').click();page.locator('#desktop-record-body').get_by_text('Installed in studio',exact=False).wait_for();page.locator('[data-close="desktop-record-dialog"]').click()
-   page.locator('#desktop-find').click();page.locator('#desktop-search-input').fill('10.20.1.1');page.wait_for_function("() => document.querySelectorAll('#desktop-search-results .search-result').length===1");page.locator('[data-close="desktop-search-dialog"]').click()
-   page.locator('#desktop-handover').click();page.locator('#desktop-handover-results .handover-group').first.wait_for();page.locator('[data-close="desktop-handover-dialog"]').click()
-   page.locator('#home-tab').click();page.locator('#workspace-export-menu summary').click()
+   assert page.locator('#main-navigation a').all_text_contents()==['Devices','IPTV','Inventory','Equipment backups']
+   assert page.locator('#desktop-find').input_value()=='' and page.locator('#desktop-find').get_attribute('placeholder') is None
+   page.locator('#desktop-find').fill('10.20.1.1');page.locator('#desktop-find').press('Enter');page.wait_for_function("() => document.querySelectorAll('#desktop-search-results .search-result').length===1");page.locator('[data-close="desktop-search-dialog"]').click()
+   page.locator('.brand').click();page.locator('#workspace-export-menu summary').click()
    with page.expect_download() as download:page.get_by_role('link',name='Complete backup JSON',exact=True).click()
    backup=Path(tmp)/'full.json';download.value.save_as(backup);assert json.loads(backup.read_text())['format']=='avtrack-workspace'
    page.locator('#workspace-restore-open').click();page.locator('#workspace-restore-file').set_input_files(str(backup));page.locator('#workspace-restore-preview').wait_for(state='visible');assert '1 devices' in page.locator('#workspace-restore-preview').inner_text();assert page.locator('#workspace-restore-submit').is_enabled();page.locator('#workspace-restore-cancel').click()
@@ -43,4 +44,4 @@ with tempfile.TemporaryDirectory() as tmp:
    assert not errors,errors
    browser.close()
  finally:server.shutdown();server.server_close()
-print('PASS: desktop drafts, source preview, explicit import, undo, stock movement, details, search, handover, JSON download and restore preview')
+print('PASS: desktop drafts, source preview, explicit import, undo, stock movement, details, header search, JSON download and restore preview')

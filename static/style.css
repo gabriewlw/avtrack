@@ -914,8 +914,6 @@ main, dialog {
 @media(min-width:900px) {
   body.desktop-working main>.heading { display:none; }
   body.desktop-working main { padding-top:24px; }
-  #main-navigation { gap:16px; }
-  #main-navigation button { font:11px var(--mono); padding:7px 9px; }
   #equipment-table .equipment-actions { min-width:140px; width:140px!important; }
 }
 .active-filter-chips { display:flex; flex-wrap:wrap; gap:7px; grid-column:1/-1; }
@@ -951,10 +949,14 @@ main, dialog {
 .export-scope-caption { padding:7px; margin:0; font-size:11px; color:var(--muted); }
 
 @media(min-width:900px) {
-  .header-inner { display:flex; align-items:center; gap:28px; }
-  #main-navigation { margin-left:auto; }
-  .brand-group { flex-shrink:0; }
-  #main-navigation a { font-size:11px; }
   .workspace-transfer-actions .export-toggle { width:auto; min-width:170px; }
   .workspace-transfer-actions #workspace-restore-open { width:auto; min-width:170px; }
 }
+.header-search { grid-column:3; justify-self:end; display:flex; align-items:center; width:180px; min-width:0; height:36px; padding:0 4px 0 10px; border:1px solid var(--border); border-radius:6px; background:var(--input); }
+.header-search:focus-within { border-color:var(--primary); }
+.header-search input { flex:1; min-width:0; width:100%; height:32px; min-height:32px; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; font-size:12px; }
+.header-search input:focus { outline:none; box-shadow:none; }
+.header-search button { display:flex; align-items:center; justify-content:center; flex:0 0 30px; width:30px; min-width:30px; height:30px; min-height:30px; padding:6px; border:0; border-radius:4px; background:transparent; color:var(--muted-foreground); }
+.header-search button:hover { color:var(--foreground); }
+.header-search svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; }
+@media(max-width:639.98px) { .header-search { display:none; } }
