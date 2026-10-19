@@ -902,6 +902,8 @@ main, dialog {
 @media(max-width:700px) { .overview-heading { flex-direction:column; align-items:flex-start; gap:16px; } }
 
 .workspace-transfer { flex-shrink:0; }
+.workspace-transfer-bottom { margin-top:32px; padding-top:24px; border-top:1px solid var(--border); }
+.workspace-transfer-bottom .export-links { top:auto; bottom:calc(100% + 8px); }
 .workspace-transfer-actions .export-toggle { white-space:nowrap; }
 @media(max-width:700px) { .workspace-transfer-actions { justify-content:flex-start; } }
 @media(max-width:700px) {

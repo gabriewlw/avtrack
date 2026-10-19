@@ -157,7 +157,7 @@ To move AVTrack to another computer, copy the whole project folder, including `d
 
 ### Export or move the complete workspace
 
-On the homepage, use **Back up entire app** beside **Your workspace at a glance**:
+At the bottom of the page, use **Back up entire app**:
 
 - **Complete backup ZIP** is recommended when moving computers. One file includes every workspace, inventory layout, custom field, note, confirmation, saved history, and uploaded backup file/icon.
 - **Complete backup JSON** contains the same restorable data in an uncompressed file.
