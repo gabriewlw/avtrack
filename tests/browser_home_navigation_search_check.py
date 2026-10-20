@@ -27,7 +27,10 @@ with tempfile.TemporaryDirectory() as tmp:
             assert page.locator('#home-tab').get_attribute('aria-current')=='page'
             assert page.locator('#homepage-overview').is_visible()
             assert page.locator('#inventory').is_hidden()
-            assert page.locator('.hero-side').is_hidden()
+            assert page.locator('.hero-side').is_visible()
+            assert page.locator('#example-media img').is_visible()
+            assert page.locator('.hero-copy').bounding_box()['x'] < page.locator('.hero-side').bounding_box()['x']
+            assert page.locator('.hero-copy').evaluate('(node)=>getComputedStyle(node).textAlign') == 'left'
             assert page.locator('#device-tab').is_hidden()
             page.locator('#workspaces-toggle').click()
             assert page.locator('#device-tab').is_visible()

@@ -1064,10 +1064,9 @@ main, dialog {
 #main-navigation .workspace-menu-links a.nav-active::after { top:10px; bottom:10px; left:0; right:auto; width:2px; height:auto; }
 body.home-workspace #workspace,body.home-workspace main > .stats,body.home-workspace #inventory,body.home-workspace #equipment-panel,body.home-workspace #backups-panel,body.home-workspace #validation-note,body.home-workspace #device-ip-progress { display:none; }
 body.home-workspace .homepage-overview { margin-bottom:0; }
-body.home-workspace .hero-side { display:none; }
-body.home-workspace main > .heading { display:block; margin-bottom:32px; }
-body.home-workspace .hero-copy { align-items:center; text-align:center; }
-body.home-workspace #hero-intro { max-width:640px; }
+body.home-workspace main > .heading { margin-bottom:32px; }
+body.home-workspace .hero-copy { align-items:flex-start; text-align:left; }
+body.home-workspace #hero-intro { max-width:540px; }
 body.home-workspace .overview-heading { padding-top:24px; border-top:1px solid var(--border); }
 body.home-workspace .workspace-transfer-bottom { margin-top:40px; }
 
