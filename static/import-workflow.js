@@ -71,7 +71,7 @@ window.importWorkflow = (() => {
   }
   function edit(entry,row){edited[sourceKeys(entry)[0]]=row;}
   function restoreMappings(data){
-    const stored=preferences.mappings || {};
+    const stored=currentTab==='iptv'&&data.generated_headers?{}:preferences.mappings || {};
     Object.entries(stored).forEach(([key,match])=>{
       const input=byId('map-'+key);if(!input)return;
       const matches=data.headers.map((header,index)=>({header,index})).filter(item=>normalizedHeader(item.header)===match.name);

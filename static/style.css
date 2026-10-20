@@ -990,6 +990,11 @@ main, dialog {
 .record-current-status { display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; margin:20px 0; }
 .record-verified { color:#8dcea9; }
 .record-added-via { border-top:1px solid var(--border); padding-top:16px; margin-bottom:0; overflow-wrap:anywhere; }
+.iptv-main-columns { padding:20px; margin:18px 0; border:1px solid var(--border); border-radius:10px; background:var(--panel); }
+.iptv-main-columns h3 { margin:0 0 10px; }
+.iptv-main-columns p { color:var(--muted-foreground); font-size:13px; line-height:1.6; }
+.iptv-main-columns>label { max-width:300px; margin:16px 0; }
+.iptv-main-columns .form-grid { gap:16px; }
 #device-notes-dialog { width:min(650px,calc(100vw - 40px)); }
 #device-notes-text { min-height:220px; line-height:1.6; resize:vertical; }
 .device-directory .ip-browser { display:flex; align-items:center; justify-content:center; flex:0 0 24px; width:24px; height:28px; padding:4px; border:1px solid var(--border); border-radius:4px; color:var(--muted-foreground); background:var(--secondary); }

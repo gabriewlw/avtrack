@@ -1178,7 +1178,7 @@ function showSpreadsheetPreview() {
     if (row.notes) card.append(element('p', '', row.notes));
     return card;
   }));
-  if(spreadsheetFile?.pasted && $('paste-layout-dialog').open)showPastedLayoutSuggestion();
+  if((spreadsheetFile?.pasted||spreadsheetFile?.simple_preview) && $('paste-layout-dialog').open)showPastedLayoutSuggestion();
 }
 async function loadSpreadsheet(options={}) {
   const loadingFile=spreadsheetFile;
@@ -1201,7 +1201,7 @@ async function loadSpreadsheet(options={}) {
       if (satelliteCatalogError) throw new Error('Could not load the satellite channel reference. Refresh the page and try again.');
     }
     if(spreadsheetFile!==loadingFile)return;
-    const data = await api('/api/spreadsheet-preview', 'POST', {...spreadsheetFile, sheet: $('sheet-choice').value, header_row: Number($('header-row').value),detect_header:!spreadsheetFile.pasted && !options.manualHeader && !$('header-row').dataset.manual,header_aliases:importFields().flatMap(([key,label,aliases])=>[label,...aliases]),keep_headers:currentTab==='equipment'?customImportFields().flatMap(([key,label,aliases])=>[label,...aliases]):[]});
+    const data = await api('/api/spreadsheet-preview', 'POST', {...spreadsheetFile, allow_headerless:currentTab==='iptv'&&!spreadsheetFile.json_records, sheet: $('sheet-choice').value, header_row: Number($('header-row').value),detect_header:!spreadsheetFile.pasted && !options.manualHeader && !$('header-row').dataset.manual,header_aliases:importFields().flatMap(([key,label,aliases])=>[label,...aliases]),keep_headers:currentTab==='equipment'?customImportFields().flatMap(([key,label,aliases])=>[label,...aliases]):[]});
     if(spreadsheetFile!==loadingFile)return;
     spreadsheetData = data;
     window.desktopUI?.suggestCustomColumns(data);
@@ -1237,6 +1237,7 @@ async function loadSpreadsheet(options={}) {
       select.onchange = () => { showVenueEditors(); showSpreadsheetPreview(); window.importWorkflow.checkpoint().catch(error=>toast(error.message)); };
       return group;
     }));
+    if(currentTab==='iptv')window.pasteWorkflow.suggestIPTVColumns(data);
     await window.importWorkflow.configureSheets(data.sheets);
     window.importWorkflow.restoreMappings(data);
     showVenueEditors(); showSpreadsheetPreview();
@@ -1483,7 +1484,7 @@ function showPastedLayoutSuggestion() {
   window.pasteWorkflow.render();
 }
 function showMissingPasteHeadings(){
-  const missing=!!spreadsheetData?.generated_headers,section=$('paste-missing-headings');section.hidden=!missing;
+  const missing=currentTab!=='iptv'&&!!spreadsheetData?.generated_headers,section=$('paste-missing-headings');section.hidden=!missing;
   if(!missing){$('paste-heading-inputs').replaceChildren();return;}
   $('paste-heading-error').hidden=true;
   $('paste-heading-inputs').replaceChildren(...spreadsheetData.headers.map((header,index)=>{

@@ -119,6 +119,8 @@ Column matching and verification controls remain available under **Advanced sett
 
 File upload remains available for `.csv` and `.xlsx` files, including workbooks with multiple worksheets. Excel files preserve worksheets and cell structure better; CSV is smaller and easier to inspect manually.
 
+For IPTV, choose the source columns for **Channel Name**, **Multicast IP**, **Port**, and optionally **Notes**. Sample values identify each choice, including sources with no headings. The first channel is retained, and unused columns do not need names or selections: their values are added to Notes. If needed, use **First row** to choose whether it contains headings or channel data, then continue directly to row review.
+
 Spreadsheet layouts can differ from one job to another. Always review the detected headings, destination inventory, quantities, and locations before applying a large import.
 
 ## Search, confirmation, and reports

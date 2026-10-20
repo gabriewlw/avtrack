@@ -4,6 +4,38 @@ window.pasteWorkflow=(()=>{
   const stockOrder=['description','brand','model','serial_number','quantity','location','notes'];
   const normalized=value=>String(value ?? '').trim().toLowerCase();
 
+  function suggestIPTVColumns(data){
+    if(spreadsheetFile?.json_records)return;
+    const samples=data.headers.map((_,index)=>data.rows.slice(0,30).map(row=>String(row[index]||'').trim()).filter(Boolean));
+    const isIP=value=>/^(?:\d{1,3}\.){3}\d{1,3}$/.test(value)&&value.split('.').every(part=>Number(part)<=255);
+    const rank=predicate=>samples.map((values,index)=>({index,score:values.length?values.filter(predicate).length/values.length:0})).filter(item=>item.score>.6).sort((a,b)=>b.score-a.score||a.index-b.index);
+    if(!node('map-ip').value){const candidates=rank(isIP);if(candidates.length)node('map-ip').value=String(candidates[0].index);}
+    if(!node('map-port').value){
+      const candidates=rank(value=>/^\d+$/.test(value)&&Number(value)>0&&Number(value)<=65535);
+      candidates.forEach(item=>{item.score+=(item.index===Number(node('map-ip').value)+1?2:0)+(samples[item.index].some(value=>['1234','2000','5000','5004'].includes(value))?1:0);});
+      candidates.sort((a,b)=>b.score-a.score||a.index-b.index);if(candidates.length)node('map-port').value=String(candidates[0].index);
+    }
+    if(!node('map-name').value){
+      const candidates=samples.map((values,index)=>({index,score:values.length&&values.every(value=>!isIP(value)&&!/^\d+$/.test(value))?new Set(values).size/values.length+(values.some(value=>/\b(cam|tv|news|sports|espn|bbc|channel)\b/i.test(value))?2:0)-(values.some(value=>/\b(axis|ird|decoder|transcoder)\b/i.test(value))?2:0): -10})).sort((a,b)=>b.score-a.score||a.index-b.index);
+      if(candidates[0]?.score>=0)node('map-name').value=String(candidates[0].index);
+    }
+  }
+
+  function renderIPTVColumns(){
+    const section=node('iptv-main-columns');section.hidden=currentTab!=='iptv';if(section.hidden)return false;
+    node('iptv-header-mode').value=spreadsheetFile.header_mode||'auto';node('iptv-header-mode').closest('label').hidden=!!spreadsheetFile.json_records;
+    const choices=node('iptv-column-choices');choices.replaceChildren();
+    for(const [key,label] of importFields()){
+      const original=node('map-'+key),wrapper=document.createElement('label'),select=original.cloneNode(true);select.id='iptv-map-'+key;select.value=original.value;select.setAttribute('aria-label',label);
+      wrapper.append(document.createTextNode(label),select);choices.append(wrapper);
+      select.onchange=()=>{original.value=select.value;original.dispatchEvent(new Event('change'));};
+    }
+    const selected=importFields().map(([key])=>node('map-'+key).value).filter(value=>value!=='');
+    const duplicate=new Set(selected).size!==selected.length;
+    node('iptv-column-warning').hidden=!duplicate;node('iptv-column-warning').textContent='Choose a different source column for each main field. Other columns will go into Notes.';
+    return duplicate;
+  }
+
   function prepareInventory(inventory){
     if(!inventory?.layout)return inventory;
     const layout=structuredClone(inventory.layout),keys=new Set(layout.columns.map(column=>column.key));
@@ -91,23 +123,33 @@ window.pasteWorkflow=(()=>{
     node('paste-layout-intro').textContent=pasted?'The first pasted row is always the column headings. Titles such as “Serial Number” or “Monitor Model” stay together in their Excel cells. AVTrack checks the values below each heading and suggests how the table should work.':'Likely column headings are detected automatically. You can change the header row in field matching. Each suggested column shows its matching Excel heading. Check the sample below, then adjust the fields in the next step. No records have been saved.';
     if(!pasted){node('continue-paste-layout').className='primary';node('continue-paste-layout').textContent='Set up headings one by one';node('paste-preview-help').textContent='';node('paste-preview-error').hidden=true;return;}
     const needsSetup=false;node('paste-start-review').hidden=!!needsSetup;node('keep-paste-layout').hidden=!!needsSetup;node('continue-paste-layout').className=needsSetup?'primary':'secondary';node('continue-paste-layout').textContent=needsSetup?'Set up headings one by one':'Configure fields (optional)';
-    const missingHeadings=!!spreadsheetData?.generated_headers;
+    const missingHeadings=currentTab!=='iptv'&&!!spreadsheetData?.generated_headers;
+    const duplicateIPTVColumns=renderIPTVColumns();
     node('paste-preview-help').textContent=missingHeadings?'The first pasted row should contain clear column titles. AVTrack preserved your records; add the missing names below, then match each named column to its AVTrack field.':needsSetup?'Check the cells first, then set up each heading. Your choices stay a draft until you start importing.':'Change a source match directly above its sample cells. Then choose the suggested controls and checks below, or go straight to review.';renderAnalysis();
     showMissingPasteHeadings();
     const profile=spreadsheetInventory?.layout||{},tv=profile.template==='tv'||profile.stock_mode==='tv_counts';node('paste-inventory-check-options').hidden=!spreadsheetInventory;node('paste-preview-stock').checked=profile.stock_check_history??tv;node('paste-preview-record').checked=profile.show_record_check??!tv;
     node('paste-preview-check-help').textContent=spreadsheetInventory?'Item confirmation creates a Status column: every imported item starts To be found, then changes to Located when clicked. Stock checks keep dated count snapshots. Record checks compare details with the source file. Importing does not perform these checks.':'Choose manual IP validation or no confirmation. IP formats are always checked during import; physical stock checks apply to inventory tables.';
     const select=node('paste-preview-confirmation'),original=node('import-confirmation-choice');select.replaceChildren(...[...original.options].map(option=>new Option(option.value==='storage'?'Item confirmation — To be found / Located':option.value==='ip'?'IP validation — Confirm IP':option.textContent,option.value)));select.value=original.value;
     node('paste-preview-auto-label').hidden=true;node('paste-preview-auto').checked=node('import-complete-rows').checked;node('paste-preview-impact').textContent=spreadsheetInventory&&spreadsheetInventory.layout?.confirmation_mode!==window.importWorkflow.originalLayout?.confirmation_mode?'Changing the confirmation method will reset previous confirmation marks when you apply this setup.':'No items or saved settings change until you apply this setup. Stock-check dates remain separate.';
-    if(!needsSetup)importFields().forEach(([key,label])=>{const original=node('map-'+key),cell=node('paste-layout-head').querySelector(`[data-field-key="${key}"]`);if(!original||!cell)return;const source=original.cloneNode(true);source.id='paste-map-'+key;source.value=original.value;source.setAttribute('aria-label',`Excel column for ${label.replace(' (optional)','')}`);source.className='paste-source-match';source.onchange=()=>{original.value=source.value;original.dispatchEvent(new Event('change'));};cell.append(source);});
+    if(!needsSetup&&currentTab!=='iptv')importFields().forEach(([key,label])=>{const original=node('map-'+key),cell=node('paste-layout-head').querySelector(`[data-field-key="${key}"]`);if(!original||!cell)return;const source=original.cloneNode(true);source.id='paste-map-'+key;source.value=original.value;source.setAttribute('aria-label',`Excel column for ${label.replace(' (optional)','')}`);source.className='paste-source-match';source.onchange=()=>{original.value=source.value;original.dispatchEvent(new Event('change'));};cell.append(source);});
     let entries=spreadsheetEntries().filter(entry=>!entry.skippedLocation);entries=currentTab==='equipment'?orderEquipmentReview(combineTVEntries(entries)):entries.map(entry=>({...entry,issues:networkIssues(entry.row)}));const flagged=entries.filter(entry=>entry.issues?.length).length;
     node('paste-preview-counts').textContent=`${entries.length} ${currentTab==='equipment'?(entries.length===1?'item':'items'):(entries.length===1?'record':'records')} · ${flagged} flagged for review${currentTab==='equipment'&&spreadsheetInventory.layout?.columns.some(column=>column.key==='location')&&spreadsheetInventory.layout?.location_role!=='geographic'?' · '+new Set(entries.map(entry=>entry.row.location).filter(Boolean)).size+' locations':''}`;
     node('paste-start-review').textContent=`Review ${entries.length} records before importing`;node('paste-start-review').disabled=missingHeadings||node('confirm-import').disabled||!spreadsheetData.rows.length;node('continue-paste-layout').disabled=missingHeadings;node('continue-paste-layout').textContent=missingHeadings?'Name columns to continue':needsSetup?'Set up headings one by one':'Configure fields (optional)';node('paste-preview-error').hidden=node('spreadsheet-error').hidden;node('paste-preview-error').textContent=node('spreadsheet-error').textContent;
+    node('continue-paste-layout').hidden=currentTab==='iptv';node('keep-paste-layout').hidden=currentTab==='iptv';
+    if(currentTab==='iptv'){
+      node('paste-layout-title').textContent='Choose your main channel columns';
+      node('paste-layout-intro').textContent='Match the main fields to columns from your paste or file. Review the suggested values before continuing; unused columns never need names.';
+      node('paste-preview-help').textContent=spreadsheetData.generated_headers?'No headings are needed. The first channel is kept as data; column numbers and samples identify your source.':'Source headings and sample values are shown in each selector. You can change any suggested match.';
+      node('paste-start-review').disabled ||= duplicateIPTVColumns;
+      node('paste-layout-unmatched').textContent='Unused columns are preserved in Notes automatically. You do not need to select or name them.';
+    }else node('paste-layout-title').textContent='Preview your table';
   }
   document.addEventListener('DOMContentLoaded',()=>{
+    node('iptv-header-mode').onchange=async()=>{spreadsheetFile.header_mode=node('iptv-header-mode').value;await loadSpreadsheet();if(spreadsheetData)showPastedLayoutSuggestion();};
     node('paste-preview-confirmation').onchange=()=>{node('import-confirmation-choice').value=node('paste-preview-confirmation').value;node('import-confirmation-choice').dispatchEvent(new Event('change'));};
     for(const [id,key] of [['paste-preview-stock','stock_check_history'],['paste-preview-record','show_record_check']])node(id).onchange=()=>updateLayout(layout=>{layout[key]=node(id).checked;});
     node('paste-preview-auto').onchange=()=>{node('import-complete-rows').checked=node('paste-preview-auto').checked;window.importWorkflow.checkpoint().catch(error=>toast(error.message));};
     node('paste-start-review').onclick=()=>{if(node('paste-start-review').disabled)return;node('paste-start-review').disabled=true;node('spreadsheet-form').requestSubmit();};
   });
-  return {render,prepareInventory};
+  return {render,prepareInventory,suggestIPTVColumns};
 })();

@@ -26,6 +26,13 @@ def workbook_bytes():
 
 
 class SpreadsheetParserTests(unittest.TestCase):
+    def test_iptv_file_keeps_unnamed_extra_columns_without_requiring_titles(self):
+        raw=b'Channel Name,IP Address,Port,\nForward Cam,239.1.1.1,1234,H.265\nLido Cam,239.1.1.2,1234,H.264'
+        result=preview(encoded(raw,'channels.csv',allow_headerless=True,detect_header=True))
+        self.assertEqual(result['headers'],['Channel Name','IP Address','Port','Column 4'])
+        self.assertEqual(result['rows'][0],['Forward Cam','239.1.1.1','1234','H.265'])
+        self.assertEqual(len(result['rows']),2)
+
     def test_headerless_markdown_keeps_first_record_and_full_width(self):
         raw = b'''| RADIANCE | 1 | Forward Cam | Axis Q1755 | 239.252.4.2 | 1234 | 239.252.2.61 | 1234 | |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

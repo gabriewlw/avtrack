@@ -134,7 +134,24 @@ def preview(payload):
             source = markdown[0] if markdown is not None else csv.reader(io.StringIO(text), dialect, **({'delimiter':delimiter} if delimiter is not None else {}))
         confidence=None
         header_candidates=[]
-        if payload.get('detect_header') and not pasted:
+        headerless=False
+        if payload.get('allow_headerless') is True:
+            mode=payload.get('header_mode','auto')
+            if mode not in ('auto','present','absent'):
+                raise ValueError('Choose whether the first row contains headings or channel data.')
+            source=iter(source)
+            first=list(islice(source,53))
+            populated=next((row for row in first if any(str(value or '').strip() for value in row)),[])
+            has_address=any(re.fullmatch(r'(?:\d{1,3}\.){3}\d{1,3}',str(value or '').strip()) for value in populated)
+            headerless=mode=='absent' or mode=='auto' and has_address
+            if headerless:
+                width=max((len(row) for row in first),default=0)
+                source=chain([[f'Column {index+1}' for index in range(width)]],first,source)
+                generated_headers=True
+                header_row=1
+            else:
+                source=chain(first,source)
+        if payload.get('detect_header') and not pasted and not headerless and not (payload.get('allow_headerless') and payload.get('header_mode')=='present'):
             source=iter(source)
             first=list(islice(source,53))
             header_row,confidence=detect_header(first,payload.get('header_aliases',[]) + payload.get('keep_headers',[]))
@@ -179,12 +196,12 @@ def preview(payload):
                 header_row=number
                 column_count = len(values)
                 keep = {re.sub(r'[_-]+', ' ', h.lower()).strip() for h in payload.get('keep_headers', []) if isinstance(h,str)}
-                kept_columns = [i for i, value in enumerate(values) if payload.get('pasted') is True or not ignored_header(value) or re.sub(r'[_-]+',' ',value.lower()).strip() in keep]
+                kept_columns = [i for i, value in enumerate(values) if pasted or payload.get('allow_headerless') is True or not ignored_header(value) or re.sub(r'[_-]+',' ',value.lower()).strip() in keep]
                 ignored_columns = [value for i,value in enumerate(values) if i not in kept_columns]
                 headers = [values[i] or f'Column {i + 1}' for i in kept_columns]
             else:
                 if len(values) > column_count:
-                    if not pasted:
+                    if not pasted and payload.get('allow_headerless') is not True:
                         raise ValueError(f'Row {number} has more columns than the chosen header row.')
                     # Excel omits empty cells at the end of copied rows. If a later
                     # pasted row contains data in one of those cells, retain it as a
@@ -204,7 +221,7 @@ def preview(payload):
                 if len(rows) >= 10000:
                     raise ValueError('Import supports up to 10,000 devices per file.')
                 rows.append(values)
-                row_numbers.append(number)
+                row_numbers.append(number-1 if headerless else number)
         if payload.get('auto_header') and not headers:
             raise ValueError('Could not identify an inventory header within the first 50 rows.')
         generated_headers=locals().get('generated_headers',False)

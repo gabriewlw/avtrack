@@ -8,6 +8,24 @@ def pasted(text,**extra):
     return preview(dict(filename='Pasted spreadsheet.csv',content=base64.b64encode(text.encode()).decode(),pasted=True,**extra))
 
 class PastedSpreadsheetTests(unittest.TestCase):
+    def test_iptv_headerless_source_keeps_first_channel_without_naming_unused_columns(self):
+        text='RADIANCE\t1\tForward Cam\tAxis Q1755\t239.252.4.2\t1234\t239.252.2.61\t1234\t\nRADIANCE\t2\tLido Cam\tAXIS P5655-E\t239.252.4.34\t1234\t239.252.2.62\t1234\tH.265'
+        result=pasted(text,delimiter='\t',allow_headerless=True)
+        self.assertTrue(result['generated_headers'])
+        self.assertEqual(result['headers'],[f'Column {index}' for index in range(1,10)])
+        self.assertEqual(result['rows'][0][2],'Forward Cam')
+        self.assertEqual(result['rows'][1][8],'H.265')
+        self.assertEqual(result['row_numbers'],[1,2])
+
+    def test_iptv_header_mode_can_be_chosen_explicitly(self):
+        text='Service\tAddress\tNumber\nBBC News\t239.1.1.1\t1234'
+        result=pasted(text,delimiter='\t',allow_headerless=True,header_mode='present')
+        self.assertFalse(result['generated_headers'])
+        self.assertEqual(len(result['rows']),1)
+        result=pasted(text,delimiter='\t',allow_headerless=True,header_mode='absent')
+        self.assertTrue(result['generated_headers'])
+        self.assertEqual(result['rows'][0],['Service','Address','Number'])
+
     def test_pasted_headings_are_all_available_for_setup(self):
         result=pasted('Device ID\tModel\tO.O\nABC-1\tX\tYes',delimiter='\t')
         self.assertEqual(result['headers'],['Device ID','Model','O.O'])
