@@ -43,14 +43,12 @@ class AppTests(unittest.TestCase):
 
     def test_footer_matches_git_revision(self):
         import subprocess
-        expected = subprocess.check_output(['git', 'rev-parse', '--short=7', 'HEAD'], cwd=app.ROOT).strip()
         status, page = self.request('/')
         self.assertEqual(status, 200)
         count = subprocess.check_output(['git', 'rev-list', '--count', 'HEAD'], cwd=app.ROOT).strip()
-        self.assertIn(b'AVTrack \xc2\xb7 v0.0.' + count + b' \xc2\xb7 ' + expected, page)
-        self.assertNotIn(b'{{AVTRACK_REVISION}}', page)
-        self.assertIn(b'Commit #' + count, page)
-        self.assertNotIn(b'{{AVTRACK_COMMIT}}', page)
+        self.assertIn(b'aria-label="AVTrack version">v0.0.' + count + b'</p>', page)
+        self.assertNotIn(b'{{AVTRACK_VERSION}}', page)
+        self.assertNotIn(b'Commit #', page)
         with patch('app.subprocess.run', side_effect=FileNotFoundError):
             self.assertEqual(app.source_revision(), 'unversioned')
 
@@ -219,7 +217,7 @@ class AppTests(unittest.TestCase):
         self.assertRegex(self.request('/service-worker.js')[1].decode(),
                          r"const CACHE = 'avtrack-offline-v[1-9][0-9]*';")
         body = self.request('/')[1]
-        self.assertIn(b'AVTrack \xc2\xb7 ' + app.source_revision().encode('utf-8'), body)
+        self.assertIn(b'aria-label="AVTrack version">' + app.source_revision().split(' · ', 1)[0].encode('utf-8') + b'</p>', body)
         self.assertIn(b'class="brand-tally"', body)
         self.assertIn(b'class="brand" href="/" aria-label="AVTrack homepage"', body)
         self.assertIn(b'class="brand-credit" href="https://broadcastgab.com"', body)

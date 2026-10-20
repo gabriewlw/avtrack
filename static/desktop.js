@@ -80,7 +80,7 @@ window.desktopUI=(()=>{
   function renderSearch(){
     const query=get('desktop-search-input').value.trim().toLowerCase(),results=get('desktop-search-results');results.replaceChildren();
     const found=searchRecords.filter(row=>JSON.stringify(row).toLowerCase().includes(query));results.append(node('p','',`${found.length} results across all workspaces`));
-    const groups=new Map();found.slice(0,200).forEach(row=>{const title=row.kind==='equipment'?'Inventory · '+row.inventory_name:row.kind==='backup'?'Equipment backups':row.kind==='iptv'?'IPTV':'Devices';if(!groups.has(title))groups.set(title,[]);groups.get(title).push(row);});
+    const groups=new Map();found.slice(0,200).forEach(row=>{const title=row.kind==='equipment'?'Inventory · '+row.inventory_name:row.kind==='backup'?'Backups':row.kind==='iptv'?'IPTV':'Devices';if(!groups.has(title))groups.set(title,[]);groups.get(title).push(row);});
     for(const [title,rows] of groups){results.append(node('h3','',title));rows.forEach(row=>results.append(button(`${row.label} · ${row.location||row.venue||row.ip||row.filename||''}`,()=>row.kind==='backup'?openBackup(row):openRecord(row.kind,row.id),'search-result')));}
     if(found.length>200)results.append(node('p','','Refine your search to see the remaining results.'));
   }

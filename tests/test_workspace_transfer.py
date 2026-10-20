@@ -60,9 +60,9 @@ class WorkspaceTransferTests(unittest.TestCase):
         data=transfer.snapshot(app.connect,app.backup_directory)
         content,_,_=transfer.pack(data,'xlsx')
         book=load_workbook(io.BytesIO(content))
-        self.assertTrue({'Devices','IPTV','Spare Parts','Equipment backups'}.issubset(book.sheetnames))
+        self.assertTrue({'Devices','IPTV','Spare Parts','Backups'}.issubset(book.sheetnames))
         self.assertNotIn('import_preferences',book.sheetnames)
-        self.assertNotIn('Content',[cell.value for cell in book['Equipment backups'][1]])
+        self.assertNotIn('Content',[cell.value for cell in book['Backups'][1]])
         content,_,_=transfer.pack(data,'csv')
         with zipfile.ZipFile(io.BytesIO(content)) as archive:
             self.assertIn('Devices.csv',archive.namelist())

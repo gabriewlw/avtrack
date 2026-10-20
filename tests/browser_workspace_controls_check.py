@@ -87,7 +87,8 @@ with tempfile.TemporaryDirectory() as tmp:
             content=workspace_transfer.pack(workspace_transfer.snapshot(app.connect,app.backup_directory),'json')[0]
             page.locator('#workspace-restore-open').click();drop('#workspace-restore-file','complete.json',content);page.locator('#workspace-restore-preview').wait_for(state='visible');page.locator('#workspace-restore-cancel').click()
             page.locator('#device-tab').click();page.locator('#device-ip-progress').scroll_into_view_if_needed();page.screenshot(path='/tmp/avtrack-device-progress.png')
-            assert 'Commit #' in page.locator('.app-version').text_content()
+            assert page.locator('.app-version').text_content().strip().startswith('v0.0.')
+            assert '·' not in page.locator('.app-version').text_content()
             assert not errors,errors
             browser.close()
     finally:

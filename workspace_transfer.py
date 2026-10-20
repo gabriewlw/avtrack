@@ -122,7 +122,7 @@ def report_sections(data):
             rows.append({**row,**{col['key']:column_value(row,col['key']) for col in profile['columns']}})
         sections.append(section(inventory['name'],fields,rows))
     metadata={row['backup_id']:json.loads(row['details']) for row in tables.get('backup_details',[])}
-    sections.append(section('Equipment backups',[(key.replace('_',' ').title(),key) for key in ('equipment_type','device_name','filename','notes','created_at','state','model_serial','firmware','captured_on','tested_on')],[dict(row,**metadata.get(row['id'],{})) for row in tables['av_backups']]))
+    sections.append(section('Backups',[(key.replace('_',' ').title(),key) for key in ('equipment_type','device_name','filename','notes','created_at','state','model_serial','firmware','captured_on','tested_on')],[dict(row,**metadata.get(row['id'],{})) for row in tables['av_backups']]))
     return sections
 
 

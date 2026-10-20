@@ -1394,9 +1394,8 @@ class Handler(BaseHTTPRequestHandler):
                 file, mime = assets[path]
                 data=(ROOT / 'static' / file).read_bytes()
                 if file=='index.html':
-                    revision=source_revision()
-                    count=re.match(r'v0\.0\.(\d+)',revision)
-                    data=data.replace(b'{{AVTRACK_REVISION}}',revision.encode('utf-8')).replace(b'{{AVTRACK_COMMIT}}',(count[1] if count else 'unknown').encode('utf-8'))
+                    version=source_revision().split(' · ', 1)[0]
+                    data=data.replace(b'{{AVTRACK_VERSION}}',version.encode('utf-8'))
                 if mime=='application/json':data=json.loads(data)
                 return self.send(200, data, mime + '; charset=utf-8' if mime.startswith('text/') or mime == 'image/svg+xml' else mime)
         elif self.command == 'POST' and path == '/api/backups/open-folder':
