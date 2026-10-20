@@ -33,7 +33,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#equipment-location-buttons button').all_text_contents()==['Store room']
             assert page.locator('#equipment-location-filter option').first.inner_text()=='All locations'
             assert page.locator('#equipment-custom-filters fieldset').count()==0
-            for query in ['studio','viewbrand','modelq','abc123','7','store','remote','tag-44','to be found','confirm stock']:
+            for query in ['studio','viewbrand','modelq','abc123','7','store','remote','tag-44','to be found']:
                 page.locator('#equipment-search').fill(query)
                 assert page.locator('#equipment-rows tr').count()==1,query
             page.locator('#equipment-search').fill('no such item')
@@ -55,8 +55,9 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#equipment-rows').inner_text().find('Keep this camera')>=0
             page.reload();page.locator('#equipment-rows tr').wait_for()
             page.locator('#equipment-search').fill('no match')
-            page.locator('#equipment-review-summary a').click()
-            assert page.locator('#equipment-review-filter').input_value()=='flagged'
+            assert not page.locator('.equipment-review-filter').is_visible()
+            assert not page.locator('#equipment-review-summary').is_visible()
+            page.locator('#equipment-clear').click()
             assert page.locator('#equipment-search').input_value()==''
             assert page.locator('#equipment-rows tr').count()==1
             assert page.locator('#equipment-inventory-select option').count()==1

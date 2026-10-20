@@ -8,8 +8,8 @@
   const layout = () => inventories.find(i => i.id === inventoryId)?.layout || defaultInventoryLayout;
   const displayColumns = () => layout().columns;
   const isTVInventory = () => layout().template === 'tv' || layout().stock_mode === 'tv_counts';
-  const stockChecksEnabled = () => layout().stock_check_history ?? (isTVInventory() || layout().template==='spare_parts');
-  const recordChecksEnabled = () => layout().show_record_check ?? !isTVInventory();
+  const stockChecksEnabled = () => showLocatedStatus() || (layout().stock_check_history ?? isTVInventory());
+  const recordChecksEnabled = () => false;
   const ipConfirmation = () => layout().confirmation_mode === 'ip';
   const confirmedLabel = () => ipConfirmation() ? 'IP confirmed' : 'Located';
   const pendingLabel = () => ipConfirmation() ? 'Confirm IP' : 'To be found';
@@ -137,8 +137,10 @@
     document.querySelector('.equipment-review-filter').hidden = !recordReview;
     $('equipment-review-summary').hidden = !recordReview;
     const stockProgress=$('equipment-stock-progress');
-    stockProgress.hidden=!recordReview;
-    const confirmed=items.filter(item=>item.data_checked).length;
+    stockProgress.hidden=!showLocatedStatus();
+    const confirmed=items.filter(item=>item.item_confirmed).length;
+    stockProgress.querySelector('label').firstChild.textContent=ipConfirmation()?'IPs confirmed ':'Items located ';
+    $('equipment-stock-progress-bar').setAttribute('aria-label',ipConfirmation()?'IPs confirmed':'Items located');
     $('equipment-stock-progress-count').textContent=`${confirmed} / ${items.length} records (${items.length?Math.round(confirmed/items.length*100):0}%)`;
     $('equipment-stock-progress-bar').max=items.length || 1;
     $('equipment-stock-progress-bar').value=confirmed;
@@ -256,67 +258,14 @@
           };
           if(layout().template || ipConfirmation()){const button=element('button',`ip-confirm${item.item_confirmed?' confirmed':' pending'}`,item.item_confirmed?confirmedLabel():pendingLabel());button.type='button';button.title=control.title;button.disabled=check.disabled;button.setAttribute('aria-pressed',String(!!item.item_confirmed));button.setAttribute('aria-label',check.getAttribute('aria-label'));button.onclick=()=>{button.disabled=true;check.checked=!check.checked;check.onchange();};status.append(button);}else status.append(control); row.append(status);
           }
-          if(recordChecksEnabled()){
-          const review = element('td', 'equipment-review'); review.dataset.label = 'Stock check';
-          const issues = recordIssues;
-          const checkedDate=item.data_checked_at?new Date(item.data_checked_at):null;
-          const button = element('button', item.data_checked ? 'primary equipment-stock-confirm record-checked' : 'primary equipment-stock-confirm', checkedDate?checkedDate.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):'Review record');
-          button.type = 'button'; button.disabled = pendingConfirmations.has(item.id);
-          button.title = checkedDate?`Record reviewed ${checkedDate.toLocaleString()}. Click to view history or confirm again.`:'Confirm this item against the inventory record';
-          button.setAttribute('aria-label', `Review record for ${displayName(item)}`);
-          button.onclick = async () => {
-            $('equipment-record-review-details').textContent = recordReviewDetails(item);
-            $('equipment-record-review-issues').textContent = issues.length ? issues.join(' · ') + '. Use Edit to correct the record, or acknowledge these blanks after checking the source.' : 'Check these details against the old inventory file.';
-            $('equipment-record-review-error').hidden = true;
-            let history=$('equipment-record-review-history');if(!history){history=element('div','stock-check-history');history.id='equipment-record-review-history';$('equipment-record-review-error').before(history);}
-            history.replaceChildren(element('p','dialog-intro','Loading confirmation history…'));
-            api(`/api/equipment/${item.id}/record-checks`).then(({checks})=>{if(!checks.length)history.replaceChildren(element('p','dialog-intro','No previous record reviews.'));else{const list=element('ul');checks.forEach(check=>list.append(element('li','',new Date(check.checked_at).toLocaleString())));history.replaceChildren(element('strong','','Record review history'),list);}}).catch(error=>history.replaceChildren(element('p','error','Could not load stock confirmation history: '+error.message)));
-            $('edit-equipment-record-review').onclick = () => { $('equipment-record-review-dialog').close(); openEquipment(item); };
-            $('save-equipment-record-review').onclick = async () => {
-              const control = $('save-equipment-record-review'); control.disabled = true;
-              const write = api(`/api/equipment/${item.id}/review`, 'POST', {...item, data_checked:true}); pendingConfirmations.set(item.id, write);
-              try { const updated = await write; items = items.map(i => i.id === updated.id ? updated : i); $('equipment-record-review-dialog').close(); }
-              catch(error) { $('equipment-record-review-error').textContent = error.message; $('equipment-record-review-error').hidden = false; }
-              finally { pendingConfirmations.delete(item.id); control.disabled = false; renderEquipment(); }
-            };
-            $('equipment-record-review-dialog').showModal();
-          };
-          review.append(button); row.append(review);
-          }
 
           if(stockChecksEnabled()) {
             const cell=element('td','equipment-last-checked');cell.dataset.label='Last checked';
-            const date=item.last_checked_at ? new Date(item.last_checked_at) : null;
-            const button=element('button','quiet',date ? date.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}) : 'Never checked');
-            button.type='button';button.title=date ? `Last stock check: ${date.toLocaleString()}. Click to confirm a new check.` : 'Click after checking this model’s stock counts';
-            button.setAttribute('aria-label',`Confirm stock check for ${displayName(item)}`);button.disabled=pendingConfirmations.has(item.id);
-            button.onclick=async()=>{
-              $('equipment-stock-check-details').textContent=displayColumns().filter(column=>column.type==='count'||column.key==='model'||column.key==='brand'||column.key==='quantity'||column.key==='location'||column.key==='total_count').map(column=>`${column.label}: ${String(inventoryValue(item,column.key) ?? '') || 'unknown'}`).join(' · ');
-              $('equipment-stock-check-error').hidden=true;
-              $('save-equipment-stock-check').onclick=async()=>{
-                const control=$('save-equipment-stock-check');control.disabled=true;
-                const write=api(`/api/equipment/${item.id}/stock-check`,'POST',{...item});pendingConfirmations.set(item.id,write);
-                try{const updated=await write;items=items.map(record=>record.id===updated.id?updated:record);$('equipment-stock-check-dialog').close();}
-                catch(error){$('equipment-stock-check-error').textContent=error.message;$('equipment-stock-check-error').hidden=false;}
-                finally{pendingConfirmations.delete(item.id);control.disabled=false;renderEquipment();}
-              };
-              const history=$('equipment-stock-check-history');history.dataset.itemId=String(item.id);history.replaceChildren(element('p','dialog-intro','Loading previous checks…'));
-              $('equipment-stock-check-dialog').showModal();
-              try{
-                const {checks}=await api(`/api/equipment/${item.id}/stock-checks`);
-                if(history.dataset.itemId!==String(item.id))return;
-                if(!checks.length)history.replaceChildren(element('p','dialog-intro','No previous stock checks.'));
-                else{
-                  const details=element('details'),summary=element('summary','',`Stock-check history (${checks.length})`),list=element('ul');
-                  for(const check of checks){
-                    const counts=displayColumns().filter(column=>column.type==='count'||column.key==='total_count'||column.key==='quantity').map(column=>`${column.label}: ${inventoryValue(check.snapshot,column.key) ?? 'unknown'}`).join(' · ');
-                    list.append(element('li','',`${new Date(check.checked_at).toLocaleString()}${counts?' · '+counts:''}`));
-                  }
-                  details.append(summary,list);history.replaceChildren(details);
-                }
-              }catch(error){if(history.dataset.itemId===String(item.id))history.replaceChildren(element('p','error',`Could not load stock-check history: ${error.message}`));}
-            };
-            cell.append(button);row.append(cell);
+            const timestamp=item.inventory_checked_at || item.last_checked_at;
+            const date=timestamp ? new Date(timestamp) : null;
+            cell.textContent=date ? date.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}) : 'Not checked';
+            cell.title=date ? `Last checked: ${date.toLocaleString()}. Updated when marked Located or when missing required fields are completed.` : 'Updates automatically when marked Located or when missing required fields are completed.';
+            row.append(cell);
           }
         }
       });
@@ -369,10 +318,10 @@
       }
       return Math.max(baseWidths[col.key] || 120,labelWidth,controlWidth,modelWidth);
     });
-    widths.push(...(showLocatedStatus()?[110]:[]),...(recordChecksEnabled()?[115]:[]),...(stockChecksEnabled()?[126]:[]),...(notesColumn?[74]:[]),82);
+    widths.push(...(showLocatedStatus()?[110]:[]),...(stockChecksEnabled()?[126]:[]),...(notesColumn?[74]:[]),82);
     const totalWidth=widths.reduce((total,width)=>total+width,0);
     const columns=orderedColumns.map((col,index)=>{const th=element('th','',index===0?'':col.key==='quantity'?'Qnt':col.label);th.scope='col';if(index===0)th.append(heading);th.style.width=`${widths[index]/totalWidth*100}%`;return th;});
-    [...(showLocatedStatus()?['Status']:[]),...(recordChecksEnabled()?['Stock check']:[]),...(stockChecksEnabled()?['Last checked']:[]),...(notesColumn?['Notes']:[]),'Actions'].forEach((text,index)=>{const th=element('th',text==='Notes'?'equipment-notes-heading':text==='Actions'?'equipment-actions-heading':'',text);th.scope='col';th.style.width=`${widths[orderedColumns.length+index]/totalWidth*100}%`;columns.push(th);});
+    [...(showLocatedStatus()?['Status']:[]),...(stockChecksEnabled()?['Last checked']:[]),...(notesColumn?['Notes']:[]),'Actions'].forEach((text,index)=>{const th=element('th',text==='Notes'?'equipment-notes-heading':text==='Actions'?'equipment-actions-heading':'',text);th.scope='col';th.style.width=`${widths[orderedColumns.length+index]/totalWidth*100}%`;columns.push(th);});
     $('equipment-table').querySelector('thead tr').replaceChildren(...columns);
     $('equipment-table').style.minWidth=`${Math.max(850,totalWidth)}px`;
     $('equipment-search').placeholder='Search all inventory columns…';

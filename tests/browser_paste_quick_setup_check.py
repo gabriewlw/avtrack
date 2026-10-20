@@ -29,6 +29,8 @@ with tempfile.TemporaryDirectory() as tmp:
                 assert page.locator('#paste-field-dialog').is_hidden()
                 assert page.locator('#header-row').input_value()=='1'
                 assert page.locator('#header-row').is_disabled()
+                if not page.locator('.import-advanced').evaluate('(node)=>node.open'):
+                    page.locator('.import-advanced > summary').click()
             paste('Device Name\tIP Address\tBackup IP\tVenue\tVLAN\tNotes\nSwitcher\t10.2.3.4\t10.2.3.5\tStudio\t50\tReady')
             page.locator('#paste-map-ip').select_option('2')
             assert '10.2.3.5' in page.locator('#paste-layout-rows').inner_text()
@@ -61,39 +63,35 @@ with tempfile.TemporaryDirectory() as tmp:
             # Calculated Total has no source selector; Notes still matches the correct heading.
             assert page.locator('th[data-field-key=notes] #paste-map-notes').count()==1
             before=next(i for i in app.equipment_inventories() if i['id']==tv['id'])
-            page.locator('#paste-preview-stock').uncheck();page.locator('#paste-preview-record').check()
+            assert not page.locator('#paste-inventory-check-options').is_visible()
             page.locator('#paste-preview-confirmation').select_option('storage')
             page.locator('#close-paste-layout').click()
             assert next(i for i in app.equipment_inventories() if i['id']==tv['id'])==before
             assert not app.equipment_inventory(tv['id'])
             paste(text,True)
             page.locator('#paste-preview-auto').uncheck()
-            page.locator('#paste-preview-stock').uncheck();page.locator('#paste-preview-stock').check();page.locator('#paste-preview-record').check()
+            assert not page.locator('#paste-inventory-check-options').is_visible()
             page.locator('#paste-preview-confirmation').select_option('storage')
             Path('work').mkdir(exist_ok=True);page.screenshot(path='work/paste-quick-preview.png')
             page.locator('#paste-start-review').click();page.locator('#inventory-import-review').wait_for(state='visible')
             page.locator('#inventory-import-review-save').click();page.locator('#import-summary-panel').wait_for(state='visible')
             saved=next(i for i in app.equipment_inventories() if i['id']==tv['id'])
-            assert saved['layout']['show_record_check'] and saved['layout']['stock_check_history']
+            assert saved['layout']['confirmation_mode']=='storage'
             item=app.equipment_inventory(tv['id'])[0]
             assert item['last_checked_at'] is None and not item['item_confirmed']
             assert item['quantity']==8 and item['notes']=='New'
             page.locator('#close-import-summary').click()
             headers=page.locator('#equipment-table thead').inner_text().lower()
-            assert all(label in headers for label in ['stock check','last checked','status'])
+            assert 'stock check' not in headers
+            assert all(label in headers for label in ['last checked','status'])
             assert page.locator('#equipment-table tbody tr').first.locator('td').count()==page.locator('#equipment-table thead th').count()
-            stock=page.get_by_role('button',name='Confirm stock check for 24LV760M-UA',exact=True)
-            for count in [1,2]:
-                stock.click();page.locator('#save-equipment-stock-check').click()
-                page.locator('#equipment-stock-check-dialog').wait_for(state='hidden')
-                assert len(app.equipment_stock_history(item['id']))==count
-            stock.click()
-            page.get_by_text('Stock-check history (2)',exact=True).wait_for(state='visible')
-            page.locator('#equipment-stock-check-history summary').click()
-            assert page.locator('#equipment-stock-check-history li').count()==2
-            assert 'Deck 6: 8' in page.locator('#equipment-stock-check-history').inner_text()
-            page.locator('#cancel-equipment-stock-check').click()
+            assert page.locator('.equipment-last-checked').inner_text()=='Not checked'
+            page.locator('.equipment-status button').click()
+            page.wait_for_function("()=>document.querySelector('.equipment-last-checked').textContent!=='Not checked'")
+            assert app.equipment_inventory(tv['id'])[0]['item_confirmed']
+            assert app.equipment_inventory(tv['id'])[0]['inventory_checked_at']
+            assert not app.equipment_stock_history(item['id'])
             assert not errors,errors
             browser.close()
     finally:server.shutdown();server.server_close()
-print('Direct paste review, named mapping reuse, one-stop checks, cancelled drafts, aligned columns and dated stock history passed.')
+print('Direct paste review, named mapping reuse, automatic status dates, cancelled drafts and aligned columns passed.')

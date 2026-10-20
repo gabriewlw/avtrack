@@ -43,25 +43,40 @@ function syncHomeHeadline() {
   homeHeadlineActive = home;
   const run = ++homeHeadlineRun;
   const title = $('hero-title');
-  title.classList.remove('home-typewriter');
-  title.removeAttribute('aria-label');
+  const intro = $('hero-intro');
+  for (const node of [title, intro]) {
+    node.classList.remove('home-typewriter');
+    node.removeAttribute('aria-label');
+  }
   if (!home) return;
-  // Tab setup also writes this heading; start after that synchronous work finishes.
+  // Tab setup also writes these elements; start after that synchronous work.
   queueMicrotask(async () => {
     if (run !== homeHeadlineRun) return;
-    const complete = 'Every device. Every stream.\nEvery venue.\nAll in one place.';
-    const sizing = document.createElement('span');
-    sizing.className = 'hero-typewriter-sizing';
-    sizing.textContent = complete;
-    sizing.setAttribute('aria-hidden', 'true');
-    const visual = document.createElement('span');
-    visual.className = 'hero-typewriter-text';
-    visual.setAttribute('aria-hidden', 'true');
-    title.classList.add('home-typewriter');
-    title.setAttribute('aria-label', complete.replaceAll('\n', ' '));
-    title.replaceChildren(sizing, visual);
-    const finish = () => { visual.textContent = complete; };
-    if (headlineMotion.matches) { finish(); return; }
+    const complete = 'Every device.\nEvery stream.\nEvery venue.\nAll in one place.';
+    const description = 'Track your ship’s Devices, IPTV channels, and equipment across every venue. Stay organized wherever you work. Find what you need and export it in seconds.';
+    const prepare = (node, text) => {
+      const sizing = document.createElement('span');
+      sizing.className = 'hero-typewriter-sizing';
+      sizing.textContent = text;
+      sizing.setAttribute('aria-hidden', 'true');
+      const visual = document.createElement('span');
+      visual.className = 'hero-typewriter-text';
+      visual.setAttribute('aria-hidden', 'true');
+      const accessible = document.createElement('span');
+      accessible.className = 'sr-only';
+      accessible.textContent = text.replaceAll('\n', ' ');
+      node.classList.add('home-typewriter');
+      node.setAttribute('aria-label', text.replaceAll('\n', ' '));
+      node.replaceChildren(sizing, visual, accessible);
+      return visual;
+    };
+    const visual = prepare(title, complete);
+    const subtitle = prepare(intro, description);
+    if (headlineMotion.matches) {
+      visual.textContent = complete;
+      subtitle.textContent = description;
+      return;
+    }
     const word = document.createElement('span');
     const cursor = document.createElement('span');
     cursor.className = 'hero-typewriter-cursor';
@@ -76,7 +91,8 @@ function syncHomeHeadline() {
         word.textContent = text.slice(0, length);
         await pause(90);
       }
-      await pause(1100);
+      await pause(1800);
+      if (text === 'venue') break;
       for (let length = text.length - 1; length >= 0; length--) {
         if (!current()) return;
         word.textContent = text.slice(0, length);
@@ -84,7 +100,33 @@ function syncHomeHeadline() {
       }
       await pause(150);
     }
-    if (current()) finish();
+    // Delete the entire last phrase, including Every, before the final layout.
+    const finalText = document.createTextNode('Every venue');
+    if (!current()) return;
+    visual.replaceChildren(finalText, cursor);
+    while (finalText.textContent.length) {
+      if (!current()) return;
+      finalText.textContent = finalText.textContent.slice(0, -1);
+      await pause(45);
+    }
+    await pause(250);
+    for (let length = 1; length <= complete.length; length++) {
+      if (!current()) return;
+      finalText.textContent = complete.slice(0, length);
+      await pause(complete[length - 1] === '\n' ? 220 : 65);
+    }
+    if (!current()) return;
+    visual.textContent = complete;
+    await pause(300);
+    const smallText = document.createTextNode('');
+    if (!current()) return;
+    subtitle.replaceChildren(smallText, cursor);
+    for (let length = 1; length <= description.length; length++) {
+      if (!current()) return;
+      smallText.textContent = description.slice(0, length);
+      await pause(18);
+    }
+    if (current()) subtitle.textContent = description;
   });
 }
 headlineMotion.addEventListener('change', () => {

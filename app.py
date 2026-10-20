@@ -584,6 +584,37 @@ def equipment_record(record):
     return row
 
 
+def equipment_complete(row, profile):
+    """Completion uses this inventory's required columns; optional notes stay optional."""
+    return all(column_value(row, col['key']) not in ('', None)
+               and str(column_value(row, col['key'])).strip() != ''
+               for col in profile['columns'] if col.get('important') and col['key'] != 'orientation')
+
+
+def record_inventory_check(con, item_id, reason, source=None):
+    checked_at = con.execute("SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now')").fetchone()[0]
+    operations.audit(con, 'equipment', item_id, 'inventory_checked',
+                     {'checked_at': checked_at, 'reason': reason, 'source': source})
+
+
+def equipment_checked_record(con, record):
+    row = equipment_record(record)
+    # Keep historical physical-count dates intact. Automatic checks live in audit
+    # metadata, already preserved by every schema-2 complete backup.
+    check = con.execute("SELECT details FROM record_audit AS checks WHERE record_type='equipment' "
+                        "AND record_id=? AND action='inventory_checked' AND NOT EXISTS ("
+                        "SELECT 1 FROM record_audit AS undone WHERE undone.record_type='equipment' "
+                        "AND undone.record_id=checks.record_id AND undone.action='import_undone' "
+                        "AND json_extract(undone.details,'$.source')=json_extract(checks.details,'$.source')) "
+                        "AND id > COALESCE("
+                        "(SELECT MAX(id) FROM record_audit WHERE record_type='equipment' "
+                        "AND record_id=? AND action IN ('created','import_added')),0) "
+                        "ORDER BY id DESC LIMIT 1", (row['id'], row['id'])).fetchone()
+    automatic = json.loads(check['details']).get('checked_at') if check else None
+    row['inventory_checked_at'] = max(filter(None, (automatic, row.get('last_checked_at'))), default=None)
+    return row
+
+
 def equipment_inventories():
     with connect() as con:
         return [equipment_inventory_details(con,row['id']) for row in con.execute('SELECT id FROM equipment_inventories ORDER BY name COLLATE NOCASE')]
@@ -653,7 +684,7 @@ def delete_equipment_inventory(inventory_id, value):
 def equipment_inventory(inventory_id=1):
     with connect() as con:
         equipment_inventory_details(con, inventory_id)
-        return [equipment_record(row) for row in con.execute('SELECT * FROM equipment WHERE inventory_id=? ORDER BY location COLLATE NOCASE, brand COLLATE NOCASE, model COLLATE NOCASE', (inventory_id,))]
+        return [equipment_checked_record(con, row) for row in con.execute('SELECT * FROM equipment WHERE inventory_id=? ORDER BY location COLLATE NOCASE, brand COLLATE NOCASE, model COLLATE NOCASE', (inventory_id,))]
 
 
 def save_equipment(value, item_id=None):
@@ -670,6 +701,7 @@ def save_equipment(value, item_id=None):
             raise ValueError('This item identifier already exists in this inventory.')
         if profile.get('unique_location') and row['location'] and any(saved['location'].strip().casefold()==row['location'].casefold() for saved in con.execute('SELECT location FROM equipment WHERE inventory_id=? AND id!=?',(inventory_id,item_id or 0))):
             raise ValueError('This Scala location already has an item. Each location must be unique.')
+        previous = con.execute('SELECT * FROM equipment WHERE id=? AND inventory_id=?', (item_id, inventory_id)).fetchone() if item_id is not None else None
         if item_id is None:
             cursor = con.execute('INSERT INTO equipment (' + ','.join(EQUIPMENT_FIELDS) + ',inventory_id,custom_values) VALUES (?,?,?,?,?,?,?,?,?)', [row[f] for f in EQUIPMENT_FIELDS] + [inventory_id,json.dumps(values,sort_keys=True)])
             item_id = cursor.lastrowid
@@ -685,7 +717,9 @@ def save_equipment(value, item_id=None):
         con.execute('UPDATE equipment SET custom_values=?, data_checked=CASE WHEN custom_values=? THEN data_checked ELSE 0 END, item_confirmed=CASE WHEN custom_values=? THEN item_confirmed ELSE 0 END WHERE id=?', (json.dumps(values,sort_keys=True), json.dumps(values,sort_keys=True), json.dumps(values,sort_keys=True),item_id))
         con.execute('UPDATE equipment SET data_checked_at=CASE WHEN data_checked=1 THEN data_checked_at ELSE NULL END WHERE id=?',(item_id,))
         operations.audit(con,'equipment',item_id,'created' if creating else 'record_edited',{'initials':str(value.get('initials',''))[:40]})
-        return equipment_record(con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
+        if previous is not None and not equipment_complete(equipment_record(previous), profile) and equipment_complete(dict(row, custom_values=values), profile):
+            record_inventory_check(con, item_id, 'Required fields completed')
+        return equipment_checked_record(con, con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
 
 
 def remove_equipment_unit(item_id, value):
@@ -716,7 +750,7 @@ def remove_equipment_unit(item_id, value):
         con.execute('UPDATE equipment SET quantity=quantity-1, serial_number=?, data_checked=0, data_checked_at=NULL, item_confirmed=0, updated_at=CURRENT_TIMESTAMP WHERE id=? AND inventory_id=?',
                     (', '.join(serials), item_id, inventory_id))
         operations.audit(con,'equipment',item_id,'unit_removed',{'serial':serial,'quantity_before':current['quantity'],'quantity_after':current['quantity']-1,'reason':str(value.get('reason',''))[:1000],'initials':str(value.get('initials',''))[:40]})
-        return equipment_record(con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
+        return equipment_checked_record(con, con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
 
 
 def set_equipment_notes(item_id, value):
@@ -733,7 +767,7 @@ def set_equipment_notes(item_id, value):
         con.execute('UPDATE equipment SET data_checked=CASE WHEN notes=? THEN data_checked ELSE 0 END, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND inventory_id=?',(notes,notes,item_id,inventory_id))
         con.execute('UPDATE equipment SET data_checked_at=CASE WHEN data_checked=1 THEN data_checked_at ELSE NULL END WHERE id=?',(item_id,))
         operations.audit(con,'equipment',item_id,'notes_edited',{'initials':str(value.get('initials',''))[:40]})
-        return equipment_record(con.execute('SELECT * FROM equipment WHERE id=?',(item_id,)).fetchone())
+        return equipment_checked_record(con, con.execute('SELECT * FROM equipment WHERE id=?',(item_id,)).fetchone())
 
 
 def set_equipment_confirmation(item_id, value):
@@ -763,7 +797,9 @@ def set_equipment_confirmation(item_id, value):
         if not cursor.rowcount:
             raise ValueError('This item changed. Refresh the inventory before confirming it.')
         operations.audit(con,'equipment',item_id,'location_checked',{'method':'Manual location check','initials':str(value.get('initials',''))[:40],'located':value['item_confirmed']})
-        return equipment_record(con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
+        if value['item_confirmed']:
+            record_inventory_check(con, item_id, 'IP confirmed' if profile.get('confirmation_mode') == 'ip' else 'Marked Located')
+        return equipment_checked_record(con, con.execute('SELECT * FROM equipment WHERE id=?', (item_id,)).fetchone())
 
 
 def set_equipment_review(item_id, value):
@@ -1043,11 +1079,11 @@ def equipment_csv(rows=None, layout=None):
     fields = ('description', 'brand', 'model', 'serial_number', 'quantity', 'location', 'item_confirmed', 'notes')
     if layout:
         columns = [(col['label'],col['key']) for col in layout['columns']]
-        if layout.get('stock_check_history',layout.get('template')=='tv' or layout.get('stock_mode')=='tv_counts'): columns.append(('Last checked (UTC)','last_checked_at'))
+        if layout.get('show_status', True) or layout.get('stock_check_history', layout.get('template') == 'tv' or layout.get('stock_mode') == 'tv_counts'): columns.append(('Last checked (UTC)','last_checked_at'))
         writer=csv.writer(output)
         writer.writerow([label for label,key in columns]+(['Status'] if layout.get('show_status',True) else []))
         for row in equipment_inventory() if rows is None else rows:
-            values=[row.get(key) or '' if key=='last_checked_at' else column_value(row,key) for label,key in columns]+([('IP confirmed' if row.get('item_confirmed') else 'Confirm IP') if layout.get('confirmation_mode')=='ip' else ('Located' if row.get('item_confirmed') else 'To be found')] if layout.get('show_status',True) else [])
+            values=[(row.get('inventory_checked_at') or row.get(key) or '') if key=='last_checked_at' else column_value(row,key) for label,key in columns]+([('IP confirmed' if row.get('item_confirmed') else 'Confirm IP') if layout.get('confirmation_mode')=='ip' else ('Located' if row.get('item_confirmed') else 'To be found')] if layout.get('show_status',True) else [])
             writer.writerow(["'"+str(v) if str(v).startswith(('=', '+', '-', '@', '\t', '\r', '\n')) else v for v in values])
         return output.getvalue().encode('utf-8-sig')
     writer = csv.DictWriter(output, fieldnames=fields, extrasaction='ignore')

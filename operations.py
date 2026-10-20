@@ -51,6 +51,8 @@ def apply_import(app, con, session, row):
             fields=app.validate(dict(row,record_type=scope));fields['ip_confirmed']=0
         con.execute(f'UPDATE {table} SET '+','.join(key+'=?' for key in fields)+',updated_at=CURRENT_TIMESTAMP WHERE id=?', [*fields.values(),before['id']])
         after=record(con,table,before['id'])
+        if equipment and not app.equipment_complete(app.equipment_record(before), profile) and app.equipment_complete(app.equipment_record(after), profile):
+            app.record_inventory_check(con, before['id'], 'Required fields completed by import', source=session['id'])
         stamp=audit(con,'equipment' if equipment else scope,before['id'],'import_updated',{'source':session['id']})
         return {'added':0,'updated':1,'_changes':[{'table':table,'before':before,'after':after,'audit_id':stamp}]}
     maximum=con.execute(f'SELECT COALESCE(MAX(id),0) FROM {table}').fetchone()[0]

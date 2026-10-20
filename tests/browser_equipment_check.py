@@ -50,7 +50,7 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#equipment-search').fill('')
             assert all(row['item_confirmed'] == 0 for row in app.equipment_inventory())
             headers=page.locator('#equipment-table th').all_text_contents()
-            assert headers == ['Item','Brand','Model','Serial number','Qnt','Location','Status','Stock check','Notes','Actions'],headers
+            assert headers == ['Item','Brand','Model','Serial number','Qnt','Location','Status','Last checked','Notes','Actions'],headers
             page.locator('#equipment-location-filter').select_option('Main lounge')
             assert page.locator('#equipment-rows tr').count() == 2
             microphone = page.locator('#equipment-rows tr').filter(has_text='Handheld microphone')
