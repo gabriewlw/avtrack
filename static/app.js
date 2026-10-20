@@ -52,7 +52,7 @@ function syncHomeHeadline() {
   // Tab setup also writes these elements; start after that synchronous work.
   queueMicrotask(async () => {
     if (run !== homeHeadlineRun) return;
-    const complete = 'Every device.\nEvery stream.\nEvery venue.\nAll in one place.';
+    const complete = 'Every device. Every stream.\nEvery venue. All in one place.';
     const description = 'Track your ship’s Devices, IPTV channels, and equipment across every venue. Stay organized wherever you work. Find what you need and export it in seconds.';
     const prepare = (node, text) => {
       const sizing = document.createElement('span');

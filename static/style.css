@@ -922,6 +922,7 @@ main, dialog {
 @media(min-width:900px) {
   body.desktop-working main>.heading { display:none; }
   body.desktop-working main { padding-top:24px; }
+  #hero-title.home-typewriter { font-size:clamp(28px,3.2vw,40px); }
   #equipment-table .equipment-actions { min-width:140px; width:140px!important; }
 }
 .active-filter-chips { display:flex; flex-wrap:wrap; gap:7px; grid-column:1/-1; }

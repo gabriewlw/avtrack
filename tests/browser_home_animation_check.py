@@ -26,6 +26,7 @@ with tempfile.TemporaryDirectory() as tmp:
             origin=f'http://127.0.0.1:{server.server_port}'
             page.goto(origin)
             page.locator('#hero-title .hero-typewriter-cursor').wait_for()
+            page.evaluate('document.fonts.ready')
             height=page.locator('.hero-copy').bounding_box()['height']
             page.wait_for_function("()=>document.querySelector('#hero-intro .hero-typewriter-text')?.textContent.endsWith('export it in seconds.')",timeout=30000)
             frames=page.evaluate('typingFrames')
@@ -35,7 +36,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 assert changed['time']-frames[index]['time']>=1600,word
             venue=next(i for i,f in enumerate(frames) if f['heading']=='Every venue|')
             assert any(f['heading']=='|' for f in frames[venue+1:])
-            complete='Every device.\nEvery stream.\nEvery venue.\nAll in one place.'
+            complete='Every device. Every stream.\nEvery venue. All in one place.'
             assert page.locator('#hero-title .hero-typewriter-text').inner_text()==complete
             assert all(not f['intro'] for f in frames if f['heading']!=complete)
             assert abs(page.locator('.hero-copy').bounding_box()['height']-height)<1
@@ -51,7 +52,12 @@ with tempfile.TemporaryDirectory() as tmp:
             reduced.wait_for_function("()=>document.querySelector('#hero-intro .hero-typewriter-text')?.textContent.endsWith('export it in seconds.')")
             assert reduced.locator('#hero-title .hero-typewriter-text').inner_text()==complete
             assert reduced.locator('.hero-typewriter-cursor').count()==0
+            reduced.evaluate('document.fonts.ready')
+            for width in [900,1100,1440]:
+                reduced.set_viewport_size({'width':width,'height':1000})
+                dimensions=reduced.locator('#hero-title').evaluate('(node)=>({height:node.getBoundingClientRect().height,line:parseFloat(getComputedStyle(node).lineHeight)})')
+                assert abs(dimensions['height']-2*dimensions['line'])<2,dimensions
             assert not errors,errors
             browser.close()
     finally:server.shutdown();server.server_close()
-print('PASS: longer pauses, full erase, multiline typing, subtitle order, stable layout, navigation and reduced motion')
+print('PASS: longer pauses, full erase, two-line typing, subtitle order, stable layout, navigation and reduced motion')
