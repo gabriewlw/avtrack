@@ -76,6 +76,12 @@ main { max-width: 1140px; margin: auto; padding: 58px 28px 48px; }
 h1, h2, h3, h4 { font-family: var(--font-display); }
 h1 { font-size: clamp(34px, 4vw, 46px); line-height: 1.15; letter-spacing: -1.3px; margin: 0; font-weight: 680; }
 h1 span { color: var(--foreground); }
+.home-typewriter { display:grid; }
+.home-typewriter > span { grid-area:1 / 1; white-space:pre-line; }
+.hero-typewriter-sizing { visibility:hidden; pointer-events:none; }
+.hero-typewriter-cursor { display:inline-block; font-weight:400; animation:hero-caret-blink .8s step-end infinite; }
+@keyframes hero-caret-blink { 50% { opacity:0; } }
+@media (prefers-reduced-motion:reduce) { .hero-typewriter-cursor { animation:none; } }
 h2 { font-size: 25px; letter-spacing: -.65px; margin: 0; }
 h3 { font-size: 20px; margin: 12px 0; }
 .intro { font-size: 14px; color: var(--muted); line-height: 1.8; margin: 20px 0 24px; max-width: 540px; }

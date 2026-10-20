@@ -34,8 +34,67 @@ let networkLoaded = false;
 let overviewVersion = 0;
 let overviewSnapshot;
 const onHomeRoute = () => location.pathname === '/' && !location.hash;
+let homeHeadlineActive = false;
+let homeHeadlineRun = 0;
+const headlineMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+function syncHomeHeadline() {
+  const home = onHomeRoute();
+  if (home === homeHeadlineActive) return;
+  homeHeadlineActive = home;
+  const run = ++homeHeadlineRun;
+  const title = $('hero-title');
+  title.classList.remove('home-typewriter');
+  title.removeAttribute('aria-label');
+  if (!home) return;
+  // Tab setup also writes this heading; start after that synchronous work finishes.
+  queueMicrotask(async () => {
+    if (run !== homeHeadlineRun) return;
+    const complete = 'Every device. Every stream.\nEvery venue.\nAll in one place.';
+    const sizing = document.createElement('span');
+    sizing.className = 'hero-typewriter-sizing';
+    sizing.textContent = complete;
+    sizing.setAttribute('aria-hidden', 'true');
+    const visual = document.createElement('span');
+    visual.className = 'hero-typewriter-text';
+    visual.setAttribute('aria-hidden', 'true');
+    title.classList.add('home-typewriter');
+    title.setAttribute('aria-label', complete.replaceAll('\n', ' '));
+    title.replaceChildren(sizing, visual);
+    const finish = () => { visual.textContent = complete; };
+    if (headlineMotion.matches) { finish(); return; }
+    const word = document.createElement('span');
+    const cursor = document.createElement('span');
+    cursor.className = 'hero-typewriter-cursor';
+    cursor.textContent = '|';
+    visual.append('Every ', word, cursor);
+    const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const current = () => run === homeHeadlineRun;
+    await pause(200);
+    for (const text of ['device', 'stream', 'venue']) {
+      for (let length = 1; length <= text.length; length++) {
+        if (!current()) return;
+        word.textContent = text.slice(0, length);
+        await pause(90);
+      }
+      await pause(1100);
+      for (let length = text.length - 1; length >= 0; length--) {
+        if (!current()) return;
+        word.textContent = text.slice(0, length);
+        await pause(45);
+      }
+      await pause(150);
+    }
+    if (current()) finish();
+  });
+}
+headlineMotion.addEventListener('change', () => {
+  if (!onHomeRoute()) return;
+  homeHeadlineActive = false;
+  syncHomeHeadline();
+});
 function syncHomePresentation() {
   const home = onHomeRoute();
+  syncHomeHeadline();
   document.body.classList.toggle('desktop-working',!home);
   const waiting = home && overviewSnapshot === undefined;
   const empty = home && overviewSnapshot && (overviewSnapshot.av_total + overviewSnapshot.iptv_total + overviewSnapshot.inventory_total === 0);
