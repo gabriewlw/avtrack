@@ -418,7 +418,14 @@ def set_device_notes(device_id, value):
     if len(notes) > 2000:
         raise ValueError('Notes are too long.')
     with connect() as con:
-        if not con.execute('UPDATE devices SET notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', (notes, device_id)).rowcount:
+        guarded = 'original_notes' in value
+        if guarded and not isinstance(value['original_notes'], str):
+            raise ValueError('Original notes must be text.')
+        statement = 'UPDATE devices SET notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?'
+        if not con.execute(statement + (' AND notes=?' if guarded else ''),
+                           (notes, device_id, value['original_notes']) if guarded else (notes, device_id)).rowcount:
+            if con.execute('SELECT 1 FROM devices WHERE id=?', (device_id,)).fetchone():
+                raise ValueError('Notes changed in another window. Your draft was kept; reopen the note to review the latest text.')
             raise LookupError('Device not found.')
         current=con.execute('SELECT record_type FROM devices WHERE id=?',(device_id,)).fetchone()
         operations.audit(con,current['record_type'],device_id,'notes_edited',{'initials':str(value.get('initials',''))[:40]})
@@ -1337,6 +1344,7 @@ class Handler(BaseHTTPRequestHandler):
             assets['/inventory'] = ('index.html', 'text/html')
             assets['/backups'] = ('index.html', 'text/html')
             assets['/desktop.js'] = ('desktop.js','text/javascript')
+            assets['/workspace-ui.js'] = ('workspace-ui.js','text/javascript')
             assets['/workspace-transfer.js'] = ('workspace-transfer.js', 'text/javascript')
             assets['/backups.js'] = ('backups.js', 'text/javascript')
             assets['/service-worker.js'] = ('service-worker.js', 'text/javascript')
@@ -1349,7 +1357,10 @@ class Handler(BaseHTTPRequestHandler):
             if path in assets:
                 file, mime = assets[path]
                 data=(ROOT / 'static' / file).read_bytes()
-                if file=='index.html':data=data.replace(b'{{AVTRACK_REVISION}}',source_revision().encode('utf-8'))
+                if file=='index.html':
+                    revision=source_revision()
+                    count=re.match(r'v0\.0\.(\d+)',revision)
+                    data=data.replace(b'{{AVTRACK_REVISION}}',revision.encode('utf-8')).replace(b'{{AVTRACK_COMMIT}}',(count[1] if count else 'unknown').encode('utf-8'))
                 if mime=='application/json':data=json.loads(data)
                 return self.send(200, data, mime + '; charset=utf-8' if mime.startswith('text/') or mime == 'image/svg+xml' else mime)
         elif self.command == 'POST' and path == '/api/backups/open-folder':

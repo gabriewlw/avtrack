@@ -210,9 +210,9 @@ function systemDropdown(device) {
   };
   return button;
 }
-async function saveNotes(deviceId, notes) {
+async function saveNotes(deviceId, notes, originalNotes) {
   const previous = pendingNoteSaves.get(deviceId) || Promise.resolve();
-  const request = previous.catch(() => {}).then(() => api(`/api/devices/${deviceId}/notes`, 'POST', {notes}));
+  const request = previous.catch(() => {}).then(() => api(`/api/devices/${deviceId}/notes`, 'POST', {notes,...(originalNotes===undefined?{}:{original_notes:originalNotes})}));
   pendingNoteSaves.set(deviceId, request);
   try { return await request; }
   finally { if (pendingNoteSaves.get(deviceId) === request) pendingNoteSaves.delete(deviceId); }
@@ -253,7 +253,7 @@ function makeButtons(id, values, selected, onSelect, allLabel = null) {
   }));
 }
 function syncButtons(id, value) {
-  $(id).querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.value === value)));
+  $(id).querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', String(value instanceof Set?(button.dataset.value?value.has(button.dataset.value):!value.size):button.dataset.value===value)));
 }
 function updateVenueFilter() {
   const venues = savedVenues();
@@ -265,7 +265,8 @@ function updateVenueFilter() {
   }));
   $('venue-filter').value = venues.includes(selected) ? selected : '';
 }
-makeButtons('system-buttons', systems, '', value => { $('system-filter').value = value; render(); }, 'All systems');
+const selectedSystemFilters=()=>new Set($('system-filter').value.split(',').filter(Boolean));
+makeButtons('system-buttons', systems, '', value => { const selected=selectedSystemFilters();if(!value)selected.clear();else if(selected.has(value))selected.delete(value);else selected.add(value);$('system-filter').value=[...selected].join(',');render(); }, 'All systems');
 makeButtons('source-buttons', ['Onboard','Satellite'], '', value => { $('source-filter').value = value; render(); }, 'All sources');
 makeButtons('form-source-buttons', ['Onboard','Satellite'], '', value => { form.elements.channel_source.value = form.elements.channel_source.value === value ? '' : value; syncButtons('form-source-buttons', form.elements.channel_source.value); });
 function updateFilterOptions() {
@@ -285,6 +286,7 @@ function switchTab(type) {
   $('equipment-panel').hidden = !equipment;
   $('backups-panel').hidden = !backups;
   $('inventory').hidden = equipment || backups;
+  $('device-ip-progress').hidden = type!=='device';
   document.querySelector('main > .stats').hidden = equipment || backups;
   $('add-device').hidden = backups;
   for (const [id, tab] of [['device-tab','device'], ['iptv-tab','iptv'], ['equipment-tab','equipment'], ['backups-tab','backups']]) {
@@ -342,7 +344,7 @@ function switchTab(type) {
   $('clear-filters').hidden = iptv;
   $('network-filters').classList.toggle('iptv-filters', iptv);
   $('search').placeholder = iptv ? 'Channel, IP, port, or notes…' : 'Name, IP, venue, or notes…';
-  $('system-filter-group').hidden = $('system-filter-label').hidden = iptv;
+  $('system-filter-group').hidden = iptv;
   $('source-filter-group').hidden = !iptv;
   for (const id of ['venue-filter-group','venue-stat','vlan-stat','validation-note']) $(id).hidden = iptv;
   document.querySelector('.stats').classList.toggle('iptv-stats', iptv);
@@ -671,10 +673,15 @@ function render() {
   $('venue-filter').classList.remove('venue-choice');
   $('venue-filter').style.removeProperty('--venue-color');
   colorVenueButton($('venue-filter'), $('venue-filter').value);
-  syncButtons('system-buttons', $('system-filter').value);
+  syncButtons('system-buttons', selectedSystemFilters());
   syncButtons('source-buttons', $('source-filter').value);
   updatePageSummary();
   const current = tabDevices();
+  const fixedIPs=devices.filter(record=>(record.record_type||'device')==='device' && record.ip && !isDHCP(record.ip));
+  const validated=fixedIPs.filter(record=>record.ip_confirmed).length,percent=fixedIPs.length?Math.round(validated/fixedIPs.length*100):0;
+  $('device-ip-progress').hidden=currentTab!=='device';$('device-ip-progress-percent').textContent=percent+'%';$('device-ip-progress-bar').max=fixedIPs.length||1;$('device-ip-progress-bar').value=validated;
+  const noFixedIP=devices.filter(record=>(record.record_type||'device')==='device').length-fixedIPs.length;
+  $('device-ip-progress-caption').textContent=(fixedIPs.length?`${validated} of ${fixedIPs.length} fixed IP addresses validated`:'No fixed IP addresses recorded.')+(noFixedIP?` · ${noFixedIP} records use DHCP or have no IP`:'');
   window.desktopUI?.renderFilters();
   const selected = networkSelections[currentTab];
   $('total').textContent = current.length;
@@ -685,7 +692,7 @@ function render() {
   const results = current.filter(d =>
     [d.name,d.ip,d.venue,d.category,d.discipline,d.notes,d.channel_source || '',String(d.vlan || ''), String(d.port || '')].some(v => v.toLowerCase().includes(query)) &&
     (!$('venue-filter').value || cleanVenue(d.venue) === $('venue-filter').value) &&
-    (!$('system-filter').value || d.discipline === $('system-filter').value) &&
+    (!selectedSystemFilters().size || selectedSystemFilters().has(d.discipline)) &&
     (!$('source-filter').value || d.channel_source === $('source-filter').value));
   if ($('sort-order').value) results.sort((a, b) => compareDirectoryRecords(a, b, $('sort-order').value));
   visibleDevices = results;
@@ -713,28 +720,11 @@ function render() {
       name.append(element('span', '', device.name), logo);
     } else name.textContent = device.name || 'Incomplete record — add a name';
     title.append(name, element('span', 'device-category', device.category));
-    const notes = element('textarea', 'device-notes-editor');
-    notes.rows = 1; notes.maxLength = 2000; notes.value = device.notes;
-    notes.dataset.deviceId = device.id;
-    notes.setAttribute('aria-label', `Notes for ${deviceLabel(device)}`);
-    notes.title = 'Notes save when you leave this field.';
-    notes.onchange = async () => {
-      const draft = notes.value;
-      const previous = devices.find(row => row.id === device.id)?.notes || '';
-      devices = devices.map(row => row.id === device.id ? {...row,notes:draft} : row);
-      try {
-        const updated = await saveNotes(device.id, draft);
-        // Keep the current field and focus; update only notes in case another edit ran too.
-        devices = devices.map(row => row.id === updated.id && row.notes === draft ? {...row,notes:updated.notes} : row);
-        const currentField = document.querySelector(`.device-notes-editor[data-device-id="${device.id}"]`);
-        if (currentField?.value === draft) currentField.value = updated.notes;
-      } catch(error) {
-        devices = devices.map(row => row.id === device.id && row.notes === draft ? {...row,notes:previous} : row);
-        toast('Could not save notes: ' + error.message);
-      }
-    };
-    const notesCell = element('div', 'notes-cell');
-    notesCell.append(notes);
+    const notes = element('button', 'quiet device-notes-view', device.notes?'View':'Add');
+    notes.type='button';notes.dataset.deviceId=device.id;notes.title=device.notes||'Add a note';
+    notes.setAttribute('aria-label',`${device.notes?'View':'Add'} notes for ${deviceLabel(device)}`);
+    notes.onclick=()=>window.workspaceUI.openDeviceNotes(device.id);
+    const notesCell = element('div', 'notes-cell');notesCell.append(notes);
     identity.append(title);
     const ip = element('div', 'ip-cell');
     const iptv = device.record_type === 'iptv';
@@ -744,9 +734,12 @@ function render() {
     const addressText = element('div', 'device-ip', device.ip);
     address.append(addressText);
     if (device.ip && !isDHCP(device.ip)) address.append(ipCopyButton(device, addressText));
+    if(!iptv && /^(?:\d{1,3}\.){3}\d{1,3}$/.test(device.ip) && device.ip.split('.').every(part=>Number(part)<=255)){
+      const browserLink=element('a','ip-browser');browserLink.href='http://'+device.ip;browserLink.target='_blank';browserLink.rel='noopener noreferrer';browserLink.title='Open '+device.ip+' in browser';browserLink.setAttribute('aria-label','Open IP address in browser for '+deviceLabel(device));browserLink.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg>';address.append(browserLink);
+    }
     ipLine.append(address);
     ip.append(ipLine, element('span', 'cell-caption', iptv ? (device.port ? `Port ${device.port}` : '') : ''));
-    const confirmation = element('button', `ip-confirm ${device.ip_confirmed ? 'confirmed' : 'pending'}`, device.ip_confirmed ? '✓ IP confirmed' : '● Confirm IP');
+    const confirmation = element('button', `ip-confirm ${device.ip_confirmed ? 'confirmed' : 'pending'}`, device.ip_confirmed ? '✓ Confirmed' : '● Confirm IP');
     confirmation.type = 'button';
     confirmation.disabled = Boolean(device.ip_confirmed);
     confirmation.setAttribute('aria-label', `${device.ip_confirmed ? 'IP confirmed for' : 'Confirm IP for'} ${deviceLabel(device)}`);
@@ -1685,7 +1678,7 @@ $('paste-inventory-form').onsubmit=async event=>{
     if(blob.size>5_000_000)throw new Error('Paste a smaller range, up to 5 MB.');
     const content=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=()=>reject(new Error('Could not read the pasted cells.'));reader.readAsDataURL(blob);});
     const sourceLabel=$('paste-inventory-sheet').value.trim();
-    const file={filename:(sourceLabel || 'Pasted spreadsheet')+'.csv',content,pasted:true,from_headers:pasteFromHeaders,source_label:sourceLabel,...(text.includes('\t')?{delimiter:'\t'}:{})};
+    const file={filename:(sourceLabel || 'Pasted spreadsheet')+'.csv',content,pasted:true,source_kind:'pasted',from_headers:pasteFromHeaders,source_label:sourceLabel,...(text.includes('\t')?{delimiter:'\t'}:{})};
     $('paste-inventory-dialog').close();
     await startSpreadsheetImport(file,pasteInventory);
   }catch(error){$('paste-inventory-error').textContent=error.message;$('paste-inventory-error').hidden=false;}
@@ -1736,21 +1729,22 @@ $('import-file').onchange = async event => {
   try {
     const importTab = currentTab;
     const importInventory = importTab === 'equipment' ? await window.equipmentUI.waitUntilReady() : null;
+    if(importTab==='equipment'&&!importInventory)throw new Error('Create or select an inventory before importing a file.');
     if (file.size > 5_000_000) throw new Error('Choose a file smaller than 5 MB.');
     if (/\.(xlsx|csv)$/i.test(file.name)) {
       const content = await new Promise((resolve, reject) => {
         const reader = new FileReader(); reader.onload = () => resolve(reader.result.split(',')[1]); reader.onerror = () => reject(new Error('Could not read file.')); reader.readAsDataURL(file);
       });
-      await startSpreadsheetImport({filename:file.name,content,from_headers:pasteFromHeaders,simple_preview:true},importInventory);
+      await startSpreadsheetImport({filename:file.name,source_kind:'file',source_filename:file.name,content,from_headers:pasteFromHeaders,simple_preview:true},importInventory);
     } else if (/\.json$/i.test(file.name)) {
       const payload=JSON.parse(await file.text());
-      if(payload?.format==='avtrack-workspace')throw new Error('This is a complete app backup. Use Restore app backup on the overview.');
+      if(payload?.format==='avtrack-workspace')throw new Error('This is a complete app backup. Use Restore app backup at the bottom of the page.');
       const records=importInventory?payload.equipment:payload.devices;
       if(!Array.isArray(records))throw new Error('Choose an AVTrack record export or a CSV/XLSX file.');
       const headers=[...new Set(records.flatMap(row=>Object.keys(row).filter(key=>!['id','custom_values'].includes(key))))];
       const text=[headers.join('\t'),...records.map(row=>headers.map(key=>String(row[key]??'').replace(/[\t\r\n]/g,' ')).join('\t'))].join('\n');
       const content=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=reject;reader.readAsDataURL(new Blob([text],{type:'text/csv'}));});
-      await startSpreadsheetImport({filename:'records.csv',content,pasted:true,delimiter:'\t',simple_preview:true,json_records:records},importInventory);
+      await startSpreadsheetImport({filename:'records.csv',content,pasted:true,delimiter:'\t',simple_preview:true,source_kind:'file',source_filename:file.name,json_records:records},importInventory);
     } else throw new Error('Choose .xlsx, .csv, or an avtrack .json export.');
   } catch(error) { toast('Import failed: ' + error.message); }
   finally { event.target.value = ''; $('import').disabled = false; }

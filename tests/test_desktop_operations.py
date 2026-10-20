@@ -15,6 +15,21 @@ class DesktopOperationsTests(unittest.TestCase):
     def session(self):
         return self.request('/api/import-sessions','POST',dict(target='device',name='camera.csv',state={'confirmation_mode':'ip'}))[1]['id']
 
+    def test_added_via_distinguishes_manual_paste_files_and_original_json_filename(self):
+        manual=app.save_device(test_app.EXAMPLE)
+        result=self.request(f"/api/desktop/record?kind=device&id={manual['id']}")[1]
+        self.assertEqual(result['added_via'],dict(method='manual',filename=''))
+        sources=[({'filename':'pasted.csv','pasted':True},'pasted',''),
+                 ({'filename':'devices.csv'},'file','devices.csv'),
+                 ({'filename':'records.csv','pasted':True,'json_records':[{}],'source_kind':'file','source_filename':'original-devices.json'},'file','original-devices.json')]
+        for index,(file,method,filename) in enumerate(sources):
+            session=self.request('/api/import-sessions','POST',dict(target='device',name=file['filename'],state={'confirmation_mode':'ip','file':file}))[1]['id']
+            row=dict(test_app.EXAMPLE,ip=f'10.20.8.{index+1}')
+            self.assertEqual(self.request(f'/api/import-sessions/{session}/rows','POST',{'keys':['0:Sheet:2'],'row':row})[0],200)
+            record=next(saved for saved in app.inventory() if saved['ip']==row['ip'])
+            result=self.request(f"/api/desktop/record?kind=device&id={record['id']}")[1]
+            self.assertEqual(result['added_via'],dict(method=method,filename=filename))
+
     def test_all_http_export_formats_and_restore_preview(self):
         app.save_device(test_app.EXAMPLE)
         for kind in ('zip','json','xlsx','csv'):
@@ -64,6 +79,7 @@ class DesktopOperationsTests(unittest.TestCase):
         result=self.request(f'/api/import-sessions/{session}/rows','POST',{'keys':['0:Sheet:2'],'row':dict(incoming,_update=match)})
         self.assertEqual(result[0],200);self.assertEqual(result[1]['updated'],1)
         self.assertEqual(app.inventory()[0]['notes'],'New spreadsheet note')
+        self.assertEqual(self.request(f"/api/desktop/record?kind=device&id={saved['id']}")[1]['added_via']['method'],'manual')
         self.assertEqual(self.request('/api/desktop/undo-import','POST',{'session_id':session})[1]['undone'],1)
         self.assertEqual(app.inventory()[0]['notes'],test_app.EXAMPLE['notes'])
         # A comparison cannot overwrite a record changed after the preview.

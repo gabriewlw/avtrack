@@ -49,6 +49,8 @@ class AppTests(unittest.TestCase):
         count = subprocess.check_output(['git', 'rev-list', '--count', 'HEAD'], cwd=app.ROOT).strip()
         self.assertIn(b'AVTrack \xc2\xb7 v0.0.' + count + b' \xc2\xb7 ' + expected, page)
         self.assertNotIn(b'{{AVTRACK_REVISION}}', page)
+        self.assertIn(b'Commit #' + count, page)
+        self.assertNotIn(b'{{AVTRACK_COMMIT}}', page)
         with patch('app.subprocess.run', side_effect=FileNotFoundError):
             self.assertEqual(app.source_revision(), 'unversioned')
 
@@ -214,7 +216,7 @@ class AppTests(unittest.TestCase):
                 self.assertIn(f'{token}: {value};', style)
         self.assertIn('body { margin: 0; background: var(--background); color: var(--foreground); }', style)
         self.assertIn('.primary { background: var(--primary); color: var(--primary-foreground); }', style)
-        self.assertIn("const CACHE = 'avtrack-offline-v90'", self.request('/service-worker.js')[1].decode())
+        self.assertIn("const CACHE = 'avtrack-offline-v91'", self.request('/service-worker.js')[1].decode())
         body = self.request('/')[1]
         self.assertIn(b'AVTrack \xc2\xb7 ' + app.source_revision().encode('utf-8'), body)
         self.assertIn(b'class="brand-tally"', body)

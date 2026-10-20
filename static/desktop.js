@@ -3,7 +3,7 @@ window.desktopUI=(()=>{
   const get=id=>document.getElementById(id);
   const node=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!=null)el.textContent=text;return el;};
   const button=(label,action,cls='secondary')=>{const el=node('button',cls,label);el.type='button';el.onclick=action;return el;};
-  const date=value=>value?new Date(value).toLocaleString():'Not recorded';
+  const date=value=>{if(!value)return 'Not recorded';const text=String(value),utc=/^\d{4}-\d\d-\d\d[ T]\d\d:\d\d:\d\d(?:\.\d+)?$/.test(text)?text.replace(' ','T')+'Z':text;const parsed=new Date(utc);return Number.isNaN(parsed.getTime())?text:parsed.toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'});};
   const drafts=new WeakMap(),draftDefaults=new WeakMap();let newInventory=null,backupId=null,searchRecords=[];
   function initials(){try{return localStorage.getItem('avtrack-reviewer')||'';}catch(_){return '';}}
   function values(form){return Object.fromEntries([...new FormData(form)].filter(([key,value])=>typeof value==='string'&&key).concat([...form.querySelectorAll('[data-draft-field]')].map(control=>['@'+control.dataset.draftField,control.value])));}
@@ -29,7 +29,7 @@ window.desktopUI=(()=>{
   function renderFilters(){
     for(const [container,fields] of [['network-filters',['venue-filter','system-filter','source-filter']],['equipment-panel',['equipment-location-filter','equipment-status-filter','equipment-review-filter']]]){
       const host=container==='equipment-panel'?get(container).querySelector('.equipment-filters'):get(container);if(!host)continue;let bar=host.querySelector('.active-filter-chips');if(!bar){bar=node('div','active-filter-chips');host.append(bar);}bar.replaceChildren();
-      fields.forEach(id=>{const control=get(id);if(!control?.value)return;const label=control.selectedOptions?.[0]?.textContent || control.value;bar.append(button(label+' ×',()=>{control.value='';control.dispatchEvent(new Event('change',{bubbles:true}));}));});
+      fields.forEach(id=>{const control=get(id);if(!control?.value)return;if(id==='system-filter'){control.value.split(',').filter(Boolean).forEach(value=>bar.append(button(value+' ×',()=>{control.value=control.value.split(',').filter(saved=>saved!==value).join(',');control.dispatchEvent(new Event('change',{bubbles:true}));})));return;}const label=control.selectedOptions?.[0]?.textContent || control.value;bar.append(button(label+' ×',()=>{control.value='';control.dispatchEvent(new Event('change',{bubbles:true}));}));});
     }
   }
   async function openRecord(kind,id){
@@ -37,28 +37,38 @@ window.desktopUI=(()=>{
     try{
       const data=await api(`/api/desktop/record?kind=${encodeURIComponent(kind)}&id=${id}`),record=data.record;
       get('desktop-record-title').textContent=record.name || record.description || record.model || record.serial_number || 'Incomplete record';body.replaceChildren();
-      const list=node('dl','record-detail-grid');
-      for(const [key,value] of Object.entries(record)){
-        if(['id','record_type','custom_values','inventory_id','confirmation_required'].includes(key)||value==null||value==='')continue;
-        let text=String(value);if(['ip_confirmed','item_confirmed','data_checked'].includes(key))text=value?'Yes — manually checked':'Not checked';
-        list.append(node('dt','',({ip_confirmed:'IP manually verified',item_confirmed:'Physically located',data_checked:'Record reviewed',last_checked_at:'Last physical count',data_checked_at:'Last source review',updated_at:'Last record change'})[key] || key.replaceAll('_',' ')));
-        const cell=node('dd',key==='notes'?'record-full-notes':'',text);if(['ip','serial_number','location'].includes(key))cell.append(button('Copy',async()=>{try{await navigator.clipboard.writeText(String(value));toast('Copied.');}catch(_){toast('Select the value to copy it.');}},'quiet'));list.append(cell);
+      const sections=node('div','record-detail-sections');
+      const labels={venue:'Venue',discipline:'System',category:'Category',ip:'IP address',vlan:'VLAN',port:'UDP port',channel_source:'Channel source',description:'Item',brand:'Brand',model:'Model',serial_number:'Serial number',quantity:'Quantity',location:'Location'};
+      const addSection=(title,fields)=>{
+        const card=node('section','record-detail-card'),list=node('dl','record-detail-grid');card.append(node('h3','',title));
+        fields.forEach(([key,value])=>{
+          if(value==null||value==='')return;
+          list.append(node('dt','',data.field_labels?.[key]||labels[key]||key.replaceAll('_',' ')));
+          const cell=node('dd','',String(value));
+          if(['ip','serial_number','location'].includes(key))cell.append(button('Copy',async()=>{try{await navigator.clipboard.writeText(String(value));toast('Copied.');}catch(_){toast('Select the value to copy it.');}},'quiet record-copy'));
+          list.append(cell);
+        });
+        if(list.children.length){card.append(list);sections.append(card);}
+      };
+      if(kind==='equipment')addSection('Equipment',['description','brand','model','serial_number','quantity','location'].map(key=>[key,record[key]]));
+      else{
+        addSection(kind==='iptv'?'Channel':'Device',['venue','discipline','category','channel_source'].map(key=>[key,record[key]]));
+        addSection('Network',['ip','vlan','port'].map(key=>[key,record[key]]));
       }
-      for(const [key,value] of Object.entries(record.custom_values||{}))list.append(node('dt','',key.replaceAll('_',' ')),node('dd','',value));body.append(list);
-      body.append(node('h3','','Related equipment backups'));
-      if(!data.backups.length)body.append(node('p','','No equipment backup is linked. Use Recovery details in Equipment backups to link one.'));
-      data.backups.forEach(backup=>{const row=node('p','',`${backup.device_name} · ${backup.filename} · ${(backup.recovery.state||'untested').replaceAll('_',' ')}`),download=node('a','', 'Download configuration');download.href=`/api/backups/${backup.id}/download`;download.download=backup.filename;row.append(download);body.append(row);});
-      body.append(node('h3','','Import source and changes'));
-      if(!data.imports.length)body.append(node('p','','No tracked import source for this record. Older records may predate source tracking.'));
-      data.imports.forEach(source=>{const row=node('p','',`${source.name} · ${source.sheet||'Pasted table'} · source rows ${source.keys.map(key=>key.split(':').pop()).join(', ')} · ${date(source.imported_at)}`);row.append(button('Open source report',async()=>{const report=await api('/api/import-sessions/'+source.session_id);const link=node('a');link.href=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'}));link.download='avtrack-source-report.json';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);},'quiet'));body.append(row);});
-      body.append(node('h3','','Verification and stock movement history'));
-      if(!data.history.length&&!data.checks?.length)body.append(node('p','','No verification or movement history recorded.'));
-      data.history.forEach(event=>body.append(node('p','history-entry',`${date(event.created_at)} · ${event.action.replaceAll('_',' ')} · ${Object.entries(event.details).map(([key,value])=>`${key.replaceAll('_',' ')}: ${value}`).join(' · ')}`)));
-      if(!data.history.length)data.checks?.forEach(check=>body.append(node('p','',date(check.checked_at)+' · Legacy check (reviewer not recorded)')));
+      if(Object.keys(record.custom_values||{}).length)addSection('Additional details',Object.entries(record.custom_values));
+      if(kind==='equipment'&&data.inventory_name)body.append(node('p','record-context',data.inventory_name));
+      body.append(sections);
+      const note=node('section','record-detail-card record-notes-card');note.append(node('h3','','Notes'),node('p','record-full-notes',record.notes||'No notes added.'));body.append(note);
+      const status=node('div','record-current-status');
+      if(kind!=='equipment'&&record.ip&&record.ip.toUpperCase()!=='DHCP')status.append(node('span',record.ip_confirmed?'record-verified':'',record.ip_confirmed?'IP manually verified':'IP not yet verified'));
+      if(kind==='equipment'){status.append(node('span','',record.item_confirmed?'Physically located':'Not yet physically located'));}
+      if(record.updated_at)status.append(node('span','','Last updated '+date(record.updated_at)));body.append(status);
+      const source=data.added_via||{},method=({manual:'Manually',pasted:'Pasted table',file:'File import',unknown:'Source not recorded'})[source.method]||'Source not recorded';
+      body.append(node('p','record-added-via',`Added via: ${method}${source.filename?' · '+source.filename:''}`));
     }catch(error){body.replaceChildren(node('p','error',error.message));}
   }
   function attachDetails(){
-    get('device-list').querySelectorAll('.device-row').forEach(row=>{const id=row.querySelector('.row-select')?.dataset.recordId,name=row.querySelector('.device-name');if(!id||!name||name.dataset.details)return;name.dataset.details='true';name.tabIndex=0;name.role='button';name.classList.add('details-trigger');name.title='View full details and recovery files';name.onclick=()=>openRecord(currentTab,Number(id));name.onkeydown=event=>{if(['Enter',' '].includes(event.key)){event.preventDefault();name.click();}};});
+    get('device-list').querySelectorAll('.device-row').forEach(row=>{const id=row.querySelector('.row-select')?.dataset.recordId,name=row.querySelector('.device-name');if(!id||!name||name.dataset.details)return;name.dataset.details='true';name.tabIndex=0;name.role='button';name.classList.add('details-trigger');name.title='View record details';name.onclick=()=>openRecord(currentTab,Number(id));name.onkeydown=event=>{if(['Enter',' '].includes(event.key)){event.preventDefault();name.click();}};});
     const profile=window.equipmentUI?.profile()||{};
     if(profile.template==='tv'||profile.stock_mode==='tv_counts')return;
     get('equipment-rows').querySelectorAll('tr').forEach(row=>{const actions=row.querySelector('.equipment-actions');if(!actions||actions.querySelector('.record-details-button'))return;const details=button('Details',()=>openRecord('equipment',Number(row.dataset.itemId)),'quiet record-details-button');details.setAttribute('aria-label','View equipment details');actions.prepend(details);});

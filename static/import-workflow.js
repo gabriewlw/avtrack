@@ -52,7 +52,7 @@ window.importWorkflow = (() => {
     knownRecords=inventory?(await api('/api/equipment?inventory_id='+inventory.id)).equipment:(await api('/api/devices')).devices;
     preferences=await api('/api/import-preferences?target='+encodeURIComponent(inventory?`equipment:${inventory.id}`:currentTab));
     if(!file.confirmation_mode)file.confirmation_mode=preferences.confirmation_mode || (inventory?.layout?.confirmation_mode || (inventory?(inventory.layout?.show_status===false?'none':'storage'):currentTab==='device'?'ip':'none'));
-    const saved=await api('/api/import-sessions','POST',{target:inventory?`equipment:${inventory.id}`:currentTab,name:file.filename,state:{file,inventory,originalLayout,confirmation_mode:file.confirmation_mode}});
+    const saved=await api('/api/import-sessions','POST',{target:inventory?`equipment:${inventory.id}`:currentTab,name:file.source_filename||file.filename,state:{file,inventory,originalLayout,confirmation_mode:file.confirmation_mode}});
     session=saved;
   }
   function sourceKeys(entry){return (entry.sourceNumbers || [entry.number]).map(number=>`${queueIndex}:${byId('sheet-choice').value}:${number}`);}

@@ -105,7 +105,7 @@ A useful starting order is:
 
 ## Importing spreadsheets
 
-Choose the red **Import data** button in the destination workspace. Paste a rectangular group of cells copied from Excel, including the heading row, or upload CSV/XLSX/record JSON. The first pasted row is treated as the column-heading row, and headings containing multiple words remain together when they come from one Excel cell.
+Choose the red **Import data** button in the destination workspace, or drag a CSV/XLSX/record JSON file into its drop area. Paste a rectangular group of cells copied from Excel, including the heading row, or choose a file. Dropping a file opens the same preview and review; it does not save records automatically. The first pasted row is treated as the column-heading row, and headings containing multiple words remain together when they come from one Excel cell.
 
 AVTrack then:
 
@@ -124,11 +124,14 @@ Spreadsheet layouts can differ from one job to another. Always review the detect
 ## Search, confirmation, and reports
 
 - Devices searches names, IP addresses, venues, systems, VLANs, categories, and notes.
+- Devices system buttons can select several systems together; results match any selected system. All systems or Clear all filters resets the selection. The globe beside a fixed IP opens its HTTP address in a new browser tab.
 - IPTV searches channel names, IP addresses, ports, sources, and notes.
 - Inventory searches every visible and custom field, including model and all stored serial numbers.
 - Active filter chips and **Clear all filters** make the current search scope visible. The blank search field in the top bar searches Devices, IPTV, named inventories, and equipment backups together; press Enter or click its search icon.
-- Click a device name or an inventory row's **Details** action for multiline notes, copy actions, verification history, tracked import sources, and related recovery files.
+- Click a device name or an inventory row's **Details** action for readable technical details, multiline notes, copy actions, current status, and a short **Added via** line: manually, pasted table, or file import with its filename. Older records without reliable source information say Source not recorded.
+- Notes columns use View/Add buttons with hover previews. Click to read and edit the full note in a popup; Save/Apply commits the edit and Cancel discards it. Competing edits keep your draft and ask you to review the latest note.
 - Confirmation buttons save a manual check. They do not perform automatic network or physical verification.
+- The Devices-only **IPs validated** progress bar shows manually confirmed fixed IP addresses across the whole Devices workspace. DHCP and missing addresses are reported separately. Filtering the table does not change this overall progress.
 - Source review, physical location, and physical counts are separate checks. Spare parts enable dated physical counts by default. Unknown quantities remain visible instead of implying a complete count.
 - Removing one unit requires choosing its serial or an unserialized unit. The confirmation shows the resulting quantity; history records the movement and optional reason/reviewer initials.
 - Exports support JSON, CSV, XLSX, and PDF. You can export the current filtered view, selected rows, or the complete active list.

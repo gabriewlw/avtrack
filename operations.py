@@ -142,6 +142,26 @@ def backup_info(con, backup_id, value=None):
     return json.loads(row[0]) if row else {}
 
 
+def added_via(con, history, imports):
+    """Summarize the original creation; later spreadsheet updates are not creation."""
+    birth=next((event for event in reversed(history) if event['action'] in ('created','import_added')),None)
+    if birth and birth['action']=='created':return {'method':'manual','filename':''}
+    session_id=birth['details'].get('source') if birth else None
+    if session_id is None:
+        source=next((receipt for receipt in imports if receipt.get('outcome')=='added'),None)
+        session_id=source['session_id'] if source else None
+    if type(session_id) is not int:return {'method':'unknown','filename':''}
+    session=con.execute('SELECT name,state FROM import_sessions WHERE id=?',(session_id,)).fetchone()
+    if not session:return {'method':'unknown','filename':''}
+    state=json.loads(session['state']);file=state.get('file') or {}
+    if not isinstance(file,dict):file={}
+    if file.get('source_kind')=='pasted' or file.get('source_kind')!='file' and file.get('pasted') and not file.get('json_records'):
+        return {'method':'pasted','filename':''}
+    filename=file.get('source_filename') or session['name']
+    if file.get('json_records') and not file.get('source_filename') and filename=='records.csv':filename=''
+    return {'method':'file','filename':filename if isinstance(filename,str) else ''}
+
+
 def dispatch(handler, app):
     from urllib.parse import urlsplit,parse_qs
     path=urlsplit(handler.path).path;query=parse_qs(urlsplit(handler.path).query)
@@ -170,7 +190,11 @@ def dispatch(handler, app):
             for backup in app.av_backups():
                 details=backup_info(con,backup['id'])
                 if details.get('record_type')==kind and details.get('record_id')==record_id:result['backups'].append(dict(backup,recovery=details))
+            result['added_via']=added_via(con,result['history'],result['imports'])
             if kind=='equipment':
+                inventory=app.equipment_inventory_details(con,saved['inventory_id'])
+                result['inventory_name']=inventory['name']
+                result['field_labels']={column['key']:column['label'] for column in (inventory.get('layout') or app.DEFAULT_PROFILE)['columns']}
                 result['checks']=[dict(row,snapshot=json.loads(row['snapshot'])) for name in ('equipment_record_checks','equipment_stock_checks') for row in con.execute(f'SELECT * FROM {name} WHERE equipment_id=?',(record_id,))]
         elif action=='backup-details' and handler.command in ('GET','POST'):
             if handler.command=='POST':

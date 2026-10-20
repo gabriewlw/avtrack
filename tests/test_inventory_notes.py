@@ -10,6 +10,16 @@ class InventoryNotesTests(unittest.TestCase):
     tearDown=test_app.AppTests.tearDown
     request=test_app.AppTests.request
 
+    def test_device_note_popup_rejects_stale_edits_without_changing_other_fields(self):
+        saved=app.save_device(dict(test_app.EXAMPLE,notes='Original'))
+        path=f"/api/devices/{saved['id']}/notes"
+        self.assertEqual(self.request(path,'POST',dict(notes='First line\nSecond line',original_notes='Original'))[0],200)
+        self.assertEqual(self.request(path,'POST',dict(notes='Stale draft',original_notes='Original'))[0],400)
+        current=app.inventory()[0]
+        self.assertEqual(current['notes'],'First line\nSecond line')
+        self.assertEqual(current['ip'],saved['ip'])
+        self.assertEqual(self.request(path,'POST',dict(notes='Invalid',original_notes=5))[0],400)
+
     def test_notes_preserve_other_fields_and_physical_confirmation(self):
         row=app.save_equipment(dict(description='Spare',serial_number='S1',quantity=2,location='Locker A',notes='Old'))
         app.set_equipment_confirmation(row['id'],dict(row,item_confirmed=True))
