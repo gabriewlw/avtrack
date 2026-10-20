@@ -805,6 +805,8 @@ function openForm(device = null) {
   editing = device?.id ?? null;
   form.reset(); $('form-error').hidden = true;
   const iptv = currentTab === 'iptv';
+  $('device-add-another').closest('label').hidden = iptv;
+  $('device-add-another').disabled = iptv;
   form.elements.record_type.value = currentTab;
   $('category-field').hidden = iptv;
   $('form-system-group').hidden = iptv;
