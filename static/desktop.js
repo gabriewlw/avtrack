@@ -71,17 +71,60 @@ window.desktopUI=(()=>{
     get('device-list').querySelectorAll('.device-row').forEach(row=>{const id=row.querySelector('.row-select')?.dataset.recordId,name=row.querySelector('.device-name');if(!id||!name||name.dataset.details)return;name.dataset.details='true';name.tabIndex=0;name.role='button';name.classList.add('details-trigger');name.title='View record details';name.onclick=()=>openRecord(currentTab,Number(id));name.onkeydown=event=>{if(['Enter',' '].includes(event.key)){event.preventDefault();name.click();}};});
     const profile=window.equipmentUI?.profile()||{};
     if(profile.template==='tv'||profile.stock_mode==='tv_counts')return;
-    get('equipment-rows').querySelectorAll('tr').forEach(row=>{const actions=row.querySelector('.equipment-actions');if(!actions||actions.querySelector('.record-details-button'))return;const details=button('Details',()=>openRecord('equipment',Number(row.dataset.itemId)),'quiet record-details-button');details.setAttribute('aria-label','View equipment details');actions.prepend(details);});
+    get('equipment-rows').querySelectorAll('tr').forEach(row=>{const actions=row.querySelector('.equipment-actions');if(!actions||actions.querySelector('.record-details-button'))return;const details=button('',()=>openRecord('equipment',Number(row.dataset.itemId)),'quiet equipment-action-icon record-details-button');details.title='View details';details.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg>';details.setAttribute('aria-label','View equipment details');actions.prepend(details);});
   }
   async function findAnywhere(query=''){
     const dialog=get('desktop-search-dialog');get('desktop-search-input').value=query;get('desktop-search-results').textContent='Loading records…';dialog.showModal();
     try{searchRecords=(await api('/api/desktop/records')).records;const backups=(await api('/api/backups')).backups;searchRecords.push(...backups.map(row=>({...row,kind:'backup',label:row.device_name})));renderSearch();get('desktop-search-input').focus();}catch(error){get('desktop-search-results').textContent=error.message;}
   }
+  function workspaceLink(row) {
+    const url=new URL(row.kind==='equipment'?'/inventory':row.kind==='backup'?'/backups':'/',location.origin);
+    url.searchParams.set('record',`${row.kind}:${row.id}`);
+    if(row.kind==='device'||row.kind==='iptv')url.hash=row.kind==='device'?'av':'iptv';
+    return url.pathname+url.search+url.hash;
+  }
+  async function revealSearchRecord(row) {
+    get('desktop-search-dialog').close();
+    let target;
+    try {
+      navigatePage(row.kind==='equipment'?'equipment':row.kind==='backup'?'backups':row.kind);
+      if(row.kind==='equipment')target=await window.equipmentUI.reveal(row.id,row.inventory_id);
+      else if(row.kind==='backup')target=await window.backupsUI.reveal(row.id);
+      else {
+        filters.forEach(id=>get(id).value='');
+        await load();render();
+        target=get('device-list').querySelector(`.row-select[data-record-id="${Number(row.id)}"]`)?.closest('.device-row');
+      }
+      if(!target)throw new Error('This record is no longer available. Search again to refresh the results.');
+      document.querySelectorAll('.search-target').forEach(node=>node.classList.remove('search-target'));
+      target.classList.add('search-target');target.tabIndex=-1;
+      target.scrollIntoView({block:'center',inline:'nearest',behavior:headlineMotion.matches?'auto':'smooth'});
+      target.focus({preventScroll:true});
+    } catch(error){toast('Could not open record: '+error.message);}
+  }
+  window.addEventListener('DOMContentLoaded',async()=>{
+    const match=/^(device|iptv|equipment|backup):([1-9][0-9]*)$/.exec(new URL(location.href).searchParams.get('record')||'');
+    if(!match)return;
+    try {
+      const rows=match[1]==='backup'?(await api('/api/backups')).backups.map(row=>({...row,kind:'backup'})):(await api('/api/desktop/records')).records;
+      const row=rows.find(row=>row.kind===match[1]&&row.id===Number(match[2]));
+      if(row)await revealSearchRecord(row);else toast('The linked record is no longer available.');
+    }catch(error){toast('Could not open linked record: '+error.message);}
+  });
   function renderSearch(){
     const query=get('desktop-search-input').value.trim().toLowerCase(),results=get('desktop-search-results');results.replaceChildren();
     const found=searchRecords.filter(row=>JSON.stringify(row).toLowerCase().includes(query));results.append(node('p','',`${found.length} results across all workspaces`));
     const groups=new Map();found.slice(0,200).forEach(row=>{const title=row.kind==='equipment'?'Inventory · '+row.inventory_name:row.kind==='backup'?'Backups':row.kind==='iptv'?'IPTV':'Devices';if(!groups.has(title))groups.set(title,[]);groups.get(title).push(row);});
-    for(const [title,rows] of groups){results.append(node('h3','',title));rows.forEach(row=>results.append(button(`${row.label} · ${row.location||row.venue||row.ip||row.filename||''}`,()=>row.kind==='backup'?openBackup(row):openRecord(row.kind,row.id),'search-result')));}
+    for(const [title,rows] of groups){
+      results.append(node('h3','',title));
+      rows.forEach(row=>{
+        const result=node('div','search-result-row');
+        result.append(button(`${row.label} · ${row.location||row.venue||row.ip||row.filename||''}`,()=>row.kind==='backup'?openBackup(row):openRecord(row.kind,row.id),'search-result'));
+        const link=node('a','secondary search-workspace-link','Open in workspace ↗');link.href=workspaceLink(row);link.setAttribute('aria-label',`Open ${row.label} in workspace`);
+        link.onclick=event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();history.pushState(null,'',link.href);revealSearchRecord(row);};
+        result.append(link);results.append(result);
+      });
+    }
     if(found.length>200)results.append(node('p','','Refine your search to see the remaining results.'));
   }
   async function handover(){

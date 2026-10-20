@@ -163,11 +163,36 @@ class ExportTests(unittest.TestCase):
                            input=raw, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
             image = Image.open(output + '.png').convert('RGB')
             self.assertEqual(image.getpixel((10,300)), (255,255,255))
-            for y in (74,95):
-                self.assertEqual(image.getpixel((100,y)), (255,255,255))
-                self.assertEqual(image.getpixel((700,y)), (255,255,255))
-                self.assertNotEqual(image.getpixel((450,y)), (255,255,255))
-            self.assertNotEqual(image.getpixel((450,85)), image.getpixel((450,105)))
+            # Locate each record in the rendered PDF instead of relying on old
+            # row spacing or fixed column proportions.
+            bbox = subprocess.run(['pdftotext','-bbox','-','-'],input=raw,stdout=subprocess.PIPE,check=True).stdout.decode()
+            from reportlab.pdfbase import pdfmetrics
+            from reportlab.lib.pagesizes import A4, landscape
+            widths = exports.pdf_column_widths(['ITEM','LOCATION','STATUS'],
+                [['Camera','Deck 6','Located'],['Cable','Deck 2','To be found']],landscape(A4)[0]-28,
+                lambda text, heading=False:pdfmetrics.stringWidth(text,'HubMonoMedium' if heading else 'HubText',7 if heading else 8))
+            samples=[]
+            for name in ('Camera','Cable'):
+                match=re.search(rf'<word [^>]*yMin="([\d.]+)"[^>]*yMax="([\d.]+)">{name}</word>',bbox)
+                self.assertIsNotNone(match)
+                y=int((float(match[1])+float(match[2]))/2)
+                self.assertEqual(image.getpixel((22,y)),(255,255,255))
+                self.assertEqual(image.getpixel((int(20+widths[0]+widths[1]+2),y)),(255,255,255))
+                tint=image.getpixel((int(20+widths[0]+widths[1]/2),y))
+                self.assertNotEqual(tint,(255,255,255));samples.append(tint)
+            self.assertNotEqual(samples[0],samples[1])
+
+    @unittest.skipUnless(shutil.which('pdfinfo') and shutil.which('pdftotext'), 'PDF density validation needs Poppler')
+    def test_compact_network_report_fits_35_records_on_one_page_without_dropping_data(self):
+        rows=[dict(test_app.EXAMPLE,name=f'Unit {index:03}',ip=f'192.0.2.{index}',notes='',ip_confirmed=0,record_type='device') for index in range(1,36)]
+        raw=exports.network_pdf(rows,record_type='device')
+        info=subprocess.run(['pdfinfo','-'],input=raw,stdout=subprocess.PIPE,check=True).stdout.decode()
+        self.assertRegex(info,r'Pages:\s+1\b')
+        text=subprocess.run(['pdftotext','-','-'],input=raw,stdout=subprocess.PIPE,check=True).stdout.decode()
+        for index in range(1,36):self.assertIn(f'Unit {index:03}',text)
+        widths=exports.pdf_column_widths(['Device','VLAN','Notes'],[['Camera A',1500,'Long installation notes '*6]],800,lambda text,heading=False:len(text)*4)
+        self.assertAlmostEqual(sum(widths),800)
+        self.assertGreater(widths[2],widths[1]*2)
 
     def test_scoped_exports_use_only_requested_records_and_latest_saved_values(self):
         camera = self.request('/api/devices', 'POST', dict(name='Selected camera', ip='10.20.0.1', venue='Theatre', discipline='Video'))[1]

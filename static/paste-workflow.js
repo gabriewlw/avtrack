@@ -25,14 +25,15 @@ window.pasteWorkflow=(()=>{
     const section=node('iptv-main-columns');section.hidden=currentTab!=='iptv';if(section.hidden)return false;
     node('iptv-header-mode').value=spreadsheetFile.header_mode||'auto';node('iptv-header-mode').closest('label').hidden=!!spreadsheetFile.json_records;
     const choices=node('iptv-column-choices');choices.replaceChildren();
-    for(const [key,label] of importFields()){
+    node('map-notes').value='';
+    for(const [key,label] of importFields().filter(([key])=>key!=='notes')){
       const original=node('map-'+key),wrapper=document.createElement('label'),select=original.cloneNode(true);select.id='iptv-map-'+key;select.value=original.value;select.setAttribute('aria-label',label);
       wrapper.append(document.createTextNode(label),select);choices.append(wrapper);
       select.onchange=()=>{original.value=select.value;original.dispatchEvent(new Event('change'));};
     }
     const selected=importFields().map(([key])=>node('map-'+key).value).filter(value=>value!=='');
     const duplicate=new Set(selected).size!==selected.length;
-    node('iptv-column-warning').hidden=!duplicate;node('iptv-column-warning').textContent='Choose a different source column for each main field. Other columns will go into Notes.';
+    node('iptv-column-warning').hidden=!duplicate;node('iptv-column-warning').textContent='Choose a different source column for each main field. Notes stay blank on import.';
     return duplicate;
   }
 
@@ -141,7 +142,7 @@ window.pasteWorkflow=(()=>{
       node('paste-layout-intro').textContent='Match the main fields to columns from your paste or file. Review the suggested values before continuing; unused columns never need names.';
       node('paste-preview-help').textContent=spreadsheetData.generated_headers?'No headings are needed. The first channel is kept as data; column numbers and samples identify your source.':'Source headings and sample values are shown in each selector. You can change any suggested match.';
       node('paste-start-review').disabled ||= duplicateIPTVColumns;
-      node('paste-layout-unmatched').textContent='Unused columns are preserved in Notes automatically. You do not need to select or name them.';
+      node('paste-layout-unmatched').textContent='Notes are left blank for imported channels. Unused columns do not need names.';
     }else node('paste-layout-title').textContent='Preview your table';
   }
   document.addEventListener('DOMContentLoaded',()=>{

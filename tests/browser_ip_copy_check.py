@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace
 """Optional IP-only clipboard check for website rows and plain-address exports."""
 import io
 import json
@@ -64,7 +65,7 @@ with tempfile.TemporaryDirectory() as temp:
                     assert page.locator('#device-directory').evaluate('node => node.scrollWidth <= node.clientWidth'), width
             if not page.locator('#iptv-tab').is_visible():
                 page.locator('#nav-toggle').click()
-            page.locator('#iptv-tab').click()
+            open_workspace(page, 'iptv-tab')
             page.get_by_role('button', name='Copy IP address for News channel', exact=True).click()
             page.wait_for_function("() => document.getElementById('toast').textContent === 'IP address copied.'")
             assert page.evaluate('navigator.clipboard.readText()') == '239.252.2.122'

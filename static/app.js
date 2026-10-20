@@ -138,6 +138,11 @@ function syncHomePresentation() {
   const home = onHomeRoute();
   syncHomeHeadline();
   document.body.classList.toggle('desktop-working',!home);
+  document.body.classList.toggle('home-workspace',home);
+  $('home-tab').classList.toggle('nav-active',home);
+  $('workspaces-toggle').classList.toggle('nav-active',!home);
+  if(home){$('home-tab').setAttribute('aria-current','page');$('workspaces-toggle').removeAttribute('aria-current');}
+  else{$('home-tab').removeAttribute('aria-current');$('workspaces-toggle').setAttribute('aria-current','page');}
   const waiting = home && overviewSnapshot === undefined;
   const empty = home && overviewSnapshot && (overviewSnapshot.av_total + overviewSnapshot.iptv_total + overviewSnapshot.inventory_total === 0);
   document.body.classList.toggle('home-data-pending', waiting);
@@ -358,6 +363,7 @@ function syncButtons(id, value) {
 }
 function updateVenueFilter() {
   const venues = savedVenues();
+  $('rename-device-venue').disabled=currentTab!=='device'||!venues.length;
   const selected = $('venue-filter').value;
   $('venue-filter').replaceChildren(new Option('All venues', ''), ...venues.map(venue => {
     const option = new Option(venue, venue);
@@ -366,6 +372,35 @@ function updateVenueFilter() {
   }));
   $('venue-filter').value = venues.includes(selected) ? selected : '';
 }
+const venueRenameDialog=$('rename-device-venue-dialog');
+let venueRenameSaving=false;
+function fillVenueRename() {
+  const old=$('device-venue-original').value;
+  const count=devices.filter(row=>row.record_type==='device'&&cleanVenue(row.venue)===old).length;
+  $('device-venue-name').value=old;
+  $('device-venue-impact').textContent=`This updates the venue name on all ${count} device${count===1?'':'s'} assigned to it.`;
+  $('device-venue-error').hidden=true;
+}
+$('rename-device-venue').onclick=()=>{
+  const venues=savedVenues();if(!venues.length)return;
+  $('device-venue-original').replaceChildren(...venues.map(name=>new Option(name,name)));
+  $('device-venue-original').value=$('venue-filter').value||venues[0];
+  fillVenueRename();venueRenameDialog.showModal();$('device-venue-name').focus();$('device-venue-name').select();
+};
+$('device-venue-original').onchange=fillVenueRename;
+for(const id of ['close-device-venue','cancel-device-venue'])$(id).onclick=()=>{if(!venueRenameSaving)venueRenameDialog.close();};
+venueRenameDialog.addEventListener('cancel',event=>{if(venueRenameSaving)event.preventDefault();});
+$('rename-device-venue-form').onsubmit=async event=>{
+  event.preventDefault();if(venueRenameSaving)return;
+  const old=$('device-venue-original').value;
+  venueRenameSaving=true;$('save-device-venue').disabled=true;$('device-venue-error').hidden=true;
+  try {
+    const result=await api('/api/devices/rename-venue','POST',{old_name:old,new_name:$('device-venue-name').value,expected_ids:devices.filter(row=>row.record_type==='device'&&cleanVenue(row.venue)===old).map(row=>row.id)});
+    if($('venue-filter').value===old){const choice=$('venue-filter').selectedOptions[0];choice.value=result.new_name;choice.textContent=result.new_name;$('venue-filter').value=result.new_name;}
+    venueRenameDialog.close();await load();toast(`Venue renamed on ${result.renamed} devices.`);
+  }catch(error){$('device-venue-error').textContent=error.message;$('device-venue-error').hidden=false;}
+  finally{venueRenameSaving=false;$('save-device-venue').disabled=false;}
+};
 const selectedSystemFilters=()=>new Set($('system-filter').value.split(',').filter(Boolean));
 makeButtons('system-buttons', systems, '', value => { const selected=selectedSystemFilters();if(!value)selected.clear();else if(selected.has(value))selected.delete(value);else selected.add(value);$('system-filter').value=[...selected].join(',');render(); }, 'All systems');
 makeButtons('source-buttons', ['Onboard','Satellite'], '', value => { $('source-filter').value = value; render(); }, 'All sources');
@@ -391,8 +426,8 @@ function switchTab(type) {
   document.querySelector('main > .stats').hidden = equipment || backups;
   $('add-device').hidden = backups;
   for (const [id, tab] of [['device-tab','device'], ['iptv-tab','iptv'], ['equipment-tab','equipment'], ['backups-tab','backups']]) {
-    $(id).classList.toggle('nav-active', tab === type);
-    if (tab === type) $(id).setAttribute('aria-current', 'page');
+    $(id).classList.toggle('nav-active', !onHomeRoute() && tab === type);
+    if (!onHomeRoute() && tab === type) $(id).setAttribute('aria-current', 'page');
     else $(id).removeAttribute('aria-current');
   }
   if (backups) {
@@ -453,7 +488,18 @@ function switchTab(type) {
   updateFilterOptions(); render();
 }
 const inventoryTabs = [['device-tab','device'],['iptv-tab','iptv'],['equipment-tab','equipment'],['backups-tab','backups']];
+$('home-tab').onclick = event => {
+  if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+  event.preventDefault();
+  $('workspaces-menu').open=false;
+  if(onHomeRoute())return;
+  history.pushState(null,'','/');
+  switchTab('device');
+};
+document.addEventListener('pointerdown',event=>{if(!$('workspaces-menu').contains(event.target))$('workspaces-menu').open=false;});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('workspaces-menu').open){$('workspaces-menu').open=false;$('workspaces-toggle').focus();}});
 function navigatePage(type) {
+  $('workspaces-menu').open=false;
   const link = $(inventoryTabs.find(([,page]) => page === type)[0]);
   const destination = link.pathname + link.hash;
   if (location.pathname + location.hash !== destination) history.pushState(null, '', destination);
@@ -464,7 +510,7 @@ function restorePage() {
   $('homepage-overview').hidden = ['/inventory','/backups'].includes(location.pathname) || Boolean(location.hash);
   if (location.hash === '#equipment' || location.hash === '#inventory') history.replaceState(null, '', '/inventory');
   const page = location.pathname === '/inventory' ? inventoryTabs[2] : location.pathname === '/backups' ? inventoryTabs[3] : inventoryTabs.find(([id]) => $(id).hash && $(id).hash === location.hash) || (!location.hash ? inventoryTabs[0] : null);
-  if (page && page[1] !== currentTab) switchTab(page[1]);
+  if (page && (!onHomeRoute() || page[1] !== currentTab)) switchTab(page[1]);
 }
 window.addEventListener('hashchange', restorePage);
 window.addEventListener('popstate', restorePage);
@@ -856,7 +902,7 @@ function render() {
     if (device.confirmation_required !== 0 && device.ip && !isDHCP(device.ip)) ipLine.append(confirmation);
     const venue = element('div', 'venue-cell');
     const venueName = cleanVenue(device.venue);
-    const venueLabel = element(venueName ? 'button' : 'div', 'device-venue', venueName);
+    const venueLabel = element(venueName ? 'button' : 'div', 'device-venue', venueName);venueLabel.title=venueName;
     if (venueName) {
       venueLabel.type = 'button'; venueLabel.classList.add('choice-button');
       colorVenueButton(venueLabel, venueName);
@@ -1075,23 +1121,14 @@ function channelSourceFromName(name) {
   if (satelliteChannelForName(name)) return 'Satellite';
   return '';
 }
-function channelCodecIPs(rows) {
-  return new Set(rows.filter(row => row.record_type === 'iptv' && Number(row.port) === 2000 && importAddressKey(row)).map(row => row.ip.trim()));
-}
-function channelNotesWithCodec(row, codecIPs) {
-  const notes = row.notes || '';
-  const codec = Number(row.port) === 2000 ? 'H.264'
-    : Number(row.port) === 1234 && importAddressKey(row) && codecIPs.has(row.ip.trim()) ? 'H.265' : '';
-  if (!codec || new RegExp(`\\b${codec.replace('.', '\\.')}\\b`, 'i').test(notes)) return notes;
-  return notes ? `${notes} · ${codec}` : codec;
-}
+
 const customImportFields=()=> (spreadsheetInventory?.layout || window.equipmentUI?.profile() || defaultInventoryLayout).columns.filter(col=>col.type!=='calculated'&&!(spreadsheetFile?.force_location&&col.key==='location')).map(col=>{const existing=equipmentImportFields.find(([key])=>key===col.key);return [col.key,col.label,[normalizedHeader(col.label),col.key.replaceAll('_',' '),...(col.aliases || []).map(normalizedHeader),...(existing?.[2] || [])]];});
 const importFields = () => currentTab === 'equipment' ? customImportFields() : currentTab === 'device'
   ? networkImportFields.filter(([field]) => ['venue','name','ip','vlan','notes'].includes(field))
   : iptvImportFields;
 const normalizedHeader = value => value.toLowerCase().replace(/[_-]/g, ' ').replace(/\s+/g, ' ').trim();
 function mappedRows(applyVenueEdits = true) {
-  if(spreadsheetFile?.json_records)return spreadsheetFile.json_records.map(original=>{const row=structuredClone(original);delete row.id;delete row._update;row.item_confirmed='';if(currentTab==='equipment')return inventoryCalculate(row,spreadsheetInventory?.layout||defaultInventoryLayout);row.record_type=currentTab;row.venue=cleanVenue(row.venue||'');return row;});
+  if(spreadsheetFile?.json_records)return spreadsheetFile.json_records.map(original=>{const row=structuredClone(original);delete row.id;delete row._update;row.item_confirmed='';if(currentTab==='equipment')return inventoryCalculate(row,spreadsheetInventory?.layout||defaultInventoryLayout);row.record_type=currentTab;row.venue=cleanVenue(row.venue||'');if(currentTab==='iptv')row.notes='';return row;});
   return spreadsheetData.rows.map(row => {
     const mapped = Object.fromEntries(importFields().map(([field]) => {
       const column = $('map-' + field).value;
@@ -1137,7 +1174,7 @@ function mappedRows(applyVenueEdits = true) {
     });
     mapped.notes=[mapped.notes,...extraNotes].filter(Boolean).join('\n');
     if (currentTab !== 'equipment') mapped.record_type = currentTab;
-    if (currentTab === 'iptv') mapped.channel_source = channelSourceFromName(mapped.name);
+    if (currentTab === 'iptv') {mapped.channel_source = channelSourceFromName(mapped.name);mapped.notes='';}
     const field = currentTab === 'equipment' ? 'location' : 'venue';
     if (applyVenueEdits && venueEdits.has(mapped[field])) mapped[field] = venueEdits.get(mapped[field]);
     if(currentTab==='equipment'){const profile=spreadsheetInventory?.layout || window.equipmentUI.profile();const calculated=inventoryCalculate(mapped,profile);calculated.source_issues=[...sourceIssues];profile.columns.filter(col=>col.type==='calculated').forEach(col=>{const aliases=[col.label,...(col.aliases || [])].map(normalizedHeader);const index=spreadsheetData.headers.findIndex(header=>aliases.includes(normalizedHeader(header)));const original=index>=0?String(row[index] || '').trim():'';if(original!==''&&String(inventoryValue(calculated,col.key))!==original)calculated.source_issues.push(`Original ${col.label}: ${original}; calculated: ${inventoryValue(calculated,col.key) || 'unknown'}`);});return calculated;}return mapped;
@@ -1263,8 +1300,7 @@ function showSpreadsheetPreview() {
   const rows = previewEntries.map(entry=>entry.row);
   if(currentTab==='equipment')$('confirm-import').textContent=`Apply setup & review ${rows.length} rows`;
   if (currentTab === 'iptv') {
-    const codecIPs = channelCodecIPs([...devices, ...rows]);
-    rows.forEach(row => { row.notes = channelNotesWithCodec(row, codecIPs); });
+    rows.forEach(row => { row.notes = ''; });
   }
   $('spreadsheet-preview').replaceChildren(...rows.slice(0,3).map((row, index) => {
     const card = element('div', 'spreadsheet-preview-row');
@@ -1450,19 +1486,7 @@ function reviewImportRow(entry, index, total, tab, knownAddresses, inventory = n
       controls.get('name').addEventListener('input', () => {
         if (!sourceEdited) source.value = channelSourceFromName(controls.get('name').value);
       });
-      const codecIPs = channelCodecIPs(mappedRows().filter((row, index) => spreadsheetData.row_numbers[index] !== entry.number));
-      knownAddresses.forEach(key => {
-        if (key.startsWith('iptv:') && key.endsWith(':2000')) codecIPs.add(key.split(':')[1]);
-      });
-      const notes = controls.get('notes');
-      let notesEdited = false;
-      notes.addEventListener('input', () => { notesEdited = true; });
-      const updateCodecNotes = () => {
-        if (!notesEdited) notes.value = channelNotesWithCodec({record_type:'iptv', ip:controls.get('ip').value.trim(), port:controls.get('port').value.trim(), notes:entry.row.notes}, codecIPs);
-      };
-      controls.get('ip').addEventListener('input', updateCodecNotes);
-      controls.get('port').addEventListener('input', updateCodecNotes);
-      updateCodecNotes();
+      const notes=controls.get('notes');notes.value='';notes.readOnly=true;notes.placeholder='Notes stay blank on import';
     }
     if (equipment) $('row-review-ip-hint').hidden = true;
     $('accept-review-row').onclick = async () => {

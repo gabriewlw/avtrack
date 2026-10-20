@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace
 """Desktop regression for the simplified import and recovery release."""
 import json,sys,shutil,tempfile,threading
 from pathlib import Path
@@ -28,12 +29,12 @@ with tempfile.TemporaryDirectory() as tmp:
    page.locator('#inventory-import-review-save').click();page.locator('#import-summary-panel').wait_for(state='visible');assert len(app.inventory())==2
    assert app.inventory()[1]['notes']=='Subnet 255.255.255.0' or any(row['notes']=='Subnet 255.255.255.0' for row in app.inventory())
    page.once('dialog',lambda dialog:dialog.accept());page.locator('#undo-current-import').click();page.locator('#import-summary-panel').wait_for(state='hidden');assert len(app.inventory())==1
-   page.locator('#equipment-tab').click();page.wait_for_function("() => !document.getElementById('new-equipment-inventory').disabled")
+   open_workspace(page, 'equipment-tab');page.wait_for_function("() => !document.getElementById('new-equipment-inventory').disabled")
    page.locator('#new-equipment-inventory').click();page.locator('#equipment-inventory-name').fill('Spare Parts');page.locator('#save-equipment-inventory').click();page.locator('#inventory-start-dialog').wait_for(state='visible');page.locator('#inventory-start-manual').click()
    page.locator('#equipment-form [name=description]').fill('Camera');page.locator('#equipment-form [name=brand]').fill('Sony');page.locator('#equipment-form [name=model]').fill('X');page.locator('#equipment-form [name=serial_number]').fill('A, B, C');page.locator('#equipment-form [name=quantity]').fill('3');page.locator('#equipment-form').get_by_role('button',name='New location',exact=True).click();page.get_by_label('New storage location',exact=True).fill('Locker');page.locator('#equipment-form').get_by_role('button',name='Add location',exact=True).click();page.locator('#save-equipment').click();page.locator('#equipment-dialog').wait_for(state='hidden')
    page.locator('#equipment-table .equipment-delete-action').click();assert page.locator('#confirm-equipment-delete').is_disabled();page.locator('#equipment-delete-unit').select_option('serial:B');assert '3 to 2' in page.locator('#unit-removal-impact').inner_text();page.locator('#unit-removal-reason').fill('Installed in studio');page.locator('#confirm-equipment-delete').click();page.locator('#equipment-delete-dialog').wait_for(state='hidden')
    page.locator('#equipment-table .record-details-button').click();page.locator('#desktop-record-body .record-added-via').get_by_text('Manually',exact=False).wait_for();assert 'Verification and stock movement history' not in page.locator('#desktop-record-body').inner_text();page.locator('[data-close="desktop-record-dialog"]').click()
-   assert page.locator('#main-navigation a').all_text_contents()==['Devices','IPTV','Inventory','Backups']
+   assert page.locator('#main-navigation a').all_text_contents()==['Home','Devices','IPTV','Inventory','Backups']
    assert page.locator('#desktop-find').input_value()=='' and page.locator('#desktop-find').get_attribute('placeholder') is None
    page.locator('#desktop-find').fill('10.20.1.1');page.locator('#desktop-find').press('Enter');page.wait_for_function("() => document.querySelectorAll('#desktop-search-results .search-result').length===1");page.locator('[data-close="desktop-search-dialog"]').click()
    page.locator('.brand').click();page.locator('#workspace-export-menu summary').click()

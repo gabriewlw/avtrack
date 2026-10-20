@@ -2,6 +2,7 @@
 function reviewEquipmentBatch(entries, index, total, inventory, fields, filename, locations = [], network = false) {
   return new Promise(resolve => {
     const dialog = $('inventory-import-review');
+    if(network&&entries.every(entry=>entry.row.record_type==='iptv'))fields=fields.filter(([key])=>key!=='notes');
     const identity=network?'name':inventory.layout?.primary_search || 'model';
     fields=[...fields.filter(([key])=>key===identity),...fields.filter(([key])=>key!==identity)];
     let saving = false, finishing = false, finished = false;

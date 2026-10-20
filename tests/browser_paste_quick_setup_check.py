@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace
 """Paste preview combines matching and table checks without repeated setup screens."""
 import json,shutil,sys,tempfile,threading
 from pathlib import Path
@@ -18,7 +19,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.on('pageerror',lambda error:errors.append(str(error)))
             page.goto(f'http://127.0.0.1:{server.server_port}/')
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
-            page.locator('#device-tab').click()
+            open_workspace(page, 'device-tab')
             def paste(text,equipment=False):
                 page.locator('#equipment-import' if equipment else '#import').click()
                 page.locator('#paste-inventory-text').fill(text);page.locator('#continue-paste-inventory').click()
@@ -52,7 +53,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#inventory-import-review-save').click();page.locator('#import-summary-panel').wait_for(state='visible')
             assert next(r for r in app.inventory() if r['name']=='Second')['ip']=='10.2.3.7'
             assert next(r for r in app.inventory() if r['name']=='Second')['confirmation_required']==1
-            page.locator('#close-import-summary').click();page.locator('#equipment-tab').click()
+            page.locator('#close-import-summary').click();open_workspace(page, 'equipment-tab')
             page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled")
             page.locator('#equipment-inventory-select').select_option(str(tv['id']))
             page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled")

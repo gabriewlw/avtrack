@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace
 """Desktop drops, popup notes, multi-system filters, IP links, and progress."""
 import json
 from pathlib import Path
@@ -72,21 +73,21 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('.device-name').get_by_text('Imported camera',exact=True).click();page.locator('.record-added-via').get_by_text('File import · devices.csv',exact=False).wait_for()
             assert not page.locator('#desktop-record-body').get_by_text('Related equipment backups',exact=True).count()
             page.screenshot(path='/tmp/avtrack-friendly-record.png');page.locator('[data-close="desktop-record-dialog"]').click()
-            page.locator('#iptv-tab').click();assert page.locator('#device-ip-progress').is_hidden()
+            open_workspace(page, 'iptv-tab');assert page.locator('#device-ip-progress').is_hidden()
             drop('#network-drop-zone','channels.csv',b'Channel Name,IP Address,UDP Port,Source,Notes\nShip information,239.1.1.1,1234,Onboard,Channel note')
             save_review();assert len([row for row in app.inventory() if row['record_type']=='iptv'])==1
-            page.locator('#equipment-tab').click();page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled")
+            open_workspace(page, 'equipment-tab');page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled")
             page.locator('#equipment-inventory-select').select_option(str(inventory['id']))
             book=Workbook();book.active.title='Locker A';book.active.append(['Item','Brand','Model','Serial Number','Quantity','Notes']);book.active.append(['Camera','Sony','X','S1',1,'Equipment note'])
             path=Path(tmp)/'parts.xlsx';book.save(path);drop('#inventory-drop-zone','parts.xlsx',path.read_bytes());assert app.equipment_inventory(inventory['id'])==[]
             save_review();assert app.equipment_inventory(inventory['id'])[0]['location']=='Locker A'
-            page.locator('#backups-tab').click();drop('#backups-drop-zone','profile.json',b'{"profile":"test"}');page.locator('#backup-dialog').wait_for(state='visible')
+            open_workspace(page, 'backups-tab');drop('#backups-drop-zone','profile.json',b'{"profile":"test"}');page.locator('#backup-dialog').wait_for(state='visible')
             assert page.locator('#backup-file').evaluate('(input)=>input.files[0].name')=='profile.json'
             assert app.av_backups()==[]
             page.locator('#backup-type').select_option('OBS profile');page.locator('#backup-device').fill('Control PC');page.locator('#save-backup').click();page.locator('#backup-dialog').wait_for(state='hidden');assert len(app.av_backups())==1
             content=workspace_transfer.pack(workspace_transfer.snapshot(app.connect,app.backup_directory),'json')[0]
             page.locator('#workspace-restore-open').click();drop('#workspace-restore-file','complete.json',content);page.locator('#workspace-restore-preview').wait_for(state='visible');page.locator('#workspace-restore-cancel').click()
-            page.locator('#device-tab').click();page.locator('#device-ip-progress').scroll_into_view_if_needed();page.screenshot(path='/tmp/avtrack-device-progress.png')
+            open_workspace(page, 'device-tab');page.locator('#device-ip-progress').scroll_into_view_if_needed();page.screenshot(path='/tmp/avtrack-device-progress.png')
             assert page.locator('.app-version').text_content().strip().startswith('v0.0.')
             assert '·' not in page.locator('.app-version').text_content()
             assert not errors,errors

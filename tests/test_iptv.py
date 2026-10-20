@@ -129,7 +129,7 @@ class IPTVTests(unittest.TestCase):
         self.assertEqual((result['added'], result['skipped']), (2, 2))
         self.assertEqual({row['name'] for row in app.inventory()}, {'Ship information', 'New endpoint', 'Next endpoint'})
         self.assertEqual(next(row['notes'] for row in app.inventory() if row['name'] == 'Ship information'), 'Keep this note')
-        self.assertEqual(next(row['notes'] for row in app.inventory() if row['name'] == 'New endpoint'), 'Imported note')
+        self.assertEqual(next(row['notes'] for row in app.inventory() if row['name'] == 'New endpoint'), '')
 
     def test_mixed_export_import_and_old_record_defaults(self):
         self.request('/api/devices', 'POST', test_app.EXAMPLE)

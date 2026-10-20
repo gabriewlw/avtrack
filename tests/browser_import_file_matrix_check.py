@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace
 """Every supported file type imports through each desktop workspace."""
 import json,shutil,sys,tempfile,threading
 from pathlib import Path
@@ -45,13 +46,13 @@ with tempfile.TemporaryDirectory() as tmp:
                 page.locator('#equipment-import' if equipment else '#import').click()
                 page.locator('#upload-paste-inventory').click();page.locator('#import-file').set_input_files(str(path))
 
-            page.locator('#device-tab').click()
+            open_workspace(page, 'device-tab')
             upload_guided(files['device_csv']);upload_guided(files['device_xlsx']);upload_json(files['device_json'])
             page.wait_for_function("() => document.getElementById('total').textContent === '3'")
-            page.locator('#iptv-tab').click()
+            open_workspace(page, 'iptv-tab')
             upload_guided(files['iptv_csv']);upload_guided(files['iptv_xlsx']);upload_json(files['iptv_json'])
             page.wait_for_function("() => document.getElementById('total').textContent === '3'")
-            page.locator('#equipment-tab').click();page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled")
+            open_workspace(page, 'equipment-tab');page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled")
             page.locator('#equipment-inventory-select').select_option(str(inventory['id']));page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled")
             upload_guided(files['equipment_csv'],True);upload_guided(files['equipment_xlsx'],True);upload_json(files['equipment_json'],True)
             page.wait_for_function("() => document.getElementById('equipment-records').textContent === '3'")

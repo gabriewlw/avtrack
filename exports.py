@@ -134,6 +134,39 @@ def equipment_xlsx(rows, inventory_name='Equipment inventory', layout=None):
                                    ('Notes','notes',55)], rows)])
 
 
+def pdf_column_widths(labels, records, available, measure):
+    """Share page width by actual content, keeping short fields compact."""
+    minimums, preferred, growth = [], [], []
+    for index, label in enumerate(labels):
+        label_text = str(label).strip()
+        values = [clean_text(row[index]) for row in records if index < len(row) and row[index] is not None]
+        if label_text.casefold() in ('last checked (utc)', 'last checked', 'stock check'):
+            values = [pdf_timestamp(value) for value in values]
+        lines = [line for value in values for line in value.splitlines() if line]
+        numeric = bool(lines) and all(re.fullmatch(r'[-+]?\d+(?:\.\d+)?', value) for value in lines)
+        compact = numeric or label_text.casefold() in ('ip', 'vlan', 'port', 'qnt', 'quantity', 'total', 'status', 'confirmation', 'located', 'last checked (utc)', 'last checked')
+        header = measure(label_text, True) + 6
+        content = sorted(measure(line, False) + 6 for line in lines)
+        typical = content[min(len(content) - 1, int(len(content) * .9))] if content else 0
+        longest_word = max((measure(word, True) for word in label_text.split()), default=8) + 6
+        minimum = max(20, min(header, longest_word, 70))
+        if compact and lines:
+            minimum = max(minimum, min(max(content), 110))
+        wanted = max(minimum, min(max(header, typical), 110 if compact else 220))
+        minimums.append(minimum);preferred.append(wanted)
+        growth.append(0 if compact or not lines else wanted)
+    total = sum(preferred)
+    if total > available:
+        room = max(0, available - sum(minimums))
+        flexible = sum(wanted - low for wanted, low in zip(preferred, minimums))
+        if sum(minimums) >= available:
+            return [width * available / sum(minimums) for width in minimums]
+        return [low + room * (wanted - low) / flexible for wanted, low in zip(preferred, minimums)]
+    if not any(growth):
+        growth = preferred[:]
+    return [width + (available - total) * weight / sum(growth) for width, weight in zip(preferred, growth)]
+
+
 def pdf_report(title, sections, repeat_section=False):
     try:
         from reportlab.lib import colors
@@ -155,10 +188,10 @@ def pdf_report(title, sections, repeat_section=False):
             pdfmetrics.registerFont(TTFont('HubMono', str(fonts / 'JetBrainsMono-Regular.ttf')))
             pdfmetrics.registerFont(TTFont('HubMonoMedium', str(fonts / 'JetBrainsMono-Medium.ttf')))
     output = io.BytesIO()
-    document = SimpleDocTemplate(output, pagesize=landscape(A4), leftMargin=18, rightMargin=18,
-                                 topMargin=8, bottomMargin=24, allowSplitting=1, title=f'avtrack - {title}',
+    document = SimpleDocTemplate(output, pagesize=landscape(A4), leftMargin=14, rightMargin=14,
+                                 topMargin=6, bottomMargin=24, allowSplitting=1, title=f'avtrack - {title}',
                                  author='avtrack')
-    body = ParagraphStyle('HubBody', fontName='HubText', fontSize=8, leading=11, wordWrap='CJK', textColor=colors.HexColor('#171A20'))
+    body = ParagraphStyle('HubBody', fontName='HubText', fontSize=8, leading=10, wordWrap='CJK', textColor=colors.HexColor('#171A20'))
     header = ParagraphStyle('HubHeader', parent=body, fontName='HubMonoMedium', fontSize=7, leading=9,
                             textColor=colors.HexColor('#3F4650'))
     report_info = ParagraphStyle('HubInfo', parent=body, fontName='HubMono', fontSize=7, leading=9)
@@ -230,7 +263,9 @@ def pdf_report(title, sections, repeat_section=False):
             table_rows.append([paragraph('No records')] + [paragraph('')] * (len(labels) - 1))
         # Prefer continuing a tall row into the remaining page space instead of
         # moving the entire row and leaving a large empty block behind.
-        table = LongTable(table_rows, colWidths=[document.width * width for width in widths],
+        column_widths = pdf_column_widths(labels, records, document.width,
+            lambda text, heading=False: pdfmetrics.stringWidth(text, 'HubMonoMedium' if heading else 'HubText', 7 if heading else 8))
+        table = LongTable(table_rows, colWidths=column_widths,
                           repeatRows=header_rows, splitByRow=0, splitInRow=1,
                           spaceBefore=0, spaceAfter=0, hAlign='LEFT')
         table.setStyle(TableStyle([
@@ -238,8 +273,8 @@ def pdf_report(title, sections, repeat_section=False):
             ('BACKGROUND', (0,header_rows), (-1,-1), colors.white),
             ('GRID', (0,0), (-1,-1), .35, colors.HexColor('#C9CDD3')),
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('LEFTPADDING', (0,0), (-1,-1), 5), ('RIGHTPADDING', (0,0), (-1,-1), 5),
-            ('TOPPADDING', (0,0), (-1,-1), 5), ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+            ('LEFTPADDING', (0,0), (-1,-1), 3), ('RIGHTPADDING', (0,0), (-1,-1), 3),
+            ('TOPPADDING', (0,0), (-1,-1), 2), ('BOTTOMPADDING', (0,0), (-1,-1), 2),
             ('TOPPADDING', (0,0), (-1,header_rows-1), 3), ('BOTTOMPADDING', (0,0), (-1,header_rows-1), 3)]))
         if repeat_section:
             table.setStyle(TableStyle([('SPAN', (0,0), (-1,0))]))
@@ -279,7 +314,7 @@ def pdf_report(title, sections, repeat_section=False):
 def network_pdf(rows, record_type=None):
     av, channels = [], []
     for row in rows:
-        name = '\n'.join(filter(None, [row['name'], row['category']]))
+        name = ' · '.join(filter(None, [row['name'], row['category']]))
         if row['record_type'] == 'device':
             av.append([row['venue'], name, row['ip'], row['vlan'], confirmation(row), row['discipline'], row['notes']])
         else:

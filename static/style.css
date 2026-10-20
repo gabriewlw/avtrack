@@ -923,7 +923,6 @@ main, dialog {
   body.desktop-working main>.heading { display:none; }
   body.desktop-working main { padding-top:24px; }
   #hero-title.home-typewriter { font-size:clamp(28px,3.2vw,40px); }
-  #equipment-table .equipment-actions { min-width:140px; width:140px!important; }
 }
 .active-filter-chips { display:flex; flex-wrap:wrap; gap:7px; grid-column:1/-1; }
 .active-filter-chips:empty { display:none; }
@@ -1013,4 +1012,87 @@ main, dialog {
   .directory-filters:not(.iptv-filters) { grid-template-columns:minmax(160px,220px) auto minmax(0,1fr); }
   .device-directory:not(.iptv-directory) .ip-info-line { grid-template-columns:minmax(0,1fr) 82px; gap:6px; }
   .device-directory .ip-confirm { width:82px; padding:4px 5px; font-size:9px; }
+}
+
+/* Dense desktop tables: reserve space for content rather than cell padding. */
+@media (min-width:900px) {
+  body.desktop-working main { max-width:1540px; }
+  .device-directory:not(.iptv-directory) { --directory-columns:minmax(150px,1.4fr) minmax(96px,.8fr) 266px 48px 100px 62px 74px; }
+  .device-directory.iptv-directory { --directory-columns:minmax(150px,1.4fr) 140px 250px 106px minmax(60px,.5fr) 74px; }
+  .directory-head,.device-directory .device-row { min-width:820px; }
+  .device-directory .device-row { min-height:36px; }
+  .device-directory .device-row > div { padding:3px 6px; }
+  .device-directory .device-row > .row-actions { padding:3px; gap:4px; }
+  .directory-head > span,.directory-head > .selection-heading,.directory-head .notes-sort-header { padding:7px 6px; }
+  .device-directory .device-identity { gap:5px; }
+  .device-directory .device-venue { min-height:26px; padding:3px 5px; }
+  .device-directory button.system-select,.device-directory .ip-confirm,.device-directory .device-notes-view { min-height:26px; height:26px; padding:3px 5px; }
+  .device-directory .vlan-cell { line-height:26px; }
+  .device-directory .ip-info-line { min-height:26px; }
+  .device-directory .ip-browser { height:26px; }
+  .device-directory .row-actions button.row-action-icon { width:28px; min-width:28px; height:28px; min-height:28px; padding:4px; }
+  .udp-field { gap:4px; }
+  .udp-field .udp-address,.udp-field .udp-copy,.udp-field .udp-vlc { min-height:26px; height:26px; }
+  .udp-field .udp-copy,.udp-field .udp-vlc { flex-basis:26px; width:26px; padding:4px; }
+  #equipment-table th { height:34px; padding:6px; letter-spacing:.5px; }
+  #equipment-table td { height:36px; padding:3px 6px; }
+  #equipment-table .equipment-actions { min-width:0; }
+  #equipment-table td.equipment-actions { padding:3px; }
+  #equipment-table button,#equipment-table .equipment-confirm-label { min-height:26px; height:26px; padding:3px 5px; }
+  #equipment-table .equipment-actions button.equipment-action-icon { width:28px; min-width:28px; height:28px; min-height:28px; padding:0; }
+  #equipment-table .equipment-actions button.equipment-action-icon + button.equipment-action-icon { margin-left:3px; }
+  #equipment-table select { min-height:26px; height:26px; padding:2px 4px; font-size:11px; }
+  #equipment-table .equipment-confirm-label { gap:4px; }
+  #equipment-table .equipment-brand-value { gap:5px; }
+  .directory-head .notes-sort-header { gap:4px; }
+  .directory-sort select { width:80px; min-height:26px; height:26px; padding:2px 4px; }
+  .device-directory .ip-copy { flex-basis:22px; width:22px; height:26px; min-height:26px; }
+  .device-directory .ip-browser { flex-basis:22px; width:22px; }
+}
+
+/* Home is a summary; workspace tools live behind the workspace menu. */
+.workspaces-menu { position:relative; }
+.workspaces-menu > summary { position:relative; display:flex; align-items:center; gap:7px; height:40px; list-style:none; cursor:pointer; font:500 11px/1 var(--mono); letter-spacing:1px; text-transform:uppercase; color:var(--muted-foreground); }
+.workspaces-menu > summary::-webkit-details-marker { display:none; }
+.workspaces-menu > summary svg { width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:1.7; transition:transform .15s; }
+.workspaces-menu[open] > summary svg { transform:rotate(180deg); }
+.workspaces-menu > summary:hover,.workspaces-menu > summary.nav-active { color:var(--foreground); }
+.workspaces-menu > summary:focus-visible { outline:2px solid var(--accent-text); outline-offset:4px; }
+.workspace-menu-links { position:absolute; top:calc(100% + 8px); left:0; width:210px; padding:6px; border:1px solid var(--border); border-radius:8px; background:var(--card); box-shadow:0 12px 30px #0006; }
+#main-navigation .workspace-menu-links a { display:flex; height:40px; min-height:40px; padding:0 12px; border-radius:4px; font-size:11px; letter-spacing:.5px; }
+#main-navigation .workspace-menu-links a:hover,#main-navigation .workspace-menu-links a.nav-active { background:var(--secondary); }
+#main-navigation .workspace-menu-links a.nav-active::after { top:10px; bottom:10px; left:0; right:auto; width:2px; height:auto; }
+body.home-workspace #workspace,body.home-workspace main > .stats,body.home-workspace #inventory,body.home-workspace #equipment-panel,body.home-workspace #backups-panel,body.home-workspace #validation-note,body.home-workspace #device-ip-progress { display:none; }
+body.home-workspace .homepage-overview { margin-bottom:0; }
+body.home-workspace .hero-side { display:none; }
+body.home-workspace main > .heading { display:block; margin-bottom:32px; }
+body.home-workspace .hero-copy { align-items:center; text-align:center; }
+body.home-workspace #hero-intro { max-width:640px; }
+body.home-workspace .overview-heading { padding-top:24px; border-top:1px solid var(--border); }
+body.home-workspace .workspace-transfer-bottom { margin-top:40px; }
+
+@media(min-width:900px) {
+  #equipment-table th.equipment-actions-heading,#equipment-table td.equipment-actions { width:var(--inventory-actions-width,104px)!important; max-width:none; }
+  #equipment-table th.equipment-notes-heading,#equipment-table td.equipment-notes-column { width:54px!important; max-width:54px; }
+}
+
+.search-result-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); }
+.search-result-row .search-result { flex:1; min-width:0; margin:0; }
+.search-workspace-link { flex-shrink:0; display:inline-flex; align-items:center; min-height:36px; padding:8px 10px; border:1px solid var(--border); border-radius:5px; font-size:11px; text-decoration:none; white-space:nowrap; }
+.search-workspace-link:hover { border-color:var(--primary); color:var(--foreground); }
+.search-target { outline:2px solid var(--primary); outline-offset:-2px; scroll-margin:110px 0 30px; }
+#equipment-table tr.search-target td,.device-row.search-target > div { background:color-mix(in oklab,var(--primary) 8%,var(--panel)); }
+
+@media(min-width:900px) {
+  .device-directory:not(.iptv-directory) .ip-address-value .device-ip { margin-right:auto; }
+  .device-directory:not(.iptv-directory) .ip-copy,.device-directory:not(.iptv-directory) .ip-browser,.device-directory:not(.iptv-directory) .ip-confirm { align-self:center; height:26px; min-height:26px; }
+}
+
+.venue-filter-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:7px; }
+.venue-filter-heading label { font:400 9px/14px var(--mono); letter-spacing:1px; text-transform:uppercase; color:var(--muted); }
+.venue-filter-heading button { min-height:20px; padding:0 4px; font-size:10px; }
+#rename-device-venue-dialog { width:min(480px,calc(100vw - 40px)); }
+#rename-device-venue-form > label { margin-top:16px; }
+@media(min-width:900px) {
+  .device-directory .device-venue { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 }

@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace
 """Homepage typing order, reading pauses, stable layout, navigation and reduced motion."""
 from pathlib import Path
 import shutil,sys,tempfile,threading
@@ -41,10 +42,10 @@ with tempfile.TemporaryDirectory() as tmp:
             assert all(not f['intro'] for f in frames if f['heading']!=complete)
             assert abs(page.locator('.hero-copy').bounding_box()['height']-height)<1
             assert page.locator('.hero-typewriter-cursor').count()==0
-            page.locator('#device-tab').click()
+            open_workspace(page, 'device-tab')
             assert page.locator('#hero-title').get_attribute('aria-label') is None
             page.go_back();page.locator('#hero-title .hero-typewriter-cursor').wait_for()
-            page.locator('#iptv-tab').click();page.wait_for_timeout(2000)
+            open_workspace(page, 'iptv-tab');page.wait_for_timeout(2000)
             assert 'Every channel.' in page.locator('#hero-title').inner_text()
             assert page.locator('.hero-typewriter-cursor').count()==0
             reduced=browser.new_page(viewport={'width':1440,'height':1000},reduced_motion='reduce')

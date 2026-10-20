@@ -17,7 +17,7 @@
     $('backup-size').textContent = formatSize(backups.reduce((total, item) => total + item.size, 0));
     $('backups-empty').hidden = backups.length !== 0 || Boolean(filter || query);
     $('backups-grid').replaceChildren(...visible.map(item => {
-      const card = element('article', 'backup-card');
+      const card = element('article', 'backup-card');card.dataset.backupId=item.id;
       const top = element('div', 'backup-card-top');
       const badge = element('span', 'backup-type');
       if(item.has_icon){
@@ -110,5 +110,9 @@
     try{await navigator.clipboard.writeText(folderInfo.path);toast('Backup folder path copied.');}
     catch(_){toast(`Backup folder: ${folderInfo.path}`);}
   };
-  window.backupsUI = {load, open};
+  window.backupsUI = {load, open,reveal:async id=>{
+    $('backup-filter').value='';$('backup-search').value='';
+    await load(true);
+    return $('backups-grid').querySelector(`[data-backup-id="${Number(id)}"]`);
+  }};
 })();

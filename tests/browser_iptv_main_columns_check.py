@@ -45,7 +45,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 page.locator('#iptv-map-name').select_option('2')
                 page.locator('#iptv-map-ip').select_option('6')
                 page.locator('#iptv-map-port').select_option('7')
-                page.locator('#iptv-map-notes').select_option('')
+                assert page.locator('#iptv-map-notes').count()==0
                 page.wait_for_function("() => !document.getElementById('paste-start-review').disabled")
                 assert rows[0][2] in page.locator('#paste-layout-rows').inner_text()
                 if kind=='paste':page.screenshot(path='/tmp/avtrack-iptv-main-columns.png',full_page=True)
@@ -55,10 +55,10 @@ with tempfile.TemporaryDirectory() as tmp:
                 first=next(row for row in saved if row['name']==rows[0][2])
                 self_note=next(row for row in saved if row['name']==rows[1][2])
                 assert first['ip']==rows[0][6] and first['port']==1234
-                assert 'RADIANCE' in first['notes'] and 'Axis Q1755' in first['notes']
-                assert 'H.265' in self_note['notes']
+                assert first['notes']==''
+                assert self_note['notes']==''
                 page.locator('#close-import-summary').click()
             assert not errors,errors
             browser.close()
     finally:server.shutdown();server.server_close()
-print('PASS: headerless IPTV paste/CSV/XLSX, first channel retained, chosen main fields, and unnamed extras in Notes')
+print('PASS: headerless IPTV paste/CSV/XLSX, first channel retained, chosen main fields, and blank Notes')

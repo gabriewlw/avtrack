@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace
 """Optional equipment CSV/location/located workflow check with Playwright."""
 import json
 import shutil
@@ -23,7 +24,7 @@ with tempfile.TemporaryDirectory() as temp:
             errors = []
             page.on('pageerror', lambda error: errors.append(str(error)))
             page.goto(f'http://127.0.0.1:{server.server_port}')
-            page.locator('#equipment-tab').click()
+            open_workspace(page, 'equipment-tab')
             page.locator('#equipment-empty').wait_for(state='visible')
             csv_file = Path(temp) / 'equipment.csv'
             csv_file.write_text('Item,Brand,Model,Serial number,Quantity,Location,Notes\n'
@@ -110,7 +111,7 @@ with tempfile.TemporaryDirectory() as temp:
                 assert 'Broadcast center' not in text
                 assert 'Located' in text and 'To be found' in text
             page.reload()
-            page.locator('#equipment-tab').click()
+            open_workspace(page, 'equipment-tab')
             page.wait_for_function("() => !document.getElementById('equipment-refresh').disabled")
             assert microphone.locator('.equipment-confirm').is_checked()
             microphone.get_by_role('button', name='Edit equipment MIC-01', exact=True).click()

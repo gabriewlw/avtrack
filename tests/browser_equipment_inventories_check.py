@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace
 """Optional browser check of independent inventory creation and CSV/JSON work."""
 import json
 import shutil
@@ -23,7 +24,7 @@ with tempfile.TemporaryDirectory() as temp:
             page.on('pageerror', lambda error: errors.append(str(error)))
             page.goto(f'http://127.0.0.1:{server.server_port}')
             assert page.locator('#equipment-tab').text_content() == 'Inventory'
-            page.locator('#equipment-tab').click()
+            open_workspace(page, 'equipment-tab')
             page.wait_for_function("() => !document.getElementById('new-equipment-inventory').disabled")
 
             def wait_loaded(name):
@@ -133,7 +134,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert page.locator('#equipment-found').inner_text() == '1'
             assert 'Storeroom' not in page.locator('#equipment-location-filter').inner_text()
             page.reload()
-            page.locator('#equipment-tab').click()
+            open_workspace(page, 'equipment-tab')
             wait_loaded('TVs')
             assert page.locator('#equipment-rows tr').count() == 2
             for width in [1440,1024,901,900,390,320]:

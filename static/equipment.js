@@ -306,24 +306,32 @@
     const heading=$('select-visible-equipment').closest('label');
     const orderedColumns=displayColumns().filter(column=>column.key!=='notes'),notesColumn=displayColumns().find(column=>column.key==='notes');
     heading.querySelector('span').textContent=(orderedColumns[0]||notesColumn).label;
-    const baseWidths={description:140,brand:80,model:100,serial_number:120,quantity:44,location:110,notes:120,total_count:65};
+    const context=document.createElement('canvas').getContext('2d');
+    const tableFont=getComputedStyle($('equipment-table')).fontFamily;
+    const minimums={description:100,brand:62,model:76,serial_number:98,quantity:38,location:78,total_count:58};
+    const limits={description:220,brand:120,model:190,serial_number:190,location:160};
     const widths=orderedColumns.map((col,index)=>{
-      const shownLabel=col.key==='quantity'?'Qnt':col.label,labelWidth=Math.min(220,shownLabel.length*8+20+(index===0?30:0));
-      const controlWidth=col.key==='orientation' ? Math.max(164,(col.options || []).reduce((width,value)=>width+value.length*6+24,8)) : col.type==='buttons' ? (col.options || []).reduce((width,value)=>width+value.length*6+24,0) : col.type==='checkbox' ? 100 : 0;
-      let modelWidth=0;
-      if(col.key==='model'&&(layout().template==='tv'||layout().stock_mode==='tv_counts')){
-        const context=document.createElement('canvas').getContext('2d');
-        context.font=`12px ${getComputedStyle($('equipment-table')).fontFamily}`;
-        modelWidth=Math.ceil(items.reduce((width,item)=>Math.max(width,context.measureText(String(inventoryValue(item,col.key))).width),0))+22+(index===0?30:0);
-      }
-      return Math.max(baseWidths[col.key] || 120,labelWidth,controlWidth,modelWidth);
+      const shownLabel=col.key==='quantity'?'Qnt':col.label;
+      const selectionWidth=index===0?24:0;
+      context.font=`11px ${getComputedStyle(document.documentElement).getPropertyValue('--mono')}`;
+      const labelWidth=context.measureText(shownLabel.toUpperCase()).width+shownLabel.length+14+selectionWidth;
+      context.font=`12px ${tableFont}`;
+      const valueWidth=items.reduce((width,item)=>Math.max(width,context.measureText(String(inventoryValue(item,col.key) ?? '')).width),0)+14+selectionWidth;
+      const controlWidth=col.key==='orientation' ? Math.max(148,(col.options || []).reduce((width,value)=>width+value.length*6+18,6)) : col.type==='buttons' ? (col.options || []).reduce((width,value)=>width+value.length*6+18,0) : col.type==='checkbox' ? 76 : col.type==='select' ? 86 : 0;
+      return Math.ceil(Math.max(minimums[col.key] || 64,labelWidth,controlWidth,Math.min(limits[col.key] || 160,valueWidth)));
     });
-    widths.push(...(showLocatedStatus()?[110]:[]),...(stockChecksEnabled()?[126]:[]),...(notesColumn?[74]:[]),82);
+    widths.push(...(showLocatedStatus()?[96]:[]),...(stockChecksEnabled()?[106]:[]),...(notesColumn?[54]:[]),isTVInventory()?70:104);
     const totalWidth=widths.reduce((total,width)=>total+width,0);
-    const columns=orderedColumns.map((col,index)=>{const th=element('th','',index===0?'':col.key==='quantity'?'Qnt':col.label);th.scope='col';if(index===0)th.append(heading);th.style.width=`${widths[index]/totalWidth*100}%`;return th;});
-    [...(showLocatedStatus()?['Status']:[]),...(stockChecksEnabled()?['Last checked']:[]),...(notesColumn?['Notes']:[]),'Actions'].forEach((text,index)=>{const th=element('th',text==='Notes'?'equipment-notes-heading':text==='Actions'?'equipment-actions-heading':'',text);th.scope='col';th.style.width=`${widths[orderedColumns.length+index]/totalWidth*100}%`;columns.push(th);});
+    const flexible=orderedColumns.map((col,index)=>col.type==='text'&&col.key!=='quantity'?index:-1).filter(index=>index>=0);
+    if(!flexible.length)flexible.push(0);
+    const flexibleWidth=flexible.reduce((total,index)=>total+widths[index],0);
+    const spareWidth=Math.max(0,$('equipment-table').parentElement.clientWidth-totalWidth);
+    flexible.forEach(index=>{widths[index]+=spareWidth*widths[index]/flexibleWidth;});
+    const columns=orderedColumns.map((col,index)=>{const th=element('th','',index===0?'':col.key==='quantity'?'Qnt':col.label);th.scope='col';if(index===0)th.append(heading);th.style.width=`${widths[index]}px`;return th;});
+    [...(showLocatedStatus()?['Status']:[]),...(stockChecksEnabled()?['Last checked']:[]),...(notesColumn?['Notes']:[]),'Actions'].forEach((text,index)=>{const th=element('th',text==='Notes'?'equipment-notes-heading':text==='Actions'?'equipment-actions-heading':'',text);th.scope='col';th.style.width=`${widths[orderedColumns.length+index]}px`;columns.push(th);});
     $('equipment-table').querySelector('thead tr').replaceChildren(...columns);
-    $('equipment-table').style.minWidth=`${Math.max(850,totalWidth)}px`;
+    $('equipment-table').style.minWidth=`${Math.max(700,totalWidth)}px`;
+    $('equipment-table').style.setProperty('--inventory-actions-width',`${isTVInventory()?70:104}px`);
     $('equipment-search').placeholder='Search all inventory columns…';
     $('equipment-search').title='Search item, brand, model, serial number, quantity, location, notes, status and custom columns.';
     document.querySelector('.equipment-status-group').hidden=!showLocatedStatus();
@@ -335,6 +343,8 @@
     if (!location || location.filter==='none') $('equipment-location-filter').value='';
   }
   document.fonts.ready.then(()=>{if(inventoryReady)renderEquipment();});
+  let columnResizeTimer;
+  window.addEventListener('resize',()=>{clearTimeout(columnResizeTimer);columnResizeTimer=setTimeout(()=>{if(inventoryReady&&currentTab==='equipment')renderInventoryColumns();},100);});
   function renderCustomFilters() {
     $('equipment-custom-filters').replaceChildren(...displayColumns().filter(col=>!['location','model'].includes(col.key)&&col.filter!=='none').map(col=>{
       const group=element('fieldset','button-filter');group.append(element('legend','',col.label));
@@ -674,7 +684,14 @@
     const link = element('a'); link.href=url; link.download='inventory-cross-check.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url),1000);
   };
   $('cancel-equipment-record-review').onclick = () => $('equipment-record-review-dialog').close();
-  window.equipmentUI = {profile:()=>layout(),locations:()=>locations(),importReport:(id, report) => { importReports.set(id, report); renderEquipment(); },load:loadEquipment, open:openEquipment,
+  async function revealInventoryItem(id, targetInventory) {
+    await loadEquipment(targetInventory);
+    resetEquipmentFilters(true);
+    if(isTVInventory())$('equipment-show-zero').checked=true;
+    renderEquipment();
+    return $('equipment-rows').querySelector(`tr[data-item-id="${Number(id)}"]`);
+  }
+  window.equipmentUI = {reveal:revealInventoryItem,profile:()=>layout(),locations:()=>locations(),importReport:(id, report) => { importReports.set(id, report); renderEquipment(); },load:loadEquipment, open:openEquipment,
     currentInventory,
     waitUntilReady:async () => { await inventoryLoad; return inventoryCatalogEmpty ? null : currentInventory(); },
     flush:() => Promise.all([...pendingConfirmations.values()]),

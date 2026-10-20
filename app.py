@@ -344,6 +344,32 @@ def inventory():
         return [serialize(row) for row in con.execute('SELECT * FROM devices ORDER BY venue COLLATE NOCASE, name COLLATE NOCASE')]
 
 
+def rename_device_venue(value):
+    if not isinstance(value, dict) or not all(isinstance(value.get(key), str) for key in ('old_name', 'new_name')):
+        raise ValueError('Choose a venue and enter its new name.')
+    old, new = clean_venue(value['old_name']), clean_venue(value['new_name'])
+    if not old or not new or len(new) > 120:
+        raise ValueError('Use a venue name between 1 and 120 characters.')
+    expected = value.get('expected_ids')
+    if not isinstance(expected, list) or any(type(item) is not int or item < 1 for item in expected):
+        raise ValueError('Refresh the Devices workspace before renaming a venue.')
+    with connect() as con:
+        con.execute('BEGIN IMMEDIATE')
+        rows = list(con.execute("SELECT id, venue FROM devices WHERE record_type='device'"))
+        matching = [row for row in rows if clean_venue(row['venue']) == old]
+        if not matching:
+            raise LookupError('This venue no longer exists. Refresh the Devices workspace.')
+        if set(expected) != {row['id'] for row in matching}:
+            raise ValueError('Devices in this venue changed. Refresh and try again.')
+        if any(clean_venue(row['venue']).casefold() == new.casefold() and clean_venue(row['venue']) != old for row in rows):
+            raise ValueError('Another venue already uses that name. Choose a different name.')
+        if old != new:
+            for row in matching:
+                con.execute('UPDATE devices SET venue=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', (new, row['id']))
+                operations.audit(con, 'device', row['id'], 'venue_renamed', {'from': old, 'to': new})
+        return {'renamed': len(matching), 'old_name': old, 'new_name': new}
+
+
 def save_device(value, device_id=None):
     creating=device_id is None
     row = validate(value)
@@ -460,6 +486,8 @@ def import_devices(payload, connection=None):
                     vlan = vlan.strip()
                 # Ignore text or decimal VLAN values; never invent a VLAN number.
                 value['vlan'] = vlan if type(vlan) is int or (isinstance(vlan, str) and vlan.isascii() and vlan.isdigit()) else None
+            if isinstance(value, dict) and value.get('record_type') == 'iptv':
+                value = dict(value, notes='')
             row = validate(value)
             if row['record_type'] == 'device' and not row['discipline']:
                 row['discipline'] = system_from_name(row['name'])
@@ -1492,6 +1520,8 @@ class Handler(BaseHTTPRequestHandler):
                 if not con.execute('DELETE FROM equipment WHERE id=? AND inventory_id=?', (item_id, inventory_id)).rowcount:
                     raise LookupError('Inventory item not found.')
             return self.send(200, {'deleted':item_id})
+        elif self.command == 'POST' and path == '/api/devices/rename-venue':
+            return self.send(200, rename_device_venue(self.body()))
         elif self.command == 'POST' and path == '/api/devices':
             return self.send(201, save_device(self.body()))
         elif self.command == 'POST' and path == '/api/spreadsheet-preview':

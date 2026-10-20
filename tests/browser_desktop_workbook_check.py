@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace
 """Desktop multi-sheet previews never save records before explicit import."""
 import shutil,sys,tempfile,threading
 from pathlib import Path
@@ -36,7 +37,7 @@ with tempfile.TemporaryDirectory() as tmp:
    page.locator('#close-import-summary').click()
    page.evaluate('() => window.equipmentUI.open()');custom_field=page.locator('#equipment-custom-fields [data-draft-field]').first;custom_field.fill('UNSAVED-ASSET');page.locator('#close-equipment').click()
    page.evaluate('() => window.equipmentUI.open()');assert page.locator('#equipment-custom-fields [data-draft-field]').first.input_value()=='UNSAVED-ASSET';page.locator('#close-equipment').click()
-   page.locator('#device-tab').click()
+   open_workspace(page, 'device-tab')
    import json
    notes='Subnet 255.255.255.0\nGateway 10.0.0.1\nKeep\tthis tab'
    source=Path(tmp)/'devices.json';source.write_text(json.dumps({'version':1,'devices':[{'name':'JSON camera','ip':'10.0.0.2','notes':notes}]}))

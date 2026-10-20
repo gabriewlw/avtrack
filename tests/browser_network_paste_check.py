@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace
 """Excel pastes on Devices and IPTV share column matching and editable review."""
 import sys,tempfile,threading,shutil
 from pathlib import Path
@@ -16,7 +17,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.on('pageerror',lambda error:errors.append(str(error)))
             page.goto(f'http://127.0.0.1:{server.server_port}/')
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
-            page.locator('#device-tab').click()
+            open_workspace(page, 'device-tab')
             def paste(text,mode):
                 assert page.locator('#transfer button').first.get_attribute('id')=='add-device'
                 assert page.locator('#transfer #import').count()==1
@@ -49,7 +50,7 @@ with tempfile.TemporaryDirectory() as tmp:
             assert app.inventory()[0]['confirmation_required']==0
             assert page.locator('.ip-confirm').count()==0
             page.locator('#import-summary-panel').wait_for(state='visible');page.locator('#close-import-summary').click()
-            page.locator('#iptv-tab').click()
+            open_workspace(page, 'iptv-tab')
             paste('| Channel Name | Multicast IP | Port | Notes |\n| --- | --- | --- | --- |\n| Crew TV | 239.1.2.3 | 1234 | Onboard |','ip')
             assert 'IPTV Channels' in page.locator('#paste-inventory-target').inner_text()
             assert page.locator('#map-port').input_value()=='2'
@@ -67,7 +68,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.get_by_role('button',name='IP confirmed for Crew TV',exact=True).wait_for(state='visible')
             assert next(r for r in app.inventory() if r['record_type']=='iptv')['ip_confirmed']==1
             page.reload();page.wait_for_function("() => !document.getElementById('refresh').disabled")
-            page.locator('#iptv-tab').click()
+            open_workspace(page, 'iptv-tab')
             assert page.get_by_role('button',name='IP confirmed for Crew TV',exact=True).is_visible()
             assert not errors,errors
             browser.close()

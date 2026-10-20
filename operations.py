@@ -48,7 +48,7 @@ def apply_import(app, con, session, row):
             fields={key:valid[key] for key in app.EQUIPMENT_FIELDS}
             fields.update(custom_values=json.dumps(values,sort_keys=True),data_checked=0,item_confirmed=0,data_checked_at=None)
         else:
-            fields=app.validate(dict(row,record_type=scope));fields['ip_confirmed']=0
+            fields=app.validate(dict(row,record_type=scope,**({'notes':''} if scope=='iptv' else {})));fields['ip_confirmed']=0
         con.execute(f'UPDATE {table} SET '+','.join(key+'=?' for key in fields)+',updated_at=CURRENT_TIMESTAMP WHERE id=?', [*fields.values(),before['id']])
         after=record(con,table,before['id'])
         if equipment and not app.equipment_complete(app.equipment_record(before), profile) and app.equipment_complete(app.equipment_record(after), profile):

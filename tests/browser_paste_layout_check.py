@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace
 """Pasted headers produce a suggested table before editable field matching."""
 import sys,tempfile,threading,shutil
 from pathlib import Path
@@ -16,7 +17,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.on('pageerror',lambda error:errors.append(str(error)))
             page.goto(f'http://127.0.0.1:{server.server_port}/')
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
-            page.locator('#device-tab').click()
+            open_workspace(page, 'device-tab')
             text='Venue\tDevice Name\tIP Address\tVLAN\tNotes\tOdd heading\nSports Bar\tWall TV\t10.20.30.40\t50\t\t<test>'
             page.locator('#import').click();page.locator('#paste-inventory-text').fill(text)
             page.locator('#continue-paste-inventory').click()

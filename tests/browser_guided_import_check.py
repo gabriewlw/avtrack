@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace
 """Desktop import drafts, batch IPs, resume, workbook queues and saved reports."""
 import json,shutil,sys,tempfile,threading
 from pathlib import Path
@@ -23,7 +24,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.on('pageerror',lambda error:errors.append(str(error)))
             page.goto(f'http://127.0.0.1:{server.server_port}/')
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
-            page.locator('#device-tab').click()
+            open_workspace(page, 'device-tab')
             def paste(text,mode=None):
                 page.locator('#import' if page.locator('#equipment-panel').is_hidden() else '#equipment-import').click()
                 page.locator('#paste-inventory-text').fill(text);page.locator('#continue-paste-inventory').click()
@@ -80,7 +81,7 @@ with tempfile.TemporaryDirectory() as tmp:
             assert page.locator('#map-name').input_value()=='2'
             page.locator('#cancel-spreadsheet').click()
             assert len(app.inventory())==2
-            page.locator('#equipment-tab').click()
+            open_workspace(page, 'equipment-tab')
             page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled")
             page.locator('#equipment-inventory-select').select_option(str(parts['id']));page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled")
             # A different confirmation choice stays a draft if the user cancels.

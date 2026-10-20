@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace
 """Recover stale browser files and report loading failures without losing server data."""
 import shutil,sys,tempfile,threading
 from pathlib import Path
@@ -51,7 +52,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert 'avtrack-offline-stale' not in page.evaluate('caches.keys()')
             assert page.evaluate("localStorage.getItem('recovery-test-preference')")=='keep'
             assert app.inventory()[0]['id']==saved['id'] and len(app.inventory())==1
-            page.locator('#equipment-tab').click()
+            open_workspace(page, 'equipment-tab')
             page.wait_for_function("() => !document.getElementById('new-equipment-inventory').disabled")
             page.locator('#new-equipment-inventory').click();page.locator('#equipment-inventory-dialog').wait_for(state='visible')
             assert not errors,errors

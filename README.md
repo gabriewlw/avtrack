@@ -119,7 +119,7 @@ Column matching and verification controls remain available under **Advanced sett
 
 File upload remains available for `.csv` and `.xlsx` files, including workbooks with multiple worksheets. Excel files preserve worksheets and cell structure better; CSV is smaller and easier to inspect manually.
 
-For IPTV, choose the source columns for **Channel Name**, **Multicast IP**, **Port**, and optionally **Notes**. Sample values identify each choice, including sources with no headings. The first channel is retained, and unused columns do not need names or selections: their values are added to Notes. If needed, use **First row** to choose whether it contains headings or channel data, then continue directly to row review.
+For IPTV, choose the source columns for **Channel Name**, **Multicast IP**, and **Port**. Notes are left blank on workspace imports; complete app backup restores retain saved Notes. Sample values identify each choice, including sources with no headings. The first channel is retained, and unused columns do not need names or selections: unused values are ignored for IPTV. If needed, use **First row** to choose whether it contains headings or channel data, then continue directly to row review.
 
 Spreadsheet layouts can differ from one job to another. Always review the detected headings, destination inventory, quantities, and locations before applying a large import.
 
@@ -336,3 +336,15 @@ Browser checks in `tests/browser_*.py` require Playwright and Chromium in the de
 AVTrack is designed first for a trusted local or private-network workflow. It currently does not provide user accounts, permissions, automatic device polling, continuous IPTV stream monitoring, or cloud synchronization. Those capabilities can be added later without changing the purpose of the project: keeping broadcast information organized, searchable, and ready when it is needed.
 
 AVTrack was created for real broadcast work at sea, where fast access to the right address, item, or recovery file can save valuable time.
+
+Desktop navigation uses **Home**, **Workspaces**, and global search. Home contains
+summary cards; the Workspaces menu opens Devices, IPTV, Inventory, and Backups.
+Global search results include **Open in workspace**, which opens the exact record,
+clears obstructing filters, and highlights it. These links also work after reload.
+Desktop tables use compact rows and content-based widths. PDF reports use landscape
+A4, content-based column widths, and compact padding to fit more information on each
+page while retaining the complete exported content.
+
+Use **Venue → Rename** in Devices to update a venue name on all its devices.
+Venue labels stay on one line and show the full name on hover. Duplicate names
+and changes to the venue membership are rejected before any records are updated.
