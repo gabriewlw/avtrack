@@ -59,6 +59,7 @@ function updateWorkspaceHeaderExample(type) {
   $('workspace-example-art').setAttribute('viewBox', viewBox);
   $('workspace-example-caption').textContent = description;
   $('workspace-example').dataset.workspace = type;
+  $('workspace-inventory-status').style.display = type === 'equipment' ? 'inline' : 'none';
 }
 function syncHomePresentation() {
   const home = onHomeRoute();

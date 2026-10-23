@@ -34,8 +34,10 @@ with tempfile.TemporaryDirectory() as tmp:
             original = title.inner_text()
             page.wait_for_timeout(600)
             assert title.inner_text() == original
-            image = page.locator('.home-workspace-examples img')
-            assert image.evaluate('(n)=>n.complete && n.naturalWidth > 0')
+            image = page.locator('.home-workspace-examples .workspace-example-strip')
+            assert page.request.get(origin+'/workspace-examples.png').ok
+            assert image.locator('image').get_attribute('href') == '/workspace-examples.png'
+            assert image.locator('.inventory-example-status text').first.inner_text() == 'Located'
             assert image.bounding_box()['width'] > 900
             assert page.locator('.workspace-example-labels span').count() == 4
             assert image.bounding_box()['height'] < 250
@@ -58,6 +60,9 @@ with tempfile.TemporaryDirectory() as tmp:
                     assert intro.inner_text().strip(), (path,width)
                     example=page.locator('#workspace-example')
                     assert example.is_visible(), (path,width)
+                    if path == '/inventory':
+                        assert example.locator('.inventory-example-status').is_visible()
+                        assert example.locator('.inventory-example-status text').first.inner_text() == 'Located'
                     assert example.get_attribute('data-workspace') == {'/#av':'device','/#iptv':'iptv','/inventory':'equipment','/backups':'backups'}[path]
                     assert example.locator('a,button').count()==0
                     assert example.locator('svg').bounding_box()['height']<=180
@@ -84,7 +89,8 @@ with tempfile.TemporaryDirectory() as tmp:
             page.wait_for_function('()=>document.querySelector(".scene-iptv").classList.contains("active")')
             popup=page.locator('.vlc-stream-example')
             popup.wait_for(state='visible')
-            assert popup.locator('img').evaluate('(n)=>n.complete && n.naturalWidth > 0')
+            assert popup.locator('svg image').get_attribute('href') == '/workspace-examples.png'
+            assert popup.locator('.vlc-example-controls').is_visible()
             assert 'one click' in page.locator('[data-scene="iptv"]').inner_text()
             page.screenshot(path=str(out/'avtrack-landing-iptv-vlc.png'),full_page=False)
             assert not errors, errors
