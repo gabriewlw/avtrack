@@ -34,9 +34,11 @@ with tempfile.TemporaryDirectory() as tmp:
             original = title.inner_text()
             page.wait_for_timeout(600)
             assert title.inner_text() == original
-            image = page.locator('#example-media img')
+            image = page.locator('.home-workspace-examples img')
             assert image.evaluate('(n)=>n.complete && n.naturalWidth > 0')
-            assert image.bounding_box()['width'] <= 240
+            assert image.bounding_box()['width'] > 900
+            assert page.locator('.workspace-example-labels span').count() == 4
+            assert page.locator('.hero-side').is_hidden()
             empty = page.locator('#home-empty-state').bounding_box()
             overview = page.locator('#homepage-overview').bounding_box()
             assert empty['y'] - (overview['y'] + overview['height']) >= 40

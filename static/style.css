@@ -1157,3 +1157,15 @@ body.desktop-working #hero-title { font-size:clamp(22px,2.5vw,28px); line-height
   overflow-wrap:anywhere;
   line-height:18px;
 }
+
+/* One overview strip introduces all four workspaces without dominating Home. */
+.home-workspace-examples { display:none; }
+body.home-workspace .hero-side { display:none; }
+body.home-workspace .home-workspace-examples { display:block; margin:0 0 40px; padding:16px; border:1px solid var(--border); border-radius:12px; background:var(--card); overflow:hidden; }
+.workspace-example-labels { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:12px; text-align:center; color:var(--muted-foreground); font:10px/1.5 var(--mono); }
+.home-workspace-examples img { display:block; width:100%; height:auto; border-radius:6px; }
+.home-workspace-examples figcaption { margin-top:10px; text-align:right; color:var(--muted-foreground); font-size:10px; }
+@media(max-width:600px) {
+  body.home-workspace .home-workspace-examples { padding:10px; margin-bottom:28px; }
+  .workspace-example-labels { gap:6px; font-size:8px; }
+}

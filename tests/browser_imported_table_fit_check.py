@@ -31,6 +31,9 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#equipment-import').click()
             page.locator('#upload-paste-inventory').click()
             page.locator('#import-file').set_input_files(str(csv))
+            page.locator('#paste-layout-dialog').wait_for(state='visible')
+            page.wait_for_function("()=>!document.getElementById('keep-paste-layout').disabled")
+            page.locator('#keep-paste-layout').click()
             page.locator('#spreadsheet-dialog').wait_for(state='visible')
             page.wait_for_function("()=>!document.getElementById('confirm-import').disabled")
             if page.locator('#import-complete-rows').is_checked():
