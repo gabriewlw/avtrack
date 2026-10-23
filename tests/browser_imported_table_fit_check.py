@@ -28,12 +28,15 @@ with tempfile.TemporaryDirectory() as tmp:
             long_name='Production switcher with advanced broadcast control and multiview monitoring'
             csv=Path(tmp)/'content-fit.csv'
             csv.write_text('Item,Brand,Model,Serial number,Quantity,Location,Notes\n'+long_name+',Blackmagic Design,ATEM Television Studio HD8 ISO,ATEM-HD8-001,1,Broadcast control room,With power supply\n')
+            page.locator('#equipment-import').click()
+            page.locator('#upload-paste-inventory').click()
             page.locator('#import-file').set_input_files(str(csv))
+            page.locator('#spreadsheet-dialog').wait_for(state='visible')
             page.wait_for_function("()=>!document.getElementById('confirm-import').disabled")
-            page.locator('#import-confirmation-choice').select_option('storage')
+            if page.locator('#import-complete-rows').is_checked():
+                page.locator('#import-complete-rows').uncheck()
             page.locator('#confirm-import').click()
             page.locator('#inventory-import-review').wait_for(state='visible')
-            page.locator('#inventory-import-review-all').check()
             page.locator('#inventory-import-review-save').click()
             page.locator('#import-summary-panel').wait_for(state='visible')
             page.locator('#close-import-summary').click()
