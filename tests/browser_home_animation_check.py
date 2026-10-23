@@ -24,6 +24,13 @@ with tempfile.TemporaryDirectory() as tmp:
             assert page.locator('.hero-typewriter-cursor').count() == 0
             assert title.evaluate('(n)=>getComputedStyle(n).textAlign') == 'center'
             assert float(title.evaluate('(n)=>parseFloat(getComputedStyle(n).fontSize)')) >= 50
+            add = page.locator('.overview-add').first
+            add.hover()
+            card = page.locator('.overview-card').first
+            assert add.evaluate('(n)=>getComputedStyle(n).backgroundColor') != card.evaluate('(n)=>getComputedStyle(n).backgroundColor')
+            assert add.evaluate('(n)=>getComputedStyle(n).borderColor') != card.evaluate('(n)=>getComputedStyle(n).borderColor')
+            Path('work/screenshots').mkdir(parents=True, exist_ok=True)
+            page.screenshot(path='work/screenshots/avtrack-add-hover.png')
             original = title.inner_text()
             page.wait_for_timeout(600)
             assert title.inner_text() == original

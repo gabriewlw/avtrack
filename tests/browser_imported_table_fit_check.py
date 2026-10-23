@@ -39,7 +39,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#close-import-summary').click()
             page.wait_for_function('(name)=>document.querySelector("#equipment-rows").textContent.includes(name)',arg=long_name)
             page.evaluate('document.fonts.ready')
-            assert table.bounding_box()['width']>short_width+100
+            assert table.bounding_box()['width']>short_width+60
             assert page.locator('#equipment-rows tr').count()==2
             dimensions=page.evaluate("""() => {
                 const table=document.querySelector('#equipment-table');
@@ -62,6 +62,11 @@ with tempfile.TemporaryDirectory() as tmp:
             for control in page.locator('#equipment-rows .equipment-action-icon').all():
                 assert control.bounding_box()['width']>=26
             assert page.locator('#equipment-rows tr').filter(has_text=long_name).locator('.equipment-brand-value > span').evaluate('(n)=>n.scrollWidth<=n.clientWidth+1')
+            long_row=page.locator('#equipment-rows tr').filter(has_text=long_name)
+            short_row=page.locator('#equipment-rows tr').filter(has_text='Panel')
+            name_cell=long_row.locator('.inventory-text-value').first
+            assert 35 <= name_cell.bounding_box()['height'] <= 55, name_cell.bounding_box()
+            assert long_row.bounding_box()['height'] > short_row.bounding_box()['height']
             out=Path('work/screenshots');out.mkdir(parents=True,exist_ok=True)
             page.set_viewport_size({'width':1440,'height':1000})
             page.screenshot(path=str(out/'avtrack-imported-table-desktop.png'),full_page=True)

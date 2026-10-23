@@ -502,7 +502,7 @@ nav a,.eyebrow,.network-card-top,.stats span,.filters label>span,.button-filter 
 .overview-card-actions{display:grid;grid-template-columns:1fr;gap:8px;margin-top:16px}
 .overview-card-actions button,.overview-card-actions a{display:flex;align-items:center;justify-content:center;min-height:38px;padding:8px 10px;border-radius:6px;font-size:11px;font-weight:650;text-decoration:none}
 .overview-workspace-link{gap:6px;border:1px solid color-mix(in oklab, var(--primary) 66%, var(--border));background:color-mix(in oklab, var(--primary) 12%, var(--secondary));color:color-mix(in oklab, var(--primary) 55%, var(--foreground))}.overview-workspace-link:hover{border-color:var(--accent-text);background:color-mix(in oklab, var(--primary) 18%, var(--surface-accent));color:var(--foreground)}
-.overview-add{border:1px solid var(--border);background:var(--card);color:var(--foreground)}.overview-add:hover{border-color:var(--border);background:var(--surface-accent);color:var(--foreground)}
+.overview-add{border:1px solid var(--border);background:var(--card);color:var(--foreground)}.overview-add:hover,.overview-add:focus-visible{border-color:color-mix(in oklab,var(--primary) 65%,var(--border));background:color-mix(in oklab,var(--primary) 14%,var(--background));color:var(--foreground)}
 .home-data-pending #workspace,.home-data-pending main>.stats,.home-data-pending #inventory,.home-data-pending #validation-note,.home-empty-workspace #workspace,.home-empty-workspace main>.stats,.home-empty-workspace #inventory,.home-empty-workspace #validation-note{display:none}
 .home-empty-state{position:relative;overflow:hidden;margin:0 0 36px;padding:34px;border:1px solid var(--border);border-radius:14px;background:radial-gradient(circle at 88% 0,color-mix(in oklab,var(--primary) 15%,transparent),transparent 38%),linear-gradient(135deg,var(--secondary),var(--background) 72%);box-shadow:0 20px 60px rgba(0,0,0,.16)}
 .home-empty-state::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.18;background:linear-gradient(90deg,transparent 49.8%,var(--border) 50%,transparent 50.2%),linear-gradient(0deg,transparent 49.8%,var(--border) 50%,transparent 50.2%);background-size:72px 72px;mask-image:linear-gradient(to left,#000,transparent 72%)}
@@ -1146,3 +1146,14 @@ body.desktop-working #hero-title { font-size:clamp(22px,2.5vw,28px); line-height
 #equipment-table .inventory-cell-controls .choice-button { flex:none; max-width:none; }
 #equipment-table .equipment-actions button { vertical-align:middle; }
 .equipment-table-wrap { overscroll-behavior-x:contain; }
+
+/* Long imported names wrap in their own row instead of widening every column. */
+#equipment-table .inventory-text-value,
+#equipment-table .equipment-brand-value > .inventory-text-value {
+  display:block;
+  width:max-content;
+  max-width:38ch;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  line-height:18px;
+}

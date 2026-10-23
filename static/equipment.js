@@ -203,12 +203,13 @@
       displayColumns().forEach((column,index) => {
         const field=column.key;
         const cell = element('td', '', inventoryValue(item,field));
+        if(column.type==='text' && field!=='quantity')cell.replaceChildren(element('span','inventory-text-value',inventoryValue(item,field)));
         if (index === 0) {
           const value = element('div', 'equipment-brand-value');
           value.append(selectionControl(item.id, `equipment ${displayName(item)}`, selectedItems, () => {
             if (selectedItems.size) $('equipment-export-scope').value = 'selected';
             updateEquipmentSelection();
-          }), element('span', '', inventoryValue(item,field)));
+          }), element('span', 'inventory-text-value', inventoryValue(item,field)));
           cell.replaceChildren(value);
         }
         if(field==='orientation'||['checkbox','buttons','select','count'].includes(column.type)){
