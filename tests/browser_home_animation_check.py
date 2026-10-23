@@ -36,9 +36,9 @@ with tempfile.TemporaryDirectory() as tmp:
             assert title.inner_text() == original
             image = page.locator('.home-workspace-examples .workspace-example-strip')
             assert page.request.get(origin+'/workspace-examples.png').ok
-            assert image.locator('image').get_attribute('href') == '/workspace-examples.png'
+            assert image.locator('image').first.get_attribute('href') == '/workspace-examples.png'
             assert image.locator('.inventory-example-status text').first.text_content() == 'Located'
-            for detail in ['ATEM 1 M/E Advanced Panel 10', 'Liquid Lounge', 'Video', '120', '192.0.2.10']:
+            for detail in ['ATEM 1 M/E Advanced Panel 10', 'Main Theater', 'Video', '120', '192.0.2.10']:
                 assert detail in image.locator('.atem-example-info').text_content()
             assert image.bounding_box()['width'] > 900
             assert page.locator('.workspace-example-labels span').count() == 4
@@ -63,7 +63,7 @@ with tempfile.TemporaryDirectory() as tmp:
                     example=page.locator('#workspace-example')
                     assert example.is_visible(), (path,width)
                     if path == '/#av':
-                        assert 'Liquid Lounge' in example.locator('.atem-example-info').text_content()
+                        assert 'Main Theater' in example.locator('.atem-example-info').text_content()
                         assert '192.0.2.10' in example.locator('.atem-example-info').text_content()
                     if path == '/inventory':
                         assert example.locator('.inventory-example-status').is_visible()

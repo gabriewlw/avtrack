@@ -50,7 +50,7 @@ function syncHomeHeadline() {
 }
 function updateWorkspaceHeaderExample(type) {
   const examples = {
-    device: ['0 126 564 472', 'ATEM 1 M/E Advanced Panel 10 at Liquid Lounge, Video, VLAN 120, IP address 192.0.2.10.'],
+    device: ['0 126 564 472', 'ATEM 1 M/E Advanced Panel 10 at Main Theater, Video, VLAN 120, IP address 192.0.2.10.'],
     iptv: ['564 126 622 472', 'Example live football channel in VLC. Simulated playback.'],
     equipment: ['1186 126 451 472', 'Example Blackmagic Micro Converter marked Located, last checked Oct 23.'],
     backups: ['1637 126 535 472', 'Example backup folder with Videohub, OBS, ATEM, and Cisco switch configuration files.']
