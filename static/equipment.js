@@ -306,32 +306,17 @@
     const heading=$('select-visible-equipment').closest('label');
     const orderedColumns=displayColumns().filter(column=>column.key!=='notes'),notesColumn=displayColumns().find(column=>column.key==='notes');
     heading.querySelector('span').textContent=(orderedColumns[0]||notesColumn).label;
-    const context=document.createElement('canvas').getContext('2d');
-    const tableFont=getComputedStyle($('equipment-table')).fontFamily;
-    const minimums={description:100,brand:62,model:76,serial_number:98,quantity:38,location:78,total_count:58};
-    const limits={description:220,brand:120,model:190,serial_number:190,location:160};
-    const widths=orderedColumns.map((col,index)=>{
-      const shownLabel=col.key==='quantity'?'Qnt':col.label;
-      const selectionWidth=index===0?24:0;
-      context.font=`11px ${getComputedStyle(document.documentElement).getPropertyValue('--mono')}`;
-      const labelWidth=context.measureText(shownLabel.toUpperCase()).width+shownLabel.length+14+selectionWidth;
-      context.font=`12px ${tableFont}`;
-      const valueWidth=items.reduce((width,item)=>Math.max(width,context.measureText(String(inventoryValue(item,col.key) ?? '')).width),0)+14+selectionWidth;
-      const controlWidth=col.key==='orientation' ? Math.max(148,(col.options || []).reduce((width,value)=>width+value.length*6+18,6)) : col.type==='buttons' ? (col.options || []).reduce((width,value)=>width+value.length*6+18,0) : col.type==='checkbox' ? 76 : col.type==='select' ? 86 : 0;
-      return Math.ceil(Math.max(minimums[col.key] || 64,labelWidth,controlWidth,Math.min(limits[col.key] || 160,valueWidth)));
+    // Let the browser measure the actual text, fonts, icons and controls together.
+    // Fixed guesses and viewport expansion leave gaps or truncate imported values.
+    const columns=orderedColumns.map((col,index)=>{
+      const th=element('th','',index===0?'':col.key==='quantity'?'Qnt':col.label);
+      th.scope='col';if(index===0)th.append(heading);return th;
     });
-    widths.push(...(showLocatedStatus()?[96]:[]),...(stockChecksEnabled()?[106]:[]),...(notesColumn?[54]:[]),isTVInventory()?70:104);
-    const totalWidth=widths.reduce((total,width)=>total+width,0);
-    const flexible=orderedColumns.map((col,index)=>col.type==='text'&&col.key!=='quantity'?index:-1).filter(index=>index>=0);
-    if(!flexible.length)flexible.push(0);
-    const flexibleWidth=flexible.reduce((total,index)=>total+widths[index],0);
-    const spareWidth=Math.max(0,$('equipment-table').parentElement.clientWidth-totalWidth);
-    flexible.forEach(index=>{widths[index]+=spareWidth*widths[index]/flexibleWidth;});
-    const columns=orderedColumns.map((col,index)=>{const th=element('th','',index===0?'':col.key==='quantity'?'Qnt':col.label);th.scope='col';if(index===0)th.append(heading);th.style.width=`${widths[index]}px`;return th;});
-    [...(showLocatedStatus()?['Status']:[]),...(stockChecksEnabled()?['Last checked']:[]),...(notesColumn?['Notes']:[]),'Actions'].forEach((text,index)=>{const th=element('th',text==='Notes'?'equipment-notes-heading':text==='Actions'?'equipment-actions-heading':'',text);th.scope='col';th.style.width=`${widths[orderedColumns.length+index]}px`;columns.push(th);});
+    [...(showLocatedStatus()?['Status']:[]),...(stockChecksEnabled()?['Last checked']:[]),...(notesColumn?['Notes']:[]),'Actions'].forEach(text=>{
+      const th=element('th',text==='Notes'?'equipment-notes-heading':text==='Actions'?'equipment-actions-heading':'',text);
+      th.scope='col';columns.push(th);
+    });
     $('equipment-table').querySelector('thead tr').replaceChildren(...columns);
-    $('equipment-table').style.minWidth=`${Math.max(700,totalWidth)}px`;
-    $('equipment-table').style.setProperty('--inventory-actions-width',`${isTVInventory()?70:104}px`);
     $('equipment-search').placeholder='Search all inventory columns…';
     $('equipment-search').title='Search item, brand, model, serial number, quantity, location, notes, status and custom columns.';
     document.querySelector('.equipment-status-group').hidden=!showLocatedStatus();

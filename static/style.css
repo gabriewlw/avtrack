@@ -1110,3 +1110,39 @@ body.desktop-working .hero-copy > .eyebrow,
 body.desktop-working .hero-side,
 body.desktop-working #hero-intro { display:none; }
 body.desktop-working #hero-title { font-size:clamp(22px,2.5vw,28px); line-height:1.25; letter-spacing:-.5px; }
+
+/* Content-sized imported inventories: columns follow their widest visible cell. */
+#equipment-table {
+  width:max-content;
+  min-width:0;
+  max-width:none;
+  table-layout:auto;
+}
+#equipment-table th,
+#equipment-table td,
+#equipment-table th.equipment-actions-heading,
+#equipment-table td.equipment-actions,
+#equipment-table th.equipment-notes-heading,
+#equipment-table td.equipment-notes-column {
+  width:auto!important;
+  max-width:none;
+  white-space:nowrap;
+  vertical-align:middle;
+}
+#equipment-table .equipment-brand-value { width:max-content; }
+#equipment-table .equipment-brand-value > span { overflow:visible; text-overflow:clip; }
+#equipment-table .inventory-cell-controls {
+  width:max-content;
+  max-width:none;
+  overflow:visible;
+  gap:6px;
+}
+#equipment-table .inventory-cell-controls > select,
+#equipment-table .equipment-serial-list {
+  width:auto;
+  max-width:none;
+}
+#equipment-table .inventory-cell-controls .choice-buttons { gap:4px; }
+#equipment-table .inventory-cell-controls .choice-button { flex:none; max-width:none; }
+#equipment-table .equipment-actions button { vertical-align:middle; }
+.equipment-table-wrap { overscroll-behavior-x:contain; }

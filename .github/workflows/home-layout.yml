@@ -4,6 +4,7 @@ on:
     paths:
       - 'static/**'
       - 'tests/browser_home_animation_check.py'
+      - 'tests/browser_imported_table_fit_check.py'
       - '.github/workflows/home-layout.yml'
   pull_request:
 permissions:
@@ -22,6 +23,8 @@ jobs:
         env:
           AVTRACK_SCREENSHOT_DIR: work/screenshots
         run: python tests/browser_home_animation_check.py
+      - name: Verify imported table content sizing
+        run: python tests/browser_imported_table_fit_check.py
       - name: Upload external screenshots
         if: always()
         uses: actions/upload-artifact@v4
