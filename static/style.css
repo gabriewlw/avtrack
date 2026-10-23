@@ -914,7 +914,6 @@ main, dialog {
 
 /* Desktop operational views. Existing mobile layout remains separate. */
 @media(min-width:900px) {
-  body.desktop-working main>.heading { display:none; }
   body.desktop-working main { padding-top:24px; }
   #hero-title.home-typewriter { font-size:clamp(28px,3.2vw,40px); }
 }
@@ -1107,8 +1106,7 @@ body.home-workspace .home-empty-state { margin-top:48px; }
 body.desktop-working main > .heading { display:block; margin-bottom:20px; }
 body.desktop-working .hero-copy { gap:0; }
 body.desktop-working .hero-copy > .eyebrow,
-body.desktop-working .hero-side,
-body.desktop-working #hero-intro { display:none; }
+body.desktop-working .hero-side { display:none; }
 body.desktop-working #hero-title { font-size:clamp(22px,2.5vw,28px); line-height:1.25; letter-spacing:-.5px; }
 
 /* Content-sized imported inventories: columns follow their widest visible cell. */
@@ -1197,3 +1195,22 @@ body.home-workspace .home-workspace-examples { padding:12px; margin-bottom:28px;
   align-items:center;
 }
 .workspace-example-labels > span { text-align:center; min-width:0; padding:0 4px; }
+
+/* Every workspace starts with a compact, readable title and purpose. */
+body.desktop-working main > .heading { padding-bottom:16px; border-bottom:1px solid var(--border); }
+body.desktop-working #hero-intro { display:block; max-width:720px; margin:8px 0 0; font-size:13px; line-height:1.6; }
+
+/* Workspace introductions pair useful copy with the corresponding example. */
+.workspace-example { margin:0; width:100%; max-width:260px; }
+.workspace-example[hidden] { display:none!important; }
+.workspace-example svg { display:block; width:100%; height:180px; border-radius:8px; background:var(--background); }
+body.desktop-working main > .heading { display:grid; grid-template-columns:minmax(0,1fr) 240px; gap:28px; align-items:center; }
+body.desktop-working .hero-side { display:flex; align-items:center; width:100%; }
+body.desktop-working .hero-side .network-card { display:none; }
+body.desktop-working .hero-copy { min-width:0; align-items:flex-start; text-align:left; }
+@media(max-width:600px) {
+  body.desktop-working main > .heading { grid-template-columns:minmax(0,1fr); gap:16px; }
+  body.desktop-working .hero-side { align-items:flex-start; }
+  .workspace-example { max-width:260px; }
+  .workspace-example svg { height:160px; }
+}

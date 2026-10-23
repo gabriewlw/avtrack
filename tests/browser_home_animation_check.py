@@ -51,6 +51,26 @@ with tempfile.TemporaryDirectory() as tmp:
                 page.wait_for_function('(text)=>document.querySelector("#hero-title").textContent===text', arg=heading)
                 title.wait_for(state='visible')
                 assert title.bounding_box()['height'] < 80
+                intro=page.locator('#hero-intro')
+                for width in [1440,390]:
+                    page.set_viewport_size({'width':width,'height':1000})
+                    assert title.is_visible() and intro.is_visible(), (path,width)
+                    assert intro.inner_text().strip(), (path,width)
+                    example=page.locator('#workspace-example')
+                    assert example.is_visible(), (path,width)
+                    assert example.get_attribute('data-workspace') == {'/#av':'device','/#iptv':'iptv','/inventory':'equipment','/backups':'backups'}[path]
+                    assert example.locator('a,button').count()==0
+                    assert example.locator('svg').bounding_box()['height']<=180
+                    if width==1440:
+                        copy_box=page.locator('.hero-copy').bounding_box()
+                        image_box=example.bounding_box()
+                        assert copy_box['x']+copy_box['width'] <= image_box['x'], (path,copy_box,image_box)
+                    heading_box=page.locator('main > .heading').bounding_box()
+                    summary_box=page.locator('#workspace').bounding_box()
+                    if summary_box:
+                        assert heading_box['y']+heading_box['height'] <= summary_box['y']+1
+                    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+                page.set_viewport_size({'width':1440,'height':1100})
                 assert 'One clear view.' not in title.inner_text()
                 page.screenshot(path=str(out/(heading.lower().replace(' ','-')+'.png')), full_page=True)
             page.set_viewport_size({'width':390,'height':844})

@@ -48,8 +48,21 @@ function syncHomeHeadline() {
     $('hero-intro').textContent = 'Track your ship’s Devices, IPTV channels, and equipment across every venue. Stay organized wherever you work. Find what you need and export it in seconds.';
   });
 }
+function updateWorkspaceHeaderExample(type) {
+  const examples = {
+    device: ['0 126 564 472', 'Example broadcast control panel with an IP assignment.'],
+    iptv: ['564 126 622 472', 'Example live football channel in VLC. Simulated playback.'],
+    equipment: ['1186 126 451 472', 'Example Blackmagic Micro Converter marked Located, last checked Oct 23.'],
+    backups: ['1637 126 535 472', 'Example backup folder with Videohub, OBS, ATEM, and Cisco switch configuration files.']
+  };
+  const [viewBox, description] = examples[type] || examples.device;
+  $('workspace-example-art').setAttribute('viewBox', viewBox);
+  $('workspace-example-caption').textContent = description;
+  $('workspace-example').dataset.workspace = type;
+}
 function syncHomePresentation() {
   const home = onHomeRoute();
+  $('workspace-example').hidden = home;
   syncHomeHeadline();
   document.body.classList.toggle('desktop-working',!home);
   document.body.classList.toggle('home-workspace',home);
@@ -328,6 +341,7 @@ function switchTab(type) {
   closeExportMenus();
   currentTab = type;
   syncHomePresentation();
+  updateWorkspaceHeaderExample(type);
   $('homepage-overview').hidden = ['/inventory','/backups'].includes(location.pathname) || Boolean(location.hash);
   updatePageSummary();
   const equipment = type === 'equipment';
@@ -346,7 +360,7 @@ function switchTab(type) {
   }
   if (backups) {
     $('hero-title').textContent = 'Configuration backups';
-    $('hero-intro').textContent = 'Save known-good configuration files for switchers, routers, satellite receivers, OBS systems, and other AV equipment in one searchable archive.';
+    $('hero-intro').textContent = 'Keep known-good Videohub, ATEM, OBS, and network switch configurations ready for recovery.';
     $('example-ip').textContent = 'ATEM 2 M/E'; $('example-name').textContent = 'Production Studio 4K';
     $('example-tags').replaceChildren(...['Configuration backup','Control room','Ready to restore'].map(text => element('span','',text)));
     $('validation-note').hidden = true;
@@ -356,7 +370,7 @@ function switchTab(type) {
   if (equipment) {
     $('equipment-transfer').insertBefore($('add-device'), $('equipment-import'));
     $('hero-title').textContent = 'Equipment inventory';
-    $('hero-intro').textContent = 'Manage your broadcast equipment, spare stock, and production tools. Keep brands, models, serial numbers, and quantities organized from the control room to the storeroom.';
+    $('hero-intro').textContent = 'Review equipment by location, update quantities, and record what you have located and checked.';
     $('example-ip').textContent = 'Advanced Panel 10'; $('example-name').textContent = 'Blackmagic Design';
     $('example-tags').replaceChildren(...['Video control panel','Quantity 1','Broadcast center'].map(text => element('span','',text)));
     $('add-device').textContent = 'Add equipment'; $('validation-note').hidden = true;
@@ -377,7 +391,7 @@ function switchTab(type) {
   }
 
   $('hero-title').textContent = iptv ? 'IPTV channels' : 'AV devices';
-  $('hero-intro').textContent = iptv ? 'Keep your onboard and satellite channel lineup in view. Track stream addresses and ports, organize channels by source, and take your inventory from the control room to your phone.' : 'Manage your broadcast equipment, channel lineups, and AV connections. Keep your production workspace organized from the control room to your phone.';
+  $('hero-intro').textContent = iptv ? 'Browse onboard and satellite channels, check stream endpoints, and open a stream in VLC with one click.' : 'Find devices by venue or system, open their IP addresses, and track confirmed connections.';
   $('example-ip').textContent = iptv ? '239.1.1.10' : '10.24.176.67';
   $('example-name').textContent = iptv ? 'Ship information' : 'ATEM 1 M/E Advanced Panel 10';
   $('example-tags').replaceChildren(...(iptv ? ['Onboard', 'Port 1234'] : ['Liquid Lounge', 'Video', 'VLAN 1500']).map(text => element('span', '', text)));
