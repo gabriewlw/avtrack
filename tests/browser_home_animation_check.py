@@ -38,6 +38,7 @@ with tempfile.TemporaryDirectory() as tmp:
             assert image.evaluate('(n)=>n.complete && n.naturalWidth > 0')
             assert image.bounding_box()['width'] > 900
             assert page.locator('.workspace-example-labels span').count() == 4
+            assert image.bounding_box()['height'] < 250
             assert page.locator('.hero-side').is_hidden()
             empty = page.locator('#home-empty-state').bounding_box()
             overview = page.locator('#homepage-overview').bounding_box()
@@ -57,6 +58,15 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#home-empty-state').wait_for(state='visible')
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
             page.screenshot(path=str(out/'avtrack-home-mobile.png'), full_page=True)
+            page.set_viewport_size({'width':1440,'height':1000})
+            page.goto(origin+'/avtrack')
+            page.locator('[data-scene="iptv"]').scroll_into_view_if_needed()
+            page.wait_for_function('()=>document.querySelector(".scene-iptv").classList.contains("active")')
+            popup=page.locator('.vlc-stream-example')
+            popup.wait_for(state='visible')
+            assert popup.locator('img').evaluate('(n)=>n.complete && n.naturalWidth > 0')
+            assert 'one click' in page.locator('[data-scene="iptv"]').inner_text()
+            page.screenshot(path=str(out/'avtrack-landing-iptv-vlc.png'),full_page=False)
             assert not errors, errors
             browser.close()
     finally:

@@ -64,3 +64,10 @@ main{position:relative;z-index:1}.hero{position:relative;min-height:1120px;paddi
 .command-body .command-accent{color:#e6e6e6}.command-output a,.command-option button{color:#e6e6e6;text-decoration:none}.command-output a:hover,.command-output a:focus-visible,.command-option button:hover,.command-option button:focus-visible{color:#fff}
 .storage-node:after{display:none}.storage-visual>svg{display:block;z-index:1;stroke:color-mix(in oklab,var(--signal) 34%,var(--border));stroke-width:1}.storage-brand-mark{justify-content:center;gap:0;text-align:center}.storage-brand-mark b{display:block;text-align:center}
 @media(max-width:600px){.hero-copy .hero-actions .button{width:min(100%,210px)}.storage-visual>svg{display:none}}
+
+/* The same VLC example floats above the IPTV channel illustration. */
+.vlc-stream-example { position:absolute; z-index:4; right:22px; bottom:22px; width:58%; max-width:330px; margin:0; filter:drop-shadow(0 16px 24px #000a); }
+.vlc-stream-window { position:relative; width:100%; aspect-ratio:572 / 417; overflow:hidden; border:1px solid #68717d; border-radius:7px; background:#171a20; }
+.vlc-stream-window img { position:absolute; width:379.72%; max-width:none; height:auto; left:-103.5%; top:-38.13%; }
+.vlc-stream-example figcaption { padding:8px 10px; margin-top:6px; border:1px solid var(--border); border-radius:5px; background:var(--card); color:var(--foreground); font-size:11px; line-height:1.4; }
+@media(max-width:600px) { .vlc-stream-example { right:14px; bottom:16px; width:66%; max-width:270px; } .vlc-stream-example figcaption { font-size:10px; } }
