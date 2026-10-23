@@ -311,7 +311,7 @@ def validate(value):
         try:
             address = ipaddress.IPv4Address(result['ip'])
         except ipaddress.AddressValueError:
-            raise ValueError('Enter a valid IPv4 address, such as 10.24.176.66.') from None
+            raise ValueError('Enter a valid IPv4 address, such as 192.0.2.10.') from None
         if address.is_unspecified or address.is_loopback or (address.is_multicast and record_type != 'iptv') or int(address) == 0xffffffff:
             raise ValueError('Use a valid device address; multicast addresses are only allowed for IPTV channels.')
         result['ip'] = str(address)

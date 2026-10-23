@@ -50,7 +50,7 @@ function syncHomeHeadline() {
 }
 function updateWorkspaceHeaderExample(type) {
   const examples = {
-    device: ['0 126 564 472', 'ATEM 1 M/E Advanced Panel 10 at Liquid Lounge, Video, VLAN 1500, IP address 10.24.176.67.'],
+    device: ['0 126 564 472', 'ATEM 1 M/E Advanced Panel 10 at Liquid Lounge, Video, VLAN 120, IP address 192.0.2.10.'],
     iptv: ['564 126 622 472', 'Example live football channel in VLC. Simulated playback.'],
     equipment: ['1186 126 451 472', 'Example Blackmagic Micro Converter marked Located, last checked Oct 23.'],
     backups: ['1637 126 535 472', 'Example backup folder with Videohub, OBS, ATEM, and Cisco switch configuration files.']
@@ -393,9 +393,9 @@ function switchTab(type) {
 
   $('hero-title').textContent = iptv ? 'IPTV channels' : 'AV devices';
   $('hero-intro').textContent = iptv ? 'Browse onboard and satellite channels, check stream endpoints, and open a stream in VLC with one click.' : 'Find devices by venue or system, open their IP addresses, and track confirmed connections.';
-  $('example-ip').textContent = iptv ? '239.1.1.10' : '10.24.176.67';
+  $('example-ip').textContent = iptv ? '239.1.1.10' : '192.0.2.10';
   $('example-name').textContent = iptv ? 'Ship information' : 'ATEM 1 M/E Advanced Panel 10';
-  $('example-tags').replaceChildren(...(iptv ? ['Onboard', 'Port 1234'] : ['Liquid Lounge', 'Video', 'VLAN 1500']).map(text => element('span', '', text)));
+  $('example-tags').replaceChildren(...(iptv ? ['Onboard', 'Port 1234'] : ['Liquid Lounge', 'Video', 'VLAN 120']).map(text => element('span', '', text)));
 
   $('add-device').textContent = iptv ? 'Add channel' : 'Add device';
   $('empty-add').textContent = iptv ? 'Add a channel' : 'Add a device';
@@ -894,7 +894,7 @@ function openForm(device = null) {
   $('name-label').textContent = iptv ? 'Channel name' : 'Device name';
   $('form-intro').textContent = iptv ? 'Track the channel’s stream address, port, and source.' : 'Give this device a home in your inventory.';
   form.elements.name.placeholder = iptv ? 'e.g. Ship information or BBC News' : 'e.g. ATEM video switcher';
-  form.elements.ip.placeholder = iptv ? 'e.g. 239.1.1.10' : '10.24.176.66 or DHCP';
+  form.elements.ip.placeholder = iptv ? 'e.g. 239.1.1.10' : '192.0.2.10 or DHCP';
   $('ip-hint').textContent = iptv ? 'IPv4 unicast or multicast' : 'IPv4 or DHCP · checked when saved';
   $('form-title').textContent = editing ? (iptv ? 'Edit channel' : 'Edit device') : (iptv ? 'Add channel' : 'Add device');
   $('save-device').textContent = editing ? 'Save changes' : (iptv ? 'Save channel' : 'Save device');
@@ -911,7 +911,7 @@ function openForm(device = null) {
 form.elements.venue.addEventListener('input', () => syncButtons('form-venue-buttons', form.elements.venue.value));
 $('add-device').onclick = () => currentTab === 'equipment' ? window.equipmentUI.open() : openForm();
 $('empty-add').onclick = () => openForm();
-$('use-example').onclick = () => openForm({name:'ATEM video switcher', category:'Video switcher', venue:'Liquid Lounge', discipline:'Video', ip:'10.24.176.66', vlan:1500, notes:''});
+$('use-example').onclick = () => openForm({name:'ATEM video switcher', category:'Video switcher', venue:'Liquid Lounge', discipline:'Video', ip:'192.0.2.10', vlan:120, notes:''});
 for (const id of ['close-dialog','cancel-dialog']) $(id).onclick = () => $('device-dialog').close();
 for (const id of filters) $(id).addEventListener(id === 'search' ? 'input' : 'change', render);
 $('sort-order').onchange = () => { tabSortOrders[currentTab] = $('sort-order').value; render(); };
