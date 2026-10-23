@@ -1109,9 +1109,9 @@ body.desktop-working .hero-copy > .eyebrow,
 body.desktop-working .hero-side { display:none; }
 body.desktop-working #hero-title { font-size:clamp(22px,2.5vw,28px); line-height:1.25; letter-spacing:-.5px; }
 
-/* Content-sized imported inventories: columns follow their widest visible cell. */
+/* Imported inventory columns follow their content inside the shared full-width table. */
 #equipment-table {
-  width:max-content;
+  width:100%;
   min-width:0;
   max-width:none;
   table-layout:auto;
@@ -1214,3 +1214,18 @@ body.desktop-working .hero-copy { min-width:0; align-items:flex-start; text-alig
   .workspace-example { max-width:260px; }
   .workspace-example svg { height:160px; }
 }
+
+/* Shared operational table layout across Devices, IPTV, and Inventory. */
+.device-directory,.equipment-table-wrap { width:100%; max-width:100%; min-width:0; border:1px solid var(--border); border-radius:8px; background:var(--panel); overflow:auto; max-height:70vh; margin-top:20px; }
+#equipment-table { width:100%; table-layout:auto; }
+.directory-head,#equipment-table thead tr { min-height:38px; }
+.directory-head { align-items:center; }
+.directory-head > span,.directory-head > .selection-heading,.directory-head .notes-sort-header,#equipment-table th { height:38px; padding:6px; font:600 11px/18px var(--mono); letter-spacing:.5px; text-transform:uppercase; background:var(--secondary); }
+.device-directory .device-row { min-height:36px; align-items:center; }
+.device-directory .device-row > div,#equipment-table td { min-height:36px; height:36px; padding:3px 6px; font-size:12px; line-height:18px; vertical-align:middle; }
+.device-directory .device-row > .row-actions,#equipment-table td.equipment-actions { padding:3px; }
+.device-directory .row-actions button.row-action-icon,#equipment-table .equipment-actions button.equipment-action-icon { width:28px; min-width:28px; height:28px; min-height:28px; padding:0; }
+.device-directory .device-name { font-size:12px; line-height:18px; }
+.device-directory button.system-select,.device-directory .ip-confirm,.device-directory .device-notes-view,#equipment-table button:not(.equipment-action-icon),#equipment-table select,#equipment-table .equipment-confirm-label { min-height:28px; height:28px; padding:3px 5px; font-size:11px; }
+
+.device-directory .device-row > div { height:auto; align-self:stretch; }
