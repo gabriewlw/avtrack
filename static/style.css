@@ -1169,3 +1169,15 @@ body.home-workspace .home-workspace-examples { display:block; margin:0 0 40px; p
   body.home-workspace .home-workspace-examples { padding:10px; margin-bottom:28px; }
   .workspace-example-labels { gap:6px; font-size:8px; }
 }
+
+#equipment-panel { min-width:0; }
+#equipment-panel .equipment-table-wrap { max-width:100%; min-width:0; }
+@media(max-width:600px) {
+  #equipment-panel .equipment-filters { grid-template-columns:minmax(0,1fr); }
+  #equipment-panel .equipment-location-group { grid-column:1; grid-row:1; }
+  #equipment-panel .equipment-status-group { grid-column:1; grid-row:2; }
+  #equipment-panel .equipment-search-group { grid-column:1; grid-row:3; }
+  #equipment-panel .equipment-custom-filters { grid-column:1; grid-row:4; min-width:0; }
+  #equipment-panel .equipment-filters fieldset { min-width:0; }
+  #equipment-panel .panel-footer { flex-wrap:wrap; }
+}

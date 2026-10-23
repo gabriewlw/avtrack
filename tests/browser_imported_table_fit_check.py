@@ -77,7 +77,12 @@ with tempfile.TemporaryDirectory() as tmp:
             page.set_viewport_size({'width':1440,'height':1000})
             page.screenshot(path=str(out/'avtrack-imported-table-desktop.png'),full_page=True)
             page.set_viewport_size({'width':390,'height':844})
-            assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'), 'Table overflow escaped its scroll region'
+            page.wait_for_timeout(250)
+            overflow=page.evaluate("""()=>[...document.querySelectorAll('body *')].filter(n=>{
+                const r=n.getBoundingClientRect();return r.width && r.right>innerWidth+1 &&
+                !n.closest('.equipment-table-wrap,dialog,[hidden]');
+            }).map(n=>({tag:n.tagName,id:n.id,cls:n.className,right:n.getBoundingClientRect().right,width:n.getBoundingClientRect().width})).slice(0,25)""")
+            assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'), overflow
             page.screenshot(path=str(out/'avtrack-imported-table-mobile.png'),full_page=True)
             assert not errors,errors
             browser.close()
