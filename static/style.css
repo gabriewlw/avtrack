@@ -76,12 +76,6 @@ main { max-width: 1140px; margin: auto; padding: 58px 28px 48px; }
 h1, h2, h3, h4 { font-family: var(--font-display); }
 h1 { font-size: clamp(34px, 4vw, 46px); line-height: 1.15; letter-spacing: -1.3px; margin: 0; font-weight: 680; }
 h1 span { color: var(--foreground); }
-.home-typewriter { display:grid; }
-.home-typewriter > span { grid-area:1 / 1; white-space:pre-line; }
-.hero-typewriter-sizing { visibility:hidden; pointer-events:none; }
-.hero-typewriter-cursor { display:inline-block; font-weight:400; animation:hero-caret-blink .8s step-end infinite; }
-@keyframes hero-caret-blink { 50% { opacity:0; } }
-@media (prefers-reduced-motion:reduce) { .hero-typewriter-cursor { animation:none; } }
 h2 { font-size: 25px; letter-spacing: -.65px; margin: 0; }
 h3 { font-size: 20px; margin: 12px 0; }
 .intro { font-size: 14px; color: var(--muted); line-height: 1.8; margin: 20px 0 24px; max-width: 540px; }
@@ -1095,3 +1089,24 @@ body.home-workspace .workspace-transfer-bottom { margin-top:40px; }
 @media(min-width:900px) {
   .device-directory .device-venue { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 }
+
+/* Static, centered home introduction and compact workspace headings. */
+body.home-workspace main > .heading {
+  grid-template-columns:minmax(0,1fr);
+  justify-items:center;
+  gap:24px;
+  margin-bottom:40px;
+}
+body.home-workspace .hero-copy { align-items:center; text-align:center; width:100%; }
+body.home-workspace #hero-title { font-size:clamp(36px,4.5vw,58px); line-height:1.15; }
+body.home-workspace #hero-intro { max-width:760px; font-size:clamp(16px,1.6vw,19px); margin:22px auto 0; }
+body.home-workspace .hero-side { align-items:center; width:min(100%,320px); }
+body.home-workspace .network-card { width:100%; max-width:320px; }
+body.home-workspace .example-media img { width:100%; max-width:240px; height:auto; max-height:128px; object-fit:contain; }
+body.home-workspace .home-empty-state { margin-top:48px; }
+body.desktop-working main > .heading { display:block; margin-bottom:20px; }
+body.desktop-working .hero-copy { gap:0; }
+body.desktop-working .hero-copy > .eyebrow,
+body.desktop-working .hero-side,
+body.desktop-working #hero-intro { display:none; }
+body.desktop-working #hero-title { font-size:clamp(22px,2.5vw,28px); line-height:1.25; letter-spacing:-.5px; }

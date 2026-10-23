@@ -34,106 +34,20 @@ let networkLoaded = false;
 let overviewVersion = 0;
 let overviewSnapshot;
 const onHomeRoute = () => location.pathname === '/' && !location.hash;
-let homeHeadlineActive = false;
-let homeHeadlineRun = 0;
-const headlineMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 function syncHomeHeadline() {
-  const home = onHomeRoute();
-  if (home === homeHeadlineActive) return;
-  homeHeadlineActive = home;
-  const run = ++homeHeadlineRun;
-  const title = $('hero-title');
-  const intro = $('hero-intro');
-  for (const node of [title, intro]) {
-    node.classList.remove('home-typewriter');
-    node.removeAttribute('aria-label');
-  }
-  if (!home) return;
-  // Tab setup also writes these elements; start after that synchronous work.
-  queueMicrotask(async () => {
-    if (run !== homeHeadlineRun) return;
-    const complete = 'Every device. Every stream.\nEvery venue. All in one place.';
-    const description = 'Track your ship’s Devices, IPTV channels, and equipment across every venue. Stay organized wherever you work. Find what you need and export it in seconds.';
-    const prepare = (node, text) => {
-      const sizing = document.createElement('span');
-      sizing.className = 'hero-typewriter-sizing';
-      sizing.textContent = text;
-      sizing.setAttribute('aria-hidden', 'true');
-      const visual = document.createElement('span');
-      visual.className = 'hero-typewriter-text';
-      visual.setAttribute('aria-hidden', 'true');
-      const accessible = document.createElement('span');
-      accessible.className = 'sr-only';
-      accessible.textContent = text.replaceAll('\n', ' ');
-      node.classList.add('home-typewriter');
-      node.setAttribute('aria-label', text.replaceAll('\n', ' '));
-      node.replaceChildren(sizing, visual, accessible);
-      return visual;
-    };
-    const visual = prepare(title, complete);
-    const subtitle = prepare(intro, description);
-    if (headlineMotion.matches) {
-      visual.textContent = complete;
-      subtitle.textContent = description;
-      return;
-    }
-    const word = document.createElement('span');
-    const cursor = document.createElement('span');
-    cursor.className = 'hero-typewriter-cursor';
-    cursor.textContent = '|';
-    visual.append('Every ', word, cursor);
-    const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const current = () => run === homeHeadlineRun;
-    await pause(200);
-    for (const text of ['device', 'stream', 'venue']) {
-      for (let length = 1; length <= text.length; length++) {
-        if (!current()) return;
-        word.textContent = text.slice(0, length);
-        await pause(90);
-      }
-      await pause(1800);
-      if (text === 'venue') break;
-      for (let length = text.length - 1; length >= 0; length--) {
-        if (!current()) return;
-        word.textContent = text.slice(0, length);
-        await pause(45);
-      }
-      await pause(150);
-    }
-    // Delete the entire last phrase, including Every, before the final layout.
-    const finalText = document.createTextNode('Every venue');
-    if (!current()) return;
-    visual.replaceChildren(finalText, cursor);
-    while (finalText.textContent.length) {
-      if (!current()) return;
-      finalText.textContent = finalText.textContent.slice(0, -1);
-      await pause(45);
-    }
-    await pause(250);
-    for (let length = 1; length <= complete.length; length++) {
-      if (!current()) return;
-      finalText.textContent = complete.slice(0, length);
-      await pause(complete[length - 1] === '\n' ? 220 : 65);
-    }
-    if (!current()) return;
-    visual.textContent = complete;
-    await pause(300);
-    const smallText = document.createTextNode('');
-    if (!current()) return;
-    subtitle.replaceChildren(smallText, cursor);
-    for (let length = 1; length <= description.length; length++) {
-      if (!current()) return;
-      smallText.textContent = description.slice(0, length);
-      await pause(18);
-    }
-    if (current()) subtitle.textContent = description;
+  if (!onHomeRoute()) return;
+  // Tab setup writes shared heading elements synchronously.
+  queueMicrotask(() => {
+    if (!onHomeRoute()) return;
+    $('hero-title').replaceChildren(
+      document.createTextNode('Every device. Every stream.'),
+      element('br'),
+      document.createTextNode('Every venue. '),
+      element('span', '', 'All in one place.')
+    );
+    $('hero-intro').textContent = 'Track your ship’s Devices, IPTV channels, and equipment across every venue. Stay organized wherever you work. Find what you need and export it in seconds.';
   });
 }
-headlineMotion.addEventListener('change', () => {
-  if (!onHomeRoute()) return;
-  homeHeadlineActive = false;
-  syncHomeHeadline();
-});
 function syncHomePresentation() {
   const home = onHomeRoute();
   syncHomeHeadline();
@@ -431,7 +345,7 @@ function switchTab(type) {
     else $(id).removeAttribute('aria-current');
   }
   if (backups) {
-    $('hero-title').replaceChildren(document.createTextNode('Every setup.'), element('br'), document.createTextNode('Every recovery point.'), element('br'), element('span', '', 'Ready when needed.'));
+    $('hero-title').textContent = 'Configuration backups';
     $('hero-intro').textContent = 'Save known-good configuration files for switchers, routers, satellite receivers, OBS systems, and other AV equipment in one searchable archive.';
     $('example-ip').textContent = 'ATEM 2 M/E'; $('example-name').textContent = 'Production Studio 4K';
     $('example-tags').replaceChildren(...['Configuration backup','Control room','Ready to restore'].map(text => element('span','',text)));
@@ -441,7 +355,7 @@ function switchTab(type) {
   $('add-device').hidden = false;
   if (equipment) {
     $('equipment-transfer').insertBefore($('add-device'), $('equipment-import'));
-    $('hero-title').replaceChildren(document.createTextNode('Every asset.'), element('br'), document.createTextNode('Every location.'), element('br'), element('span', '', 'One clear view.'));
+    $('hero-title').textContent = 'Equipment inventory';
     $('hero-intro').textContent = 'Manage your broadcast equipment, spare stock, and production tools. Keep brands, models, serial numbers, and quantities organized from the control room to the storeroom.';
     $('example-ip').textContent = 'Advanced Panel 10'; $('example-name').textContent = 'Blackmagic Design';
     $('example-tags').replaceChildren(...['Video control panel','Quantity 1','Broadcast center'].map(text => element('span','',text)));
@@ -462,7 +376,7 @@ function switchTab(type) {
     $('sort-order').querySelector(`option[value="system-${direction}"]`).textContent = `${iptv ? 'Source' : 'System'} · ${direction === 'asc' ? 'A–Z' : 'Z–A'}`;
   }
 
-  $('hero-title').replaceChildren(document.createTextNode(iptv ? 'Every channel.' : 'Every device.'), element('br'), document.createTextNode(iptv ? 'Every source.' : 'Every venue.'), element('br'), element('span', '', 'One clear view.'));
+  $('hero-title').textContent = iptv ? 'IPTV channels' : 'AV devices';
   $('hero-intro').textContent = iptv ? 'Keep your onboard and satellite channel lineup in view. Track stream addresses and ports, organize channels by source, and take your inventory from the control room to your phone.' : 'Manage your broadcast equipment, channel lineups, and AV connections. Keep your production workspace organized from the control room to your phone.';
   $('example-ip').textContent = iptv ? '239.1.1.10' : '10.24.176.67';
   $('example-name').textContent = iptv ? 'Ship information' : 'ATEM 1 M/E Advanced Panel 10';
