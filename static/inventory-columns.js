@@ -15,7 +15,7 @@ function inventoryInput(column,value = '', {allowClear = true, locations = []} =
     column = {...column,type:'buttons',options:column.options.length ? column.options : ['Vertical','Horizontal']};
     allowClear = false;
   }
-  if(['location','installation'].includes(column.key))allowClear=false;
+  if(['location','installation','unit_status'].includes(column.key))allowClear=false;
   if(column.type==='count')column={...column,type:'select',options:Array.from({length:51-(column.minimum ?? 1)},(_,index)=>String(index+(column.minimum ?? 1)))};
   if(column.type==='location')column={...column,type:'select',options:[...new Set([...locations,String(value || '')].filter(Boolean))].sort()};
   const wrapper = element('div', 'inventory-value-input');
@@ -36,7 +36,7 @@ function inventoryInput(column,value = '', {allowClear = true, locations = []} =
     label.append(check,text);wrapper.append(label);if(allowClear)wrapper.append(clear);
   } else if (column.type === 'buttons') {
     control.type='hidden';const group=element('div','choice-buttons');group.setAttribute('role','group');group.setAttribute('aria-label',column.label);
-    (allowClear ? ['',...column.options] : column.options).forEach(value=>{const button=element('button','choice-button',value || 'Clear');button.type='button';button.dataset.value=value;button.setAttribute('aria-pressed',String(value===control.value));button.onclick=()=>{control.value=value;group.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));control.dispatchEvent(new Event('change',{bubbles:true}));};group.append(button);});wrapper.append(group);
+    (allowClear ? ['',...column.options] : column.options).forEach(value=>{const button=element('button','choice-button',value || 'Clear');button.type='button';button.dataset.value=value;button.setAttribute('aria-pressed',String(value===control.value));button.onclick=()=>{control.value=column.key==='unit_status'&&control.value===value?'':value;group.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.value===control.value)));control.dispatchEvent(new Event('change',{bubbles:true}));};group.append(button);});wrapper.append(group);
     if(column.allow_custom){
       const other=element('button','choice-button','Other…');other.type='button';const editor=element('div','inventory-other-choice');editor.hidden=true;
       const input=element('input');input.type='text';input.maxLength=120;input.placeholder=column.key==='brand'?'Enter another brand':'Enter another value';input.setAttribute('aria-label',column.key==='brand'?'Other brand':`Other ${column.label}`);

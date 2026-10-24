@@ -77,7 +77,7 @@ class EquipmentTests(unittest.TestCase):
         self.assertEqual(self.request('/api/equipment/import','POST', {'version':1,'equipment':[dict(ITEM,serial_number='new'),dict(ITEM,serial_number='other',quantity=-1)]})[0], 400)
         self.assertEqual(len(app.equipment_inventory()), 2)
         self.assertEqual(self.request('/api/equipment/import','POST', {'version':1,'equipment':[ITEM,ITEM]})[0], 400)
-        self.assertEqual(self.request('/api/equipment', 'POST', dict(payload['equipment'][1], notes='Different note'))[0], 409)
+        self.assertEqual(self.request('/api/equipment', 'POST', dict(payload['equipment'][1], notes='Different note'))[0], 201)
 
     def test_csv_escape_and_cross_origin(self):
         self.request('/api/equipment', 'POST', dict(ITEM, description='=FORMULA()'))
@@ -164,9 +164,12 @@ class EquipmentTests(unittest.TestCase):
         self.request('/api/equipment', 'POST', dict(ITEM, serial_number='', location='A', quantity=2, notes='Source note'))
         self.request('/api/equipment', 'POST', dict(ITEM, serial_number='', location='B', quantity=None, notes='Target note'))
         self.assertEqual(self.request('/api/equipment/locations', 'POST', dict(action='merge', source='A', target='B'))[0], 200)
-        row = app.equipment_inventory()[0]
+        records=app.equipment_inventory()
+        self.assertEqual(len(records),2)
+        self.assertEqual({r['notes'] for r in records},{'Source note','Target note'})
+        self.assertTrue(all(r['location']=='B' for r in records))
+        row=next(r for r in records if r['notes']=='Target note')
         self.assertIsNone(row['quantity'])
-        self.assertEqual(row['notes'], 'Target note\nSource note')
         self.request('/api/equipment', 'POST', dict(ITEM, serial_number='', location='A', quantity=1000000))
         self.request(f"/api/equipment/{row['id']}", 'PUT', dict(ITEM, serial_number='', location='B', quantity=1))
         before = app.equipment_inventory()

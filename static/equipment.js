@@ -8,7 +8,7 @@
   const layout = () => inventories.find(i => i.id === inventoryId)?.layout || defaultInventoryLayout;
   const displayColumns = () => layout().columns;
   const isTVInventory = () => layout().template === 'tv' || layout().stock_mode === 'tv_counts';
-  const stockChecksEnabled = () => showLocatedStatus() || (layout().stock_check_history ?? isTVInventory());
+  const stockChecksEnabled = () => false;
   const recordChecksEnabled = () => false;
   const ipConfirmation = () => layout().confirmation_mode === 'ip';
   const confirmedLabel = () => ipConfirmation() ? 'IP confirmed' : 'Located';
@@ -170,7 +170,7 @@
     $('equipment-locations').closest('div').hidden=!storage;
     $('equipment-manage-locations').hidden=!storage;
     $('equipment-zero-label').hidden=layout().stock_mode!=='tv_counts';
-    document.querySelector('.equipment-stats').style.gridTemplateColumns=`repeat(${2+Number(storage)+Number(showLocatedStatus())},minmax(0,1fr))`;
+    document.querySelector('.equipment-stats').style.gridTemplateColumns=`repeat(${2+Number(storage)+Number(showLocatedStatus())+Number(isTVInventory())},minmax(0,1fr))`;
     if(!displayColumns().some(col=>col.key==='quantity'||col.type==='count'||col.type==='calculated')){$('equipment-units').textContent=items.length;}
     const quantityTracked=displayColumns().some(col=>col.key==='quantity'||col.type==='count'||col.type==='calculated');
     const totalUnits=quantityTracked?items.reduce((total,item) => total + (Number(item.quantity) || 0), 0):items.length;
@@ -180,6 +180,10 @@
     const fullyLocated=[...grouped.values()].filter(rows=>rows.every(item=>item.item_confirmed)).length;
     $('equipment-records').textContent=items.length;
     $('equipment-units').textContent=String(totalUnits);
+    $('equipment-new-tv-stat').hidden=!isTVInventory();
+    const newTVUnits=items.filter(item=>inventoryValue(item,'unit_status')==='New').reduce((total,item)=>total+(Number(item.quantity)||0),0);
+    $('equipment-new-tv-units').textContent=newTVUnits.toLocaleString();
+    $('equipment-new-tv-stat').title='Units explicitly marked New in this TV inventory. Blank status is not assumed new.';
     $('equipment-units').title='Sum of known quantities; blank quantities are not counted.';
     let note=$('equipment-unknown-count');if(!note){note=element('small');note.id='equipment-unknown-count';$('equipment-units').after(note);}
     note.textContent=unknown?`${unknown} record${unknown===1?'':'s'} awaiting count`:quantityTracked?'All quantities recorded':'';
@@ -222,6 +226,7 @@
             catch(error){toast('Could not update '+column.label+': '+error.message);}
             finally{pendingConfirmations.delete(item.id);renderEquipment();}
           };
+          if(field==='unit_status')wrapper.classList.add('unit-status-choices');
           cell.replaceChildren(wrapper);
           if(index===0){wrapper.prepend(selectionControl(item.id,`equipment ${displayName(item)}`,selectedItems,updateEquipmentSelection));}
         }
@@ -244,7 +249,7 @@
         if (index === displayColumns().length-1) {
           const recordIssues=equipmentIssues(item);
           if(showLocatedStatus()) {
-          const status = element('td', 'equipment-status'); status.dataset.label = 'Status';
+          const status = element('td', 'equipment-status'); status.dataset.label = 'Location check';
           const control = element('label', `equipment-confirm-label${item.item_confirmed ? ' confirmed' : ''}`);
           const check = element('input', 'equipment-confirm'); check.type = 'checkbox';
           check.checked = Boolean(item.item_confirmed); check.disabled = pendingConfirmations.has(item.id);
@@ -296,7 +301,15 @@
         $('equipment-delete-error').hidden = true;
         $('equipment-delete-dialog').showModal(); $('cancel-equipment-delete').focus();
       };
-      actions.append(edit,remove); row.append(actions); return row;
+      const addCount=element('button','quiet equipment-add-count','+ Count');
+      addCount.type='button';addCount.setAttribute('aria-label',`Add count for ${displayName(item)}`);addCount.title='Add a separate row for this model with its own count, notes and status';
+      addCount.onclick=()=>{
+        const copy={...item,id:undefined,notes:'',serial_number:'',quantity:null,custom_values:{...item.custom_values,unit_status:''}};
+        displayColumns().filter(col=>col.type==='count'||col.type==='calculated').forEach(col=>{if(inventoryBaseFields.has(col.key))copy[col.key]=null;else copy.custom_values[col.key]=col.minimum===0||col.type==='calculated'?'0':'';});
+        openEquipment(copy);
+        $('equipment-form-title').textContent='Add count for '+displayName(item);
+      };
+      actions.append(addCount,edit,remove); row.append(actions); return row;
     }));
     $('equipment-import-report').hidden = !importReports.get(inventoryId)?.length;
     $('equipment-import-report-list').replaceChildren(...(importReports.get(inventoryId) || []).map(text => element('li', '', text)));
@@ -313,7 +326,7 @@
       const th=element('th','',index===0?'':col.key==='quantity'?'Qnt':col.label);
       th.scope='col';if(index===0)th.append(heading);return th;
     });
-    [...(showLocatedStatus()?['Status']:[]),...(stockChecksEnabled()?['Last checked']:[]),...(notesColumn?['Notes']:[]),'Actions'].forEach(text=>{
+    [...(showLocatedStatus()?['Location check']:[]),...(stockChecksEnabled()?['Last checked']:[]),...(notesColumn?['Notes']:[]),'Actions'].forEach(text=>{
       const th=element('th',text==='Notes'?'equipment-notes-heading':text==='Actions'?'equipment-actions-heading':'',text);
       th.scope='col';columns.push(th);
     });
@@ -353,7 +366,7 @@
     $('inventory-identifier').replaceChildren(new Option('No unique identifier',''),...layoutDraft.columns.filter(col=>!['location','quantity','notes'].includes(col.key)&&!['checkbox','buttons'].includes(col.type)).map(col=>new Option(col.label,col.key)));
     $('inventory-identifier').value=selectedIdentifier || '';
     $('inventory-identifier').disabled=layoutDraft.stock_mode==='tv_counts';
-    $('inventory-identifier').closest('label').querySelector('small').textContent=layoutDraft.stock_mode==='tv_counts'?'TV rows are identified by Brand and Model together. Repeated models are flagged for review.':'Optional. An ID or serial identifies one item; repeated identifiers are skipped on import.';
+    $('inventory-identifier').closest('label').querySelector('small').textContent=layoutDraft.stock_mode==='tv_counts'?'TV counts stay separate when their notes or status differ.':'Optional. An ID or serial identifies one item; repeated identifiers are skipped on import.';
     $('inventory-column-list').replaceChildren(...layoutDraft.columns.map((col,index)=>{
       const row=element('div','inventory-column-editor');row.dataset.columnKey=col.key;
       const name=element('label','', 'Column name');const input=element('input');input.value=col.label;input.maxLength=120;input.setAttribute('aria-label',`Column ${index+1} name`);input.onchange=()=>{col.label=input.value.trim();layoutDraft.primary_search=$('inventory-primary-search').value;layoutDraft.identifier=$('inventory-identifier').value;renderColumnEditor();};name.append(input);
@@ -485,6 +498,7 @@
     formInventoryId = item?.inventory_id ?? inventoryId;
     editingId = item?.id ?? null;
     equipmentForm.reset(); $('equipment-form-error').hidden = true;
+    $('equipment-shelf-label').hidden=Boolean(editingId);
     $('equipment-form-title').textContent = editingId ? 'Edit equipment' : 'Add equipment';
     $('save-equipment').textContent = editingId ? 'Save changes' : 'Save equipment';
     fields.forEach(field=>{const input=equipmentForm.elements[field];const label=input.closest('label');const col=displayColumns().find(col=>col.key===field);label.hidden=!col;if(!col){input.value=item?.[field] ?? '';return;}

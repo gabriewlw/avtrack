@@ -117,8 +117,9 @@ def network_xlsx(rows, record_type=None):
 
 def equipment_xlsx(rows, inventory_name='Equipment inventory', layout=None):
     if layout:
-        from inventory_profiles import column_value
-        columns=[(col['label'],col['key'],28) for col in layout['columns']]+([('Status','found',16)] if layout.get('show_status',True) else [])
+        from inventory_profiles import column_value, with_unit_status
+        layout=with_unit_status(layout)
+        columns=[(col['label'],col['key'],28) for col in layout['columns']]+([('Location check','found',16)] if layout.get('show_status',True) else [])
         values=[dict({col['key']:column_value(row,col['key']) for col in layout['columns']},found=('IP confirmed' if row.get('item_confirmed') else 'Confirm IP') if layout.get('confirmation_mode')=='ip' else ('Located' if row.get('item_confirmed') else 'To be found')) for row in rows]
         if layout.get('show_status', True) or layout.get('stock_check_history', layout.get('template') == 'tv' or layout.get('stock_mode') == 'tv_counts'):
             columns.append(('Last checked (UTC)','last_checked_at',26))
@@ -335,9 +336,10 @@ def demo_pdf(title, labels, rows):
 
 def equipment_pdf(rows, inventory_name='Equipment inventory', layout=None):
     if layout:
-        from inventory_profiles import column_value
-        columns=[column for column in layout['columns'] if column['key']!='notes']
-        labels=[('Qnt' if col['key']=='quantity' else col['label']) for col in columns]+(['Status'] if layout.get('show_status',True) else [])
+        from inventory_profiles import column_value, with_unit_status
+        layout=with_unit_status(layout)
+        columns=layout['columns']
+        labels=[('Qnt' if col['key']=='quantity' else col['label']) for col in columns]+(['Location check'] if layout.get('show_status',True) else [])
         values=[[column_value(row,col['key']) for col in columns]+([('IP confirmed' if row.get('item_confirmed') else 'Confirm IP') if layout.get('confirmation_mode')=='ip' else ('Located' if row.get('item_confirmed') else 'To be found')] if layout.get('show_status',True) else []) for row in rows]
         if layout.get('show_status', True) or layout.get('stock_check_history', layout.get('template') == 'tv' or layout.get('stock_mode') == 'tv_counts'):
             labels.append('Last checked (UTC)')

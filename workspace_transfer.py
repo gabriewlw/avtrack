@@ -99,7 +99,7 @@ def export_name(extension):
 
 
 def report_sections(data):
-    from inventory_profiles import column_value
+    from inventory_profiles import column_value, with_unit_status
     used=set()
     def title(value):
         clean=re.sub(r'[\\/*?:\[\]]','-',value).strip("'")[:27] or 'Inventory'
@@ -113,7 +113,7 @@ def report_sections(data):
     sections.append(section('IPTV',[( 'Channel','name'),('IP address','ip'),('Port','port'),('Source','channel_source'),('Notes','notes')],[row for row in tables['devices'] if row['record_type']=='iptv']))
     for inventory in tables['equipment_inventories']:
         from inventory_profiles import DEFAULT_PROFILE
-        profile=json.loads(inventory['layout']) or DEFAULT_PROFILE
+        profile=with_unit_status(json.loads(inventory['layout']) or DEFAULT_PROFILE)
         fields=[(col['label'],col['key']) for col in profile['columns']]+[('Record reviewed','data_checked'),('Physically located','item_confirmed'),('Last count check','last_checked_at')]
         rows=[]
         for saved in tables['equipment']:

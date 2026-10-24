@@ -1230,3 +1230,16 @@ body.desktop-working .hero-copy { min-width:0; align-items:flex-start; text-alig
 
 .home-workspace-examples .workspace-example-strip { display:block; width:100%; height:auto; border-radius:6px; }
 .inventory-example-status { pointer-events:none; }
+
+/* Explicit unit condition stays separate from the location confirmation. */
+.equipment-new-tv-stat{background:linear-gradient(135deg,#103c2a,#122a22);border:2px solid #52d390!important;box-shadow:0 0 0 1px #52d39022,0 8px 28px #0003}
+.equipment-new-tv-stat>span{color:#b6f7d2!important;font-weight:700}
+.equipment-new-tv-stat>strong{color:#72f3a7!important}
+.equipment-shelf-label{display:grid;gap:8px;margin:16px 0}
+.equipment-shelf-label .optional,.equipment-shelf-label small{color:var(--muted)}
+.unit-status-choices .choice-buttons{display:flex;flex-wrap:wrap;gap:4px;max-width:220px}
+.unit-status-choices .choice-button{padding:6px 9px;min-height:32px;font-size:12px}
+.unit-status-choices [data-value="New"][aria-pressed="true"]{background:#16452d;color:#b2f5cb;border-color:#55c780}
+.unit-status-choices [data-value="Used"][aria-pressed="true"]{background:#493b17;color:#ffe3a0;border-color:#c29b40}
+.unit-status-choices [data-value="Broken"][aria-pressed="true"]{background:#4a2025;color:#ffc0c6;border-color:#e56370}
+.equipment-add-count{font-size:12px;white-space:nowrap}

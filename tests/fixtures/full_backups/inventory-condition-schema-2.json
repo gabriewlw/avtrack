@@ -1,0 +1,318 @@
+{
+  "format": "avtrack-workspace",
+  "version": 1,
+  "exported_at": "2026-10-18T12:00:00+00:00",
+  "columns": {
+    "av_backups": [
+      "id",
+      "equipment_type",
+      "device_name",
+      "filename",
+      "content",
+      "size",
+      "notes",
+      "storage_name",
+      "icon_storage_name",
+      "icon_mime",
+      "created_at"
+    ],
+    "backup_details": [
+      "backup_id",
+      "details"
+    ],
+    "devices": [
+      "id",
+      "name",
+      "category",
+      "venue",
+      "discipline",
+      "ip",
+      "vlan",
+      "notes",
+      "record_type",
+      "channel_source",
+      "port",
+      "ip_confirmed",
+      "confirmation_required",
+      "updated_at"
+    ],
+    "equipment": [
+      "id",
+      "brand",
+      "model",
+      "description",
+      "serial_number",
+      "quantity",
+      "location",
+      "notes",
+      "item_confirmed",
+      "data_checked",
+      "last_checked_at",
+      "data_checked_at",
+      "custom_values",
+      "inventory_id",
+      "updated_at"
+    ],
+    "equipment_inventories": [
+      "id",
+      "name",
+      "layout"
+    ],
+    "equipment_record_checks": [
+      "id",
+      "equipment_id",
+      "checked_at",
+      "snapshot"
+    ],
+    "equipment_stock_checks": [
+      "id",
+      "equipment_id",
+      "checked_at",
+      "snapshot"
+    ],
+    "import_preferences": [
+      "target",
+      "settings"
+    ],
+    "import_receipts": [
+      "session_id",
+      "source_key",
+      "receipt"
+    ],
+    "import_sessions": [
+      "id",
+      "target",
+      "name",
+      "state",
+      "status",
+      "mode",
+      "reconciliation",
+      "updated_at",
+      "retired"
+    ],
+    "record_audit": [
+      "id",
+      "record_type",
+      "record_id",
+      "action",
+      "details",
+      "created_at"
+    ]
+  },
+  "tables": {
+    "av_backups": [
+      {
+        "id": 1,
+        "equipment_type": "OBS profile",
+        "device_name": "Historical camera",
+        "filename": "profile.json",
+        "content": "",
+        "size": 29,
+        "notes": "Recovery config",
+        "storage_name": "1-profile.json",
+        "icon_storage_name": "1-icon.png",
+        "icon_mime": "image/png",
+        "created_at": "2026-10-18 12:00:00"
+      }
+    ],
+    "backup_details": [
+      {
+        "backup_id": 1,
+        "details": "{\"model_serial\": \"Camera X\", \"tested_on\": \"2026-10-10\", \"state\": \"known_good\", \"captured_on\": \"2026-10-01\", \"record_id\": 1, \"record_type\": \"device\", \"firmware\": \"1.2\"}"
+      }
+    ],
+    "devices": [
+      {
+        "id": 1,
+        "name": "Historical camera",
+        "category": "",
+        "venue": "Studio",
+        "discipline": "Video",
+        "ip": "10.24.176.33",
+        "vlan": 1500,
+        "notes": "Subnet 255.255.252.0\nGateway 10.24.179.254",
+        "record_type": "device",
+        "channel_source": "",
+        "port": null,
+        "ip_confirmed": 0,
+        "confirmation_required": 1,
+        "updated_at": "2026-10-18 12:00:00"
+      },
+      {
+        "id": 2,
+        "name": "Historical channel",
+        "category": "",
+        "venue": "",
+        "discipline": "",
+        "ip": "239.1.2.3",
+        "vlan": null,
+        "notes": "Channel notes",
+        "record_type": "iptv",
+        "channel_source": "Onboard",
+        "port": 1234,
+        "ip_confirmed": 0,
+        "confirmation_required": 0,
+        "updated_at": "2026-10-18 12:00:00"
+      }
+    ],
+    "equipment": [
+      {
+        "id": 1,
+        "brand": "Sony",
+        "model": "X",
+        "description": "Camera",
+        "serial_number": "A, B",
+        "quantity": 2,
+        "location": "Locker A",
+        "notes": "First line\nSecond line\nShelf: B2",
+        "item_confirmed": 0,
+        "data_checked": 1,
+        "last_checked_at": "2026-10-18 12:00:00",
+        "data_checked_at": "2026-10-18 12:00:00",
+        "custom_values": "{\"unit_status\":\"New\"}",
+        "inventory_id": 2,
+        "updated_at": "2026-10-18 12:00:00"
+      },
+      {
+        "id": 2,
+        "brand": "",
+        "model": "",
+        "description": "",
+        "serial_number": "",
+        "quantity": null,
+        "location": "Lobby",
+        "notes": "Custom note",
+        "item_confirmed": 0,
+        "data_checked": 0,
+        "last_checked_at": null,
+        "data_checked_at": null,
+        "custom_values": "{\"asset_id\":\"SC-1\",\"monitor_model\":\"LG 55\",\"orientation\":\"Vertical\",\"unit_status\":\"Used\"}",
+        "inventory_id": 3,
+        "updated_at": "2026-10-18 12:00:00"
+      }
+    ],
+    "equipment_inventories": [
+      {
+        "id": 1,
+        "name": "Equipment inventory",
+        "layout": "{}"
+      },
+      {
+        "id": 2,
+        "name": "Historical spare parts",
+        "layout": "{\"columns\":[{\"key\":\"description\",\"label\":\"Item\",\"type\":\"text\",\"important\":true,\"filter\":\"none\",\"options\":[]},{\"key\":\"brand\",\"label\":\"Brand\",\"type\":\"text\",\"important\":true,\"filter\":\"none\",\"options\":[]},{\"key\":\"model\",\"label\":\"Model\",\"type\":\"text\",\"important\":true,\"filter\":\"none\",\"options\":[]},{\"key\":\"serial_number\",\"label\":\"Serial number\",\"type\":\"text\",\"important\":true,\"filter\":\"none\",\"options\":[]},{\"key\":\"quantity\",\"label\":\"Qnt\",\"type\":\"text\",\"important\":true,\"filter\":\"none\",\"options\":[]},{\"key\":\"location\",\"label\":\"Location\",\"type\":\"text\",\"important\":true,\"filter\":\"buttons\",\"options\":[]},{\"key\":\"unit_status\",\"label\":\"Status\",\"type\":\"buttons\",\"important\":false,\"filter\":\"buttons\",\"options\":[\"New\",\"Used\",\"Broken\"],\"aliases\":[\"Condition\",\"Unit status\",\"TV status\"]},{\"key\":\"notes\",\"label\":\"Notes\",\"type\":\"text\",\"important\":false,\"filter\":\"none\",\"options\":[]}],\"primary_search\":\"serial_number\",\"identifier\":\"\",\"stock_check_history\":true}"
+      },
+      {
+        "id": 3,
+        "name": "Historical custom inventory",
+        "layout": "{\"columns\":[{\"key\":\"asset_id\",\"label\":\"ID\",\"type\":\"text\",\"important\":true,\"filter\":\"none\",\"options\":[]},{\"key\":\"location\",\"label\":\"Where\",\"type\":\"text\",\"important\":true,\"filter\":\"none\",\"options\":[]},{\"key\":\"monitor_model\",\"label\":\"Monitor model\",\"type\":\"text\",\"important\":true,\"filter\":\"dropdown\",\"options\":[]},{\"key\":\"orientation\",\"label\":\"Orientation\",\"type\":\"buttons\",\"important\":false,\"filter\":\"dropdown\",\"options\":[\"Vertical\",\"Horizontal\"]},{\"key\":\"unit_status\",\"label\":\"Status\",\"type\":\"buttons\",\"important\":false,\"filter\":\"buttons\",\"options\":[\"New\",\"Used\",\"Broken\"],\"aliases\":[\"Condition\",\"Unit status\",\"TV status\"]},{\"key\":\"notes\",\"label\":\"Notes\",\"type\":\"text\",\"important\":false,\"filter\":\"none\",\"options\":[]}],\"primary_search\":\"asset_id\",\"identifier\":\"asset_id\",\"show_status\":false,\"stock_check_history\":false,\"show_record_check\":false,\"unique_location\":true}"
+      }
+    ],
+    "equipment_record_checks": [
+      {
+        "id": 1,
+        "equipment_id": 1,
+        "checked_at": "2026-10-18 12:00:00",
+        "snapshot": "{\"id\": 1, \"brand\": \"Sony\", \"model\": \"X\", \"description\": \"Camera\", \"serial_number\": \"A, B\", \"quantity\": 2, \"location\": \"Locker A\", \"notes\": \"First line\\nSecond line\", \"item_confirmed\": 0, \"data_checked\": 1, \"last_checked_at\": null, \"data_checked_at\": \"2026-10-19T00:15:09.288Z\", \"inventory_id\": 2, \"updated_at\": \"2026-10-19 00:15:09\"}"
+      }
+    ],
+    "equipment_stock_checks": [
+      {
+        "id": 1,
+        "equipment_id": 1,
+        "checked_at": "2026-10-18 12:00:00",
+        "snapshot": "{\"id\": 1, \"brand\": \"Sony\", \"model\": \"X\", \"description\": \"Camera\", \"serial_number\": \"A, B\", \"quantity\": 2, \"location\": \"Locker A\", \"notes\": \"First line\\nSecond line\", \"item_confirmed\": 0, \"data_checked\": 1, \"last_checked_at\": \"2026-10-19T00:15:09.289Z\", \"data_checked_at\": \"2026-10-19T00:15:09.288Z\", \"inventory_id\": 2, \"updated_at\": \"2026-10-19 00:15:09\"}"
+      }
+    ],
+    "import_preferences": [
+      {
+        "target": "device",
+        "settings": "{\"mappings\": {\"notes\": {\"name\": \"remarks\"}}}"
+      }
+    ],
+    "import_receipts": [
+      {
+        "session_id": 1,
+        "source_key": "0:Locker A:2",
+        "receipt": "{\"key\": \"0:Locker A:2\", \"keys\": [\"0:Locker A:2\"], \"location\": \"Locker A\", \"sheet\": \"Locker A\", \"label\": \"Camera\", \"outcome\": \"skip\", \"issues\": [], \"result\": {\"added\": 0, \"skippedRow\": true}, \"merged\": 0, \"changes\": []}"
+      }
+    ],
+    "import_sessions": [
+      {
+        "id": 1,
+        "target": "equipment:2",
+        "name": "historical.xlsx",
+        "state": "{\"confirmation_mode\": \"storage\"}",
+        "status": "reviewing",
+        "mode": "storage",
+        "reconciliation": null,
+        "updated_at": "2026-10-18 12:00:00",
+        "retired": 0
+      }
+    ],
+    "record_audit": [
+      {
+        "id": 1,
+        "record_type": "device",
+        "record_id": 1,
+        "action": "created",
+        "details": "{\"initials\": \"\"}",
+        "created_at": "2026-10-18 12:00:00"
+      },
+      {
+        "id": 2,
+        "record_type": "iptv",
+        "record_id": 2,
+        "action": "created",
+        "details": "{\"initials\": \"\"}",
+        "created_at": "2026-10-18 12:00:00"
+      },
+      {
+        "id": 3,
+        "record_type": "equipment",
+        "record_id": 1,
+        "action": "created",
+        "details": "{\"initials\": \"\"}",
+        "created_at": "2026-10-18 12:00:00"
+      },
+      {
+        "id": 4,
+        "record_type": "equipment",
+        "record_id": 1,
+        "action": "source_record_reviewed",
+        "details": "{\"method\": \"Compared with source inventory\", \"initials\": \"\"}",
+        "created_at": "2026-10-18 12:00:00"
+      },
+      {
+        "id": 5,
+        "record_type": "equipment",
+        "record_id": 1,
+        "action": "physical_count_checked",
+        "details": "{\"method\": \"Manual physical stock count\", \"initials\": \"\"}",
+        "created_at": "2026-10-18 12:00:00"
+      },
+      {
+        "id": 6,
+        "record_type": "equipment",
+        "record_id": 2,
+        "action": "created",
+        "details": "{\"initials\": \"\"}",
+        "created_at": "2026-10-18 12:00:00"
+      },
+      {
+        "id": 7,
+        "record_type": "device",
+        "record_id": 1,
+        "action": "recovery_file_linked",
+        "details": "{\"backup_id\": 1, \"state\": \"known_good\"}",
+        "created_at": "2026-10-18 12:00:00"
+      }
+    ]
+  },
+  "files": {
+    "1-profile.json": "eyJwcm9maWxlIjoiaGlzdG9yaWNhbC10ZXN0In0=",
+    "1-icon.png": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+  },
+  "app_version": "v0.0.189",
+  "schema_version": 2
+}

@@ -88,8 +88,8 @@ async function loadOverview() {
     $('overview-iptv-total').textContent = totals.iptv_total;
     $('overview-iptv-caption').textContent = totals.iptv_total === 1 ? 'channel saved' : 'channels saved';
     $('overview-iptv-sources').textContent = `${totals.iptv_onboard} onboard · ${totals.iptv_satellite} satellite`;
-    $('overview-inventory-total').textContent = totals.inventory_total;
-    $('overview-inventory-locations').textContent = `${totals.inventory_total === 1 ? 'item' : 'items'} across ${totals.inventory_locations} ${totals.inventory_locations === 1 ? 'location' : 'locations'}`;
+    $('overview-inventory-total').textContent = totals.inventory_units ?? 0;
+    $('overview-inventory-locations').textContent = `${totals.inventory_units === 1 ? 'unit' : 'units'} across all inventories`;
     $('overview-inventory-count').textContent = `${totals.inventory_count} ${totals.inventory_count === 1 ? 'inventory' : 'inventories'}`;
     $('overview-backup-total').textContent = totals.backup_total;
     $('overview-backup-caption').textContent = totals.backup_total === 1 ? 'configuration file saved' : 'configuration files saved';
@@ -993,7 +993,7 @@ function equipmentIssues(row,profile=window.equipmentUI?.profile() || defaultInv
 function orderEquipmentReview(entries) {
   const serialCounts = new Map();
   const profile=spreadsheetInventory?.layout || window.equipmentUI?.profile()||defaultInventoryLayout;const identifierCounts=new Map();
-  const rowIdentifier=row=>profile.unique_location&&row.location?`location:${row.location.trim().toLowerCase()}`:profile.stock_mode==='tv_counts'&&row.brand&&row.model?JSON.stringify([row.brand.trim().toLowerCase(),row.model.trim().toLowerCase()]):profile.identifier?String(inventoryValue(row,profile.identifier)).trim().toLowerCase():'';
+  const rowIdentifier=row=>profile.unique_location&&row.location?`location:${row.location.trim().toLowerCase()}`:profile.stock_mode==='tv_counts'&&row.brand&&row.model?JSON.stringify([row.brand.trim().toLowerCase(),row.model.trim().toLowerCase(),String(row.notes||'').trim(),inventoryValue(row,'unit_status').toLowerCase()]):profile.identifier?String(inventoryValue(row,profile.identifier)).trim().toLowerCase():'';
   entries.forEach(({row}) => { const key = serialKey(row.serial_number); if (key) serialCounts.set(key, (serialCounts.get(key) || 0) + 1); });
   entries.forEach(({row})=>{const value=rowIdentifier(row);if(value)identifierCounts.set(value,(identifierCounts.get(value)||0)+1);});
   const groups = new Map(),locationCounts=new Map();
@@ -1113,7 +1113,7 @@ function combineTVEntries(entries) {
   const profile=spreadsheetInventory?.layout || window.equipmentUI.profile();
   if(!(profile.merge_duplicate_models??profile.stock_mode==='tv_counts'))return entries;
   const groups=new Map();
-  entries.forEach(entry=>{const row=entry.row,key=!row.serial_number&&row.model?JSON.stringify([row.brand.trim().toLowerCase(),row.model.trim().toLowerCase(),row.location.trim().toLowerCase()]):'row:'+entry.number;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(entry);});
+  entries.forEach(entry=>{const row=entry.row,key=!row.serial_number&&row.model?JSON.stringify([row.brand.trim().toLowerCase(),row.model.trim().toLowerCase(),row.location.trim().toLowerCase(),String(row.notes||'').trim(),inventoryValue(row,'unit_status').toLowerCase()]):'row:'+entry.number;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(entry);});
   return [...groups.values()].map(group=>{if(group.length===1)return group[0];const row={...group[0].row,custom_values:{...group[0].row.custom_values}};
     for(const key of ['description','brand','model','location'])if(!row[key])row[key]=group.map(entry=>entry.row[key]).find(Boolean)||'';
     const sumKeys=new Set(profile.columns.filter(col=>col.type==='count').map(col=>col.key));if(profile.columns.some(col=>col.key==='quantity'))sumKeys.add('quantity');
@@ -1198,10 +1198,10 @@ function renderImportDraftDetails(){
   const existing=window.importWorkflow.knownRecords;
   const match=row=>existing.find(saved=>{
     if(currentTab!=='equipment')return importAddressKey(row) && importAddressKey(row)===importAddressKey(saved);
-    if(draft?.stock_mode==='tv_counts')return row.brand && row.model && row.brand.toLowerCase()===saved.brand.toLowerCase() && row.model.toLowerCase()===saved.model.toLowerCase();
+    if(draft?.stock_mode==='tv_counts')return row.brand && row.model && row.brand.toLowerCase()===saved.brand.toLowerCase() && row.model.toLowerCase()===saved.model.toLowerCase() && String(row.notes||'').trim()===String(saved.notes||'').trim() && inventoryValue(row,'unit_status').toLowerCase()===inventoryValue(saved,'unit_status').toLowerCase();
     if(draft?.identifier){const id=String(inventoryValue(row,draft.identifier)).trim();return id && id.toLowerCase()===String(inventoryValue(saved,draft.identifier)).trim().toLowerCase();}
     if(row.serial_number)return serialKey(row.serial_number)===serialKey(saved.serial_number);
-    return row.brand && row.model && row.location && ['brand','model','location','description'].every(key=>String(row[key] || '').toLowerCase()===String(saved[key] || '').toLowerCase());
+    return row.brand && row.model && row.location && ['brand','model','location','description','notes'].every(key=>String(row[key] || '').toLowerCase()===String(saved[key] || '').toLowerCase());
   });
   const comparisons=combined.flatMap(entry=>{
     const saved=match(entry.row),lines=[];

@@ -20,7 +20,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 from spreadsheets import preview as spreadsheet_preview
 from reconciliation import reconcile, reconcile_profile
-from inventory_profiles import DEFAULT_PROFILE, SCALA_PROFILE, validate_profile, custom_values, profile_identifier, column_value, normalize_template_row
+from inventory_profiles import DEFAULT_PROFILE, SCALA_PROFILE, validate_profile, custom_values, profile_identifier, column_value, normalize_template_row, with_unit_status
 from exports import network_xlsx, equipment_xlsx, network_pdf, equipment_pdf, demo_pdf
 
 ROOT = Path(__file__).resolve().parent
@@ -228,9 +228,9 @@ def connect():
     con.execute('DROP INDEX IF EXISTS equipment_stock')
     con.execute('DROP INDEX IF EXISTS equipment_stock_known')
     stock_index=con.execute("SELECT sql FROM sqlite_master WHERE name='equipment_inventory_stock'").fetchone()
-    if stock_index and 'custom_values' not in stock_index['sql']:
+    if stock_index and 'description, notes,' not in stock_index['sql']:
         con.execute('DROP INDEX equipment_inventory_stock')
-    con.execute("CREATE UNIQUE INDEX IF NOT EXISTS equipment_inventory_stock ON equipment(inventory_id, brand COLLATE NOCASE, model COLLATE NOCASE, description, location COLLATE NOCASE) WHERE serial_number='' AND brand!='' AND model!='' AND location!='' AND custom_values='{}'")
+    con.execute("CREATE UNIQUE INDEX IF NOT EXISTS equipment_inventory_stock ON equipment(inventory_id, brand COLLATE NOCASE, model COLLATE NOCASE, description, notes, location COLLATE NOCASE) WHERE serial_number='' AND brand!='' AND model!='' AND location!='' AND custom_values='{}'")
     con.execute("""CREATE TABLE IF NOT EXISTS equipment_stock_checks (
         id INTEGER PRIMARY KEY, equipment_id INTEGER NOT NULL,
         checked_at TEXT NOT NULL, snapshot TEXT NOT NULL)""")
@@ -601,7 +601,7 @@ def equipment_inventory_details(con, inventory_id):
         layout['stock_check_history'] = False
         layout['unique_location'] = True
     if layout.get('confirmation_mode'):layout['show_status']=layout['confirmation_mode']!='none'
-    if layout: record['layout'] = layout
+    record['layout'] = with_unit_status(layout)
     return record
 
 
@@ -665,6 +665,8 @@ def workspace_overview():
             (SELECT COALESCE(SUM(size),0) FROM av_backups) AS backup_size""").fetchone()
         result=dict(row)
         inventories=[equipment_inventory_details(con,r['id']) for r in con.execute('SELECT id FROM equipment_inventories')]
+        quantity_ids={record['id'] for record in inventories if any(col['key']=='quantity' or col['type'] in ('count','calculated') for col in record.get('layout',DEFAULT_PROFILE)['columns'])}
+        result['inventory_units']=sum((r['quantity'] or 0) if r['inventory_id'] in quantity_ids else 1 for r in con.execute('SELECT inventory_id,quantity FROM equipment'))
         storage_ids={record['id'] for record in inventories if record.get('layout',{}).get('location_role','geographic' if 'scala' in record['name'].casefold() else 'storage')=='storage'}
         result['inventory_locations']=len({r['location'] for r in con.execute('SELECT inventory_id,location FROM equipment') if r['inventory_id'] in storage_ids and r['location']})
         return result
@@ -718,6 +720,13 @@ def equipment_inventory(inventory_id=1):
 def save_equipment(value, item_id=None):
     creating=item_id is None
     row = validate_equipment(value)
+    if creating:
+        shelf=value.get('shelf','')
+        if not isinstance(shelf,str) or len(shelf.strip())>120:
+            raise ValueError('Shelf must be text, up to 120 characters.')
+        if shelf.strip():
+            row['notes']='\n'.join(filter(None,(row['notes'],'Shelf: '+shelf.strip())))
+            if len(row['notes'])>2000:raise ValueError('Notes including shelf must be up to 2,000 characters.')
     inventory_id = equipment_inventory_id(value.get('inventory_id', 1))
     with connect() as con:
         con.execute('BEGIN IMMEDIATE')
@@ -1022,7 +1031,7 @@ def manage_equipment_location(payload):
             identity = equipment_identity(row)
             matching = None
             if action == 'merge' and identity is not None and identity[0] == 'stock' and row['custom_values']=='{}':
-                matching = con.execute("SELECT * FROM equipment WHERE inventory_id=? AND id!=? AND serial_number='' AND brand=? COLLATE NOCASE AND model=? COLLATE NOCASE AND description=? AND location=? COLLATE NOCASE AND custom_values='{}'", (inventory_id, row['id'], row['brand'], row['model'], row['description'], target)).fetchone()
+                matching = con.execute("SELECT * FROM equipment WHERE inventory_id=? AND id!=? AND serial_number='' AND brand=? COLLATE NOCASE AND model=? COLLATE NOCASE AND description=? AND notes=? AND location=? COLLATE NOCASE AND custom_values='{}'", (inventory_id, row['id'], row['brand'], row['model'], row['description'], row['notes'], target)).fetchone()
             if matching:
                 # Unknown quantities remain unknown rather than implying a complete count.
                 quantity = None if row['quantity'] is None or matching['quantity'] is None else row['quantity'] + matching['quantity']
@@ -1040,7 +1049,9 @@ def equipment_identity(row):
     if row['serial_number']:
         return ('serial', serial_key(row['serial_number']))
     if all(row[f] for f in ('brand', 'model', 'location')):
-        return ('stock', row['brand'].casefold(), row['model'].casefold(), row['description'], row['location'].casefold())
+        values=row.get('custom_values') or {}
+        if isinstance(values,str):values=json.loads(values)
+        return ('stock', row['brand'].casefold(), row['model'].casefold(), row['description'], row['location'].casefold(), row.get('notes','').strip(), json.dumps({key:value for key,value in values.items() if value},sort_keys=True))
     return None
 
 
@@ -1106,10 +1117,11 @@ def equipment_csv(rows=None, layout=None):
     output = io.StringIO(newline='')
     fields = ('description', 'brand', 'model', 'serial_number', 'quantity', 'location', 'item_confirmed', 'notes')
     if layout:
+        layout=with_unit_status(layout)
         columns = [(col['label'],col['key']) for col in layout['columns']]
         if layout.get('show_status', True) or layout.get('stock_check_history', layout.get('template') == 'tv' or layout.get('stock_mode') == 'tv_counts'): columns.append(('Last checked (UTC)','last_checked_at'))
         writer=csv.writer(output)
-        writer.writerow([label for label,key in columns]+(['Status'] if layout.get('show_status',True) else []))
+        writer.writerow([label for label,key in columns]+(['Location check'] if layout.get('show_status',True) else []))
         for row in equipment_inventory() if rows is None else rows:
             values=[(row.get('inventory_checked_at') or row.get(key) or '') if key=='last_checked_at' else column_value(row,key) for label,key in columns]+([('IP confirmed' if row.get('item_confirmed') else 'Confirm IP') if layout.get('confirmation_mode')=='ip' else ('Located' if row.get('item_confirmed') else 'To be found')] if layout.get('show_status',True) else [])
             writer.writerow(["'"+str(v) if str(v).startswith(('=', '+', '-', '@', '\t', '\r', '\n')) else v for v in values])

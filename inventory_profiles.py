@@ -12,9 +12,27 @@ SCALA_PROFILE = {'columns':[
     {'key':'notes','label':'Notes','type':'text','important':False,'filter':'none','options':[]}], 'primary_search':'asset_id', 'identifier':'asset_id', 'show_status':False, 'show_record_check':False, 'stock_check_history':False, 'unique_location':True}
 
 
+
+UNIT_STATUS_COLUMN = {'key':'unit_status','label':'Status','type':'buttons','important':False,
+                      'filter':'buttons','options':['New','Used','Broken'],
+                      'aliases':['Condition','Unit status','TV status']}
+
+
+def with_unit_status(profile):
+    """Project optional unit condition into old layouts without rewriting saved data."""
+    import copy
+    result = copy.deepcopy(profile or DEFAULT_PROFILE)
+    if not any(col['key']=='unit_status' for col in result['columns']):
+        position = next((i for i,col in enumerate(result['columns']) if col['key']=='notes'), len(result['columns']))
+        result['columns'].insert(position, copy.deepcopy(UNIT_STATUS_COLUMN))
+    if not any(col['key']=='notes' for col in result['columns']):
+        result['columns'].append(dict(key='notes',label='Notes',type='text',important=False,filter='none',options=[]))
+    return result
+
+
 def validate_profile(value):
-    if not isinstance(value,dict) or not isinstance(value.get('columns'),list) or not 1 <= len(value['columns']) <= 16:
-        raise ValueError('Choose between 1 and 16 inventory columns.')
+    if not isinstance(value,dict) or not isinstance(value.get('columns'),list) or not 1 <= len(value['columns']) <= 32:
+        raise ValueError('Choose between 1 and 32 inventory columns.')
     columns, keys, labels = [], set(), set()
     for col in value['columns']:
         if not isinstance(col,dict):
@@ -135,7 +153,7 @@ def column_value(row,key):
 
 def profile_identifier(row,profile):
     if profile.get('stock_mode')=='tv_counts':
-        return ('tv',row['brand'].strip().casefold(),row['model'].strip().casefold()) if row.get('brand') and row.get('model') else None
+        return ('tv',row['brand'].strip().casefold(),row['model'].strip().casefold(),row.get('notes','').strip(),row.get('custom_values',{}).get('unit_status','').casefold()) if row.get('brand') and row.get('model') else None
     value=column_value(row,profile['identifier']) if profile.get('identifier') else ''
     if value in ('',None):return None
     return re.sub(r'\s+','',str(value)).casefold() if profile.get('identifier')=='serial_number' else str(value).strip().casefold()
