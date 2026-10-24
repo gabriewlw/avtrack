@@ -93,6 +93,8 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#equipment-show-new').click()
             assert page.locator('#equipment-rows tr').count()==7
             page.evaluate('document.fonts.ready')
+            page.evaluate("window.scrollTo({top:0,behavior:'instant'})")
+            page.wait_for_timeout(120)
             out=Path('work/screenshots');out.mkdir(parents=True,exist_ok=True)
             page.screenshot(path=str(out/'avtrack-inventory-status.png'),full_page=True)
             print('AVTRACK_PREVIEW_JPEG:'+base64.b64encode(page.screenshot(type='jpeg',quality=60,full_page=True)).decode(),flush=True)
