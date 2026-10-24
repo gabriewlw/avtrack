@@ -36,8 +36,8 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#equipment-inventory-select').select_option(str(tv['id']))
             page.wait_for_function("()=>document.getElementById('equipment-inventory-title').textContent==='TV replacement stock'")
             assert page.locator('#equipment-new-tv-units').inner_text()=='13'
-            headers=page.locator('#equipment-table thead').inner_text()
-            assert 'Status' in headers and 'Last checked' not in headers
+            headers=page.locator('#equipment-table thead').inner_text().lower()
+            assert 'status' in headers and 'last checked' not in headers,headers
             # A real CSV import with no Status column remains optional.
             page.locator('#equipment-import').click()
             with page.expect_file_chooser():page.locator('#upload-paste-inventory').click()
