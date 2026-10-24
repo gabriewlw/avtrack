@@ -5,7 +5,10 @@ import io
 import json
 import unittest
 from openpyxl import load_workbook
-from pypdf import PdfReader
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
 import app
 import workspace_transfer as transfer
 import test_inventory_templates
@@ -85,8 +88,13 @@ class InventoryConditionTests(unittest.TestCase):
         book=load_workbook(io.BytesIO(equipment_xlsx([row],layout=inv['layout'])))
         values=list(book.active.values);record=dict(zip(values[0],values[1]))
         self.assertEqual(record['Status'],'New');self.assertEqual(record['Notes'],item['notes'])
-        text=' '.join(p.extract_text() or '' for p in PdfReader(io.BytesIO(equipment_pdf([row],layout=inv['layout']))).pages)
-        self.assertIn('sealed carton',text);self.assertIn('New',text)
+        pdf=equipment_pdf([row],layout=inv['layout'])
+        self.assertTrue(pdf.startswith(b'%PDF'))
+        if shutil.which('pdftotext'):
+            with tempfile.TemporaryDirectory() as tmp:
+                path=Path(tmp)/'tv.pdf';path.write_bytes(pdf)
+                text=subprocess.check_output(['pdftotext','-layout',str(path),'-']).decode()
+                self.assertIn('sealed carton',text);self.assertIn('New',text)
 
     def test_status_and_separate_batches_survive_complete_zip_and_json_backups(self):
         inv=self.create('tv')

@@ -601,7 +601,7 @@ def equipment_inventory_details(con, inventory_id):
         layout['stock_check_history'] = False
         layout['unique_location'] = True
     if layout.get('confirmation_mode'):layout['show_status']=layout['confirmation_mode']!='none'
-    record['layout'] = with_unit_status(layout)
+    if layout: record['layout'] = with_unit_status(layout)
     return record
 
 

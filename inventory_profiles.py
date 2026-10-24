@@ -22,6 +22,8 @@ def with_unit_status(profile):
     """Project optional unit condition into old layouts without rewriting saved data."""
     import copy
     result = copy.deepcopy(profile or DEFAULT_PROFILE)
+    keys={col['key'] for col in result['columns']}
+    if result.get('template')=='scala' or {'monitor_model','orientation'}.issubset(keys):return result
     if not any(col['key']=='unit_status' for col in result['columns']):
         position = next((i for i,col in enumerate(result['columns']) if col['key']=='notes'), len(result['columns']))
         result['columns'].insert(position, copy.deepcopy(UNIT_STATUS_COLUMN))
@@ -123,7 +125,7 @@ def custom_values(value,profile):
         if raw is None:raw=''
         if not isinstance(raw,str) or len(raw.strip())>2000:
             raise ValueError('Custom values must be text, up to 2,000 characters.')
-        raw=raw.strip();col=definitions.get(key)
+        raw=raw.strip();col=definitions.get(key) or (UNIT_STATUS_COLUMN if key=='unit_status' else None)
         if col and col['type']=='checkbox' and raw:
             choices={'yes':'Yes','true':'Yes','1':'Yes','checked':'Yes','no':'No','false':'No','0':'No','unchecked':'No'}
             if raw.casefold() not in choices:
