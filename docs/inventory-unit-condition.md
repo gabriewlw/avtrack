@@ -23,7 +23,7 @@ locations) count each record as one unit; unknown quantities in counted inventor
 are not assumed to be one.
 
 Condition uses the existing optional custom-column storage contract
-(custom_values.unit_status). Old layouts gain the optional Status and Notes
+(custom_values.unit_status). Old stock layouts gain the optional Status and Notes
 controls on read, without rewriting saved rows, assuming a condition, or deleting
 historical check data. No table columns, field definitions, or backup contracts
 changed. Published schema contracts, migration functions and historical fixtures

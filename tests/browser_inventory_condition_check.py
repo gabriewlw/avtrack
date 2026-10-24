@@ -53,7 +53,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#confirm-import').click()
             page.locator('#inventory-import-review').wait_for(state='visible')
             assert page.locator('#inventory-import-review-rows tr').count()==2
-            assert page.locator('#inventory-import-review').get_by_role('button',name='New',exact=True).count()==2
+            assert page.locator('#inventory-import-review button[data-value="New"]').count()==2
             page.locator('#inventory-import-review-save').click()
             page.locator('#import-summary-panel').wait_for(state='visible')
             page.locator('#close-import-summary').click()
