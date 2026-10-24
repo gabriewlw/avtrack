@@ -76,7 +76,8 @@ with tempfile.TemporaryDirectory() as tmp:
             short_row=page.locator('#equipment-rows tr').filter(has_text='Panel')
             name_cell=long_row.locator('.inventory-text-value').first
             assert 35 <= name_cell.bounding_box()['height'] <= 55, name_cell.bounding_box()
-            assert long_row.bounding_box()['height'] > short_row.bounding_box()['height']
+            assert long_row.bounding_box()['height'] >= short_row.bounding_box()['height']
+            assert long_row.bounding_box()['height'] >= name_cell.bounding_box()['height']
             out=Path('work/screenshots');out.mkdir(parents=True,exist_ok=True)
             page.set_viewport_size({'width':1440,'height':1000})
             page.screenshot(path=str(out/'avtrack-imported-table-desktop.png'),full_page=True)

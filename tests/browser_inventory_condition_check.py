@@ -41,6 +41,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#equipment-import').click()
             with page.expect_file_chooser():page.locator('#upload-paste-inventory').click()
             page.locator('#import-file').set_input_files({'name':'tv-batches.csv','mimeType':'text/csv','buffer':b'Brand,Model,Deck 6,Deck 2 Port,Deck 2 Stbd,Notes\nLG,32LM6300,4,0,0,Awaiting inspection\nLG,32LM6300,1,0,0,Separate batch\n'})
+            page.locator('#paste-layout-dialog:visible, #spreadsheet-dialog:visible').first.wait_for()
             if page.locator('#paste-layout-dialog').is_visible():
                 page.wait_for_function("()=>!document.getElementById('keep-paste-layout').disabled")
                 page.locator('#keep-paste-layout').click()
