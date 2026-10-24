@@ -43,7 +43,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert partial and 'YOUR TURN' not in partial
             assert page.locator('.command-cursor').is_visible()
             page.clock.run_for(120000)
-            page.wait_for_function("document.querySelector('#command-body').dataset.introComplete === 'true'")
+            page.wait_for_function("() => document.querySelector('#command-body').dataset.introComplete === 'true'")
             output=page.locator('#command-output').inner_text()
             assert output.index('WHO I AM') < output.index('WHY I CREATED AVTRACK') < output.index('HOW IT CAN HELP YOU') < output.index('YOUR TURN')
             assert terminal.is_visible() and terminal.is_enabled()
@@ -84,7 +84,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.emulate_media(reduced_motion='reduce')
             page.goto(f'http://127.0.0.1:{server.server_port}/avtrack')
             page.locator('.command-bridge').scroll_into_view_if_needed()
-            page.wait_for_function("document.querySelector('#command-body').dataset.introComplete === 'true'")
+            page.wait_for_function("() => document.querySelector('#command-body').dataset.introComplete === 'true'")
             assert 'HOW IT CAN HELP YOU' in page.locator('#command-output').inner_text()
             assert page.locator('#command-input').is_visible()
             assert not errors,errors
