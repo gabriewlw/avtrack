@@ -184,7 +184,7 @@
     const newTVUnits=items.filter(item=>inventoryValue(item,'unit_status')==='New').reduce((total,item)=>total+(Number(item.quantity)||0),0);
     $('equipment-new-tv-units').textContent=newTVUnits.toLocaleString();
     $('equipment-show-new').setAttribute('aria-pressed',String(customFilterValues.get('unit_status')==='New'));
-    $('equipment-show-new').textContent=customFilterValues.get('unit_status')==='New'?'Show all units':'New only';
+    $('equipment-show-new').title=customFilterValues.get('unit_status')==='New'?'Show all TV units':'Show only new TV units';
     $('equipment-new-tv-stat').title='Units explicitly marked New in this TV inventory. Blank status is not assumed new.';
     $('equipment-units').title='Sum of known quantities; blank quantities are not counted.';
     let note=$('equipment-unknown-count');if(!note){note=element('small');note.id='equipment-unknown-count';$('equipment-units').after(note);}

@@ -1232,9 +1232,6 @@ body.desktop-working .hero-copy { min-width:0; align-items:flex-start; text-alig
 .inventory-example-status { pointer-events:none; }
 
 /* Explicit unit condition stays separate from the location confirmation. */
-.equipment-new-tv-stat{background:linear-gradient(135deg,#103c2a,#122a22);border:2px solid #52d390!important;box-shadow:0 0 0 1px #52d39022,0 8px 28px #0003}
-.equipment-new-tv-stat>span{color:#b6f7d2!important;font-weight:700}
-.equipment-new-tv-stat>strong{color:#72f3a7!important}
 .equipment-shelf-label{display:grid;gap:8px;margin:16px 0}
 .equipment-shelf-label .optional,.equipment-shelf-label small{color:var(--muted)}
 .unit-status-choices .choice-buttons{display:flex;flex-wrap:wrap;gap:4px;max-width:220px}
@@ -1244,4 +1241,50 @@ body.desktop-working .hero-copy { min-width:0; align-items:flex-start; text-alig
 .unit-status-choices [data-value="Broken"][aria-pressed="true"]{background:#4a2025;color:#ffc0c6;border-color:#e56370}
 .equipment-add-count{font-size:12px;white-space:nowrap}
 
-.equipment-new-tv-stat #equipment-show-new{justify-self:start;margin-top:8px;border:1px solid #52d390;color:#b6f7d2;background:#123b2a;font-weight:700}.equipment-new-tv-stat #equipment-show-new:hover,.equipment-new-tv-stat #equipment-show-new[aria-pressed=true]{background:#205c3e;color:#fff}
+
+/* A quiet availability summary with a compact, explicit filter state. */
+.stats > .equipment-new-tv-stat {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  padding:14px 18px;
+  border:1px solid #2e493c;
+  border-radius:10px;
+  background:#111b16;
+  box-shadow:none;
+  text-align:left;
+}
+.equipment-new-tv-stat .new-tv-copy { display:grid; gap:4px; min-width:0; text-align:left; }
+.equipment-new-tv-stat .new-tv-copy > span { color:#b6d4c2; font-size:10px; font-weight:600; letter-spacing:1px; }
+.equipment-new-tv-stat .new-tv-copy > strong { color:#80dfa3; font-size:32px; line-height:1.1; letter-spacing:-1px; }
+.equipment-new-tv-stat .new-tv-copy > small { color:#91a79a; font:11px/1.4 var(--font-ui); }
+.equipment-new-tv-stat #equipment-show-new {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  min-height:32px;
+  margin:0;
+  padding:6px 11px;
+  border:1px solid #3a5143;
+  border-radius:999px;
+  background:transparent;
+  color:#c3d7ca;
+  font:600 12px/18px var(--font-ui);
+  white-space:nowrap;
+  transition:background-color .15s,border-color .15s,color .15s;
+}
+.equipment-new-tv-stat #equipment-show-new > span { color:inherit; font:inherit; text-transform:none; letter-spacing:0; }
+#equipment-show-new svg { width:14px; height:14px; flex:none; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+#equipment-show-new .new-only-check-icon { display:none; }
+.equipment-new-tv-stat #equipment-show-new:hover { background:#1c3024; border-color:#64836d; color:#edf8f1; }
+.equipment-new-tv-stat #equipment-show-new[aria-pressed="true"] { background:#244b33; border-color:#5aaa76; color:#e0f6e7; }
+#equipment-show-new[aria-pressed="true"] .new-only-filter-icon { display:none; }
+#equipment-show-new[aria-pressed="true"] .new-only-check-icon { display:block; }
+.equipment-new-tv-stat #equipment-show-new:focus-visible { outline:2px solid #80dfa3; outline-offset:3px; }
+@media(max-width:700px) {
+  .equipment-stats:has(#equipment-new-tv-stat:not([hidden])) { grid-template-columns:repeat(2,minmax(0,1fr))!important; }
+  .stats > .equipment-new-tv-stat { grid-column:1/-1; padding:14px 16px; }
+  .equipment-new-tv-stat .new-tv-copy > strong { font-size:28px; }
+}
