@@ -49,6 +49,8 @@ with tempfile.TemporaryDirectory() as tmp:
             assert empty['y'] - (overview['y'] + overview['height']) >= 40
             out = Path(os.environ.get('AVTRACK_SCREENSHOT_DIR', 'work/screenshots'))
             out.mkdir(parents=True, exist_ok=True)
+            page.evaluate("window.scrollTo({top:0,behavior:'instant'})")
+            page.wait_for_timeout(120)
             page.screenshot(path=str(out/'avtrack-home-desktop.png'), full_page=True)
             for path, heading in [('/#av','AV devices'),('/#iptv','IPTV channels'),('/inventory','Equipment inventory'),('/backups','Configuration backups')]:
                 page.goto(origin+path)
@@ -97,6 +99,7 @@ with tempfile.TemporaryDirectory() as tmp:
             assert popup.locator('svg image').get_attribute('href') == '/workspace-examples.png'
             assert popup.locator('.vlc-example-controls').is_visible()
             assert 'one click' in page.locator('[data-scene="iptv"]').inner_text()
+            popup.screenshot(path=str(out/'avtrack-network-stream-popup.png'))
             page.screenshot(path=str(out/'avtrack-landing-iptv-vlc.png'),full_page=False)
             assert not errors, errors
             browser.close()

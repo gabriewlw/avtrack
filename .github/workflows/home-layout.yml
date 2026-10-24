@@ -41,3 +41,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPOSITORY: ${{ github.repository }}
         run: python scripts/publish_inventory_screenshot.py
+      - name: Publish requested workspace screenshots
+        if: github.ref == 'refs/heads/main' && success() && contains(github.event.head_commit.message, '[workspace-preview]')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+        run: python scripts/publish_workspace_previews.py
