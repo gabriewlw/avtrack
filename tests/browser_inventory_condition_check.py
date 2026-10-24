@@ -83,6 +83,13 @@ with tempfile.TemporaryDirectory() as temporary:
             page.wait_for_function("(n)=>document.getElementById('equipment-new-tv-units').textContent===String(n)",arg=before-5)
             target.get_by_role('button',name='New',exact=True).click()
             page.wait_for_function("(n)=>document.getElementById('equipment-new-tv-units').textContent===String(n)",arg=before)
+            page.locator('#equipment-show-new').click()
+            page.wait_for_function("()=>document.getElementById('equipment-show-new').getAttribute('aria-pressed')==='true'")
+            expected=len([r for r in app.equipment_inventory(tv['id']) if r.get('custom_values',{}).get('unit_status')=='New'])
+            assert page.locator('#equipment-rows tr').count()==expected
+            assert page.locator('#equipment-rows [data-value="New"][aria-pressed="true"]').count()==expected
+            page.locator('#equipment-show-new').click()
+            assert page.locator('#equipment-rows tr').count()==7
             page.evaluate('document.fonts.ready')
             out=Path('work/screenshots');out.mkdir(parents=True,exist_ok=True)
             page.screenshot(path=str(out/'avtrack-inventory-status.png'),full_page=True)

@@ -183,6 +183,8 @@
     $('equipment-new-tv-stat').hidden=!isTVInventory();
     const newTVUnits=items.filter(item=>inventoryValue(item,'unit_status')==='New').reduce((total,item)=>total+(Number(item.quantity)||0),0);
     $('equipment-new-tv-units').textContent=newTVUnits.toLocaleString();
+    $('equipment-show-new').setAttribute('aria-pressed',String(customFilterValues.get('unit_status')==='New'));
+    $('equipment-show-new').textContent=customFilterValues.get('unit_status')==='New'?'Show all units':'New only';
     $('equipment-new-tv-stat').title='Units explicitly marked New in this TV inventory. Blank status is not assumed new.';
     $('equipment-units').title='Sum of known quantities; blank quantities are not counted.';
     let note=$('equipment-unknown-count');if(!note){note=element('small');note.id='equipment-unknown-count';$('equipment-units').after(note);}
@@ -531,6 +533,7 @@
   for (const id of ['close-equipment','cancel-equipment']) $(id).onclick = () => $('equipment-dialog').close();
   $('equipment-empty-add').onclick = () => openEquipment();
   $('cancel-equipment-stock-check').onclick=()=>$('equipment-stock-check-dialog').close();
+  $('equipment-show-new').onclick=()=>{if(customFilterValues.get('unit_status')==='New')customFilterValues.delete('unit_status');else customFilterValues.set('unit_status','New');renderEquipment();};
   $('equipment-refresh').onclick = () => loadEquipment();
   $('equipment-inventory-select').onchange = event => loadEquipment(Number(event.target.value));
   async function openInventoryForm(rename = false) {
