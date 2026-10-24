@@ -734,7 +734,8 @@ def save_equipment(value, item_id=None):
         values = custom_values(value.get('custom_values'), profile)
         row=normalize_template_row(dict(row,custom_values=values),profile)
         identifier = profile_identifier(dict(row,custom_values=values), profile)
-        if identifier and any(profile_identifier(equipment_record(saved),profile)==identifier for saved in con.execute('SELECT * FROM equipment WHERE inventory_id=? AND id!=?',(inventory_id,item_id or 0))):
+        enforce_identifier=creating or profile.get('stock_mode')!='tv_counts'
+        if identifier and enforce_identifier and any(profile_identifier(equipment_record(saved),profile)==identifier for saved in con.execute('SELECT * FROM equipment WHERE inventory_id=? AND id!=?',(inventory_id,item_id or 0))):
             raise ValueError('This item identifier already exists in this inventory.')
         if profile.get('unique_location') and row['location'] and any(saved['location'].strip().casefold()==row['location'].casefold() for saved in con.execute('SELECT location FROM equipment WHERE inventory_id=? AND id!=?',(inventory_id,item_id or 0))):
             raise ValueError('This Scala location already has an item. Each location must be unique.')

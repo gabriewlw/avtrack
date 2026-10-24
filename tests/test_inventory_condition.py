@@ -114,3 +114,17 @@ class InventoryConditionTests(unittest.TestCase):
         with app.connect() as con:con.execute('UPDATE equipment_inventories SET layout=? WHERE id=?',(json.dumps(layout),inv['id']))
         restored=next(i for i in app.equipment_inventories() if i['id']==inv['id'])
         self.assertTrue({'unit_status','notes'} <= {c['key'] for c in restored['layout']['columns']})
+
+    def test_changing_condition_never_merges_or_blocks_existing_tv_batches(self):
+        inv=self.create('tv')
+        first=self.tv(inv);first['notes']='Spare batch'
+        first['custom_values']['unit_status']='New'
+        original=app.save_equipment(first)
+        used=copy.deepcopy(first);used['custom_values']['unit_status']='Used'
+        second=app.save_equipment(used)
+        changed=app.save_equipment(dict(second,custom_values={**second['custom_values'],'unit_status':'New'}),second['id'])
+        self.assertEqual(changed['custom_values']['unit_status'],'New')
+        rows=app.equipment_inventory(inv['id'])
+        self.assertEqual(len(rows),2)
+        self.assertEqual({r['id'] for r in rows},{original['id'],second['id']})
+        self.assertEqual(sum(r['quantity'] for r in rows if r['custom_values']['unit_status']=='New'),10)
