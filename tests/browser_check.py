@@ -1138,10 +1138,8 @@ with tempfile.TemporaryDirectory() as temp:
             by_ip = {row['ip']: row for row in app.inventory()}
             assert [by_ip[f'239.221.50.{index + 1}']['channel_source'] for index in range(4)] == ['Satellite', 'Onboard', '', '']
             hgtv_row = page.locator('.device-row').filter(has=page.locator('.device-name').filter(has_text='HGTV East'))
-            hgtv_logo = hgtv_row.locator('.channel-logo')
-            hgtv_logo.scroll_into_view_if_needed()
-            page.wait_for_function("() => { const img = document.querySelector('img[src=\"/channel-logos/HGTV.us.png\"]'); return img && img.complete && img.naturalWidth > 0; }")
-            assert hgtv_logo.get_attribute('alt') == ''
+            assert hgtv_row.locator('.device-name').text_content()=='HGTV East'
+            assert hgtv_row.locator('img').count()==0
             assert page.locator('.device-row').filter(has=page.locator('.device-name').filter(has_text='Unknown satellite test')).locator('.channel-logo').count() == 0
             # All supplied Galaxy 31 names suggest Satellite, including regional
             # suffixes and accented names. Broader catalog names still match but
@@ -1164,8 +1162,6 @@ with tempfile.TemporaryDirectory() as temp:
                 assert page.locator('#source-buttons button').count() == 3
                 assert page.locator('#network-filters').evaluate("node => { const search = node.querySelector('.search').getBoundingClientRect(), source = node.querySelector('#source-filter-group').getBoundingClientRect(); return Math.abs(search.top - source.top) < 3 && source.left >= search.right; }")
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
-                assert hgtv_logo.evaluate("node => Math.abs(node.getBoundingClientRect().height - parseFloat(getComputedStyle(node.parentElement).fontSize)) < 1")
-                assert hgtv_logo.evaluate("node => { const text = node.previousElementSibling; return text?.tagName === 'SPAN' && text.textContent === 'HGTV East' && node.getBoundingClientRect().left >= text.getBoundingClientRect().right; }")
             page.set_viewport_size({'width':1440,'height':1000})
             page.locator('#source-buttons').get_by_role('button', name='Satellite', exact=True).click()
             page.locator('#search').fill('Sport 24')

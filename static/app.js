@@ -787,14 +787,7 @@ function render() {
     }));
     const title = element('div');
     const name = element('div', 'device-name');
-    const channel = device.record_type === 'iptv' ? satelliteChannelForName(device.name) : null;
-    if (channel?.logo) {
-      name.classList.add('channel-name');
-      const logo = element('img', 'channel-logo');
-      logo.src = channel.logo; logo.alt = ''; logo.loading = 'lazy';
-      logo.onerror = () => logo.remove();
-      name.append(element('span', '', device.name), logo);
-    } else name.textContent = device.name || 'Incomplete record — add a name';
+    name.textContent = device.name || 'Incomplete record — add a name';
     title.append(name, element('span', 'device-category', device.category));
     const notes = element('button', 'quiet device-notes-view', device.notes?'View':'Add');
     notes.type='button';notes.dataset.deviceId=device.id;notes.title=device.notes||'Add a note';

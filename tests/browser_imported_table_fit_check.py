@@ -8,7 +8,7 @@ from playwright.sync_api import sync_playwright
 with tempfile.TemporaryDirectory() as tmp:
     app.DB_PATH=Path(tmp)/'inventory.sqlite3'
     app.save_device(dict(name='Studio camera',venue='Studio',discipline='Video',ip='192.0.2.10',vlan=1500))
-    app.save_device(dict(record_type='iptv',name='Sports demo',ip='239.1.1.10',port=1234,channel_source='Onboard'))
+    app.save_device(dict(record_type='iptv',name='ESPN',ip='239.1.1.10',port=1234,channel_source='Onboard'))
     app.save_equipment(dict(description='Panel',brand='BMD',model='Mini',serial_number='A1',quantity=1,location='Studio'))
     server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
@@ -96,6 +96,9 @@ with tempfile.TemporaryDirectory() as tmp:
             for route, label in [('/#av','devices'),('/#iptv','iptv')]:
                 page.goto(origin+route)
                 page.locator('.device-row').first.wait_for()
+                if label=='iptv':
+                    assert page.locator('.device-name').filter(has_text='ESPN').count()==1
+                    assert page.locator('#device-directory img').count()==0
                 directory=page.locator('#device-directory')
                 box=directory.bounding_box()
                 assert abs(box['x']-reference['x'])<2, (label,box,reference)
