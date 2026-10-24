@@ -1,5 +1,6 @@
 """Optional status on import, post-import edits, separate counts, shelf notes and screenshots."""
 import json
+import base64
 import shutil
 import sys
 import tempfile
@@ -94,6 +95,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.evaluate('document.fonts.ready')
             out=Path('work/screenshots');out.mkdir(parents=True,exist_ok=True)
             page.screenshot(path=str(out/'avtrack-inventory-status.png'),full_page=True)
+            print('AVTRACK_PREVIEW_JPEG:'+base64.b64encode(page.screenshot(type='jpeg',quality=60,full_page=True)).decode(),flush=True)
             # Manual shelf capture is offered in other inventories too.
             page.locator('#equipment-inventory-select').select_option(str(generic['id']))
             page.wait_for_function("()=>document.getElementById('equipment-inventory-title').textContent==='AV spare parts'")
