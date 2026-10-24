@@ -19,6 +19,7 @@ with tempfile.TemporaryDirectory() as temporary:
             browser=playwright.chromium.launch(executable_path=shutil.which('chromium') or None)
             page=browser.new_page(viewport={'width':1440,'height':1000});errors=[]
             page.on('pageerror',lambda error:errors.append(str(error)))
+            page.clock.install()
             page.goto(f'http://127.0.0.1:{server.server_port}/avtrack')
             tally=page.locator('.showcase-nav .showcase-brand>span').first.bounding_box()
             brand=page.locator('.showcase-nav .showcase-brand>b').first.bounding_box()
@@ -34,16 +35,22 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('.command-title').evaluate('(node)=>getComputedStyle(node).height')=='34px'
             assert bridge.evaluate('(node)=>getComputedStyle(node).borderRadius')=='6px'
             assert page.locator('.command-body').evaluate('(node)=>getComputedStyle(node).padding')=='16px 20px'
-            assert page.locator('.command-body p').first.inner_text()=='C:\\Users\\visitor\\avtrack> aboutme'
-            assert page.locator('.command-dim').first.evaluate('(node)=>getComputedStyle(node).color')=='rgb(168, 168, 168)'
-            assert page.locator('.command-chips').count()==0
             terminal=page.locator('#command-input')
+            assert terminal.is_hidden()
+            assert page.locator('[data-command]').count()==0
+            page.clock.run_for(1000)
+            partial=page.locator('#command-output').inner_text()
+            assert partial and 'YOUR TURN' not in partial
+            assert page.locator('.command-cursor').is_visible()
+            page.clock.run_for(120000)
+            page.wait_for_function("document.querySelector('#command-body').dataset.introComplete === 'true'")
+            output=page.locator('#command-output').inner_text()
+            assert output.index('WHO I AM') < output.index('WHY I CREATED AVTRACK') < output.index('HOW IT CAN HELP YOU') < output.index('YOUR TURN')
+            assert terminal.is_visible() and terminal.is_enabled()
+            assert page.locator('#command-body').evaluate('(n)=>n.scrollHeight-n.scrollTop-n.clientHeight') < 3
+            assert page.get_by_role('button',name='demo → Explore sample data',exact=True).count()==1
             assert page.locator('.command-entry .command-prompt').inner_text()=='C:\\Users\\visitor\\avtrack>'
-            page.get_by_role('button',name='purpose →',exact=True).click()
-            assert 'WHY AVTRACK EXISTS' in page.locator('#command-output').inner_text()
-            page.get_by_role('button',name='Next: help →',exact=True).click()
-            assert page.get_by_role('button',name='demo        Explore AVTrack with sample data',exact=True).count()==1
-            assert page.get_by_role('button',name='devices     Open the device workspace',exact=True).count()==0
+            terminal.focus()
             terminal.fill('help');terminal.press('Enter')
             assert 'AVTRACK COMMANDS' in page.locator('#command-output').inner_text()
             assert page.locator('.command-accent').first.evaluate('(node)=>getComputedStyle(node).color')=='rgb(230, 230, 230)'
@@ -74,6 +81,12 @@ with tempfile.TemporaryDirectory() as temporary:
             assert closing_action.count()==1
             action_box=closing_action.bounding_box()
             assert abs((action_box['x']+action_box['width']/2)-(closing_box['x']+closing_box['width']/2))<1
+            page.emulate_media(reduced_motion='reduce')
+            page.goto(f'http://127.0.0.1:{server.server_port}/avtrack')
+            page.locator('.command-bridge').scroll_into_view_if_needed()
+            page.wait_for_function("document.querySelector('#command-body').dataset.introComplete === 'true'")
+            assert 'HOW IT CAN HELP YOU' in page.locator('#command-output').inner_text()
+            assert page.locator('#command-input').is_visible()
             assert not errors,errors
             browser.close()
     finally:

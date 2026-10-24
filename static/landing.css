@@ -72,3 +72,9 @@ main{position:relative;z-index:1}.hero{position:relative;min-height:1120px;paddi
 @media(max-width:600px) { .vlc-stream-example { right:14px; bottom:16px; width:66%; max-width:270px; } .vlc-stream-example figcaption { font-size:10px; } }
 
 .vlc-stream-window > svg { display:block; width:100%; height:auto; }
+
+/* The input becomes available after the automatic introduction. */
+.command-entry[hidden]{display:none}
+.command-body .command-cursor{height:1em;width:.6em;margin-left:2px;vertical-align:-.12em;animation:terminal-blink 1s steps(1) infinite}
+@keyframes terminal-blink{50%{opacity:0}}
+@media(prefers-reduced-motion:reduce){.command-body .command-cursor{animation:none}}

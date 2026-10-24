@@ -45,26 +45,26 @@ const terminalCommands = {
     {text: 'status      Show workspace capabilities', command: 'status'},
     {text: 'demo        Explore AVTrack with sample data', command: 'demo'},
     {text: 'aboutme     Meet the technician behind AVTrack', command: 'aboutme'},
-    {text: 'purpose     See who AVTrack is designed to help', command: 'purpose'},
+    {text: 'purpose     Why I created AVTrack', command: 'purpose'},
+    {text: 'benefits    How AVTrack can help your team', command: 'benefits'},
     {text: 'github      View the source repository', command: 'github'},
     {text: 'clear       Clear this terminal', command: 'clear'},
     {text: 'Use ↑ and ↓ to revisit commands.', tone: 'command-dim'}
   ],
   aboutme: [
-    {text: 'GABRIEL MOURA · BROADCAST TECHNICIAN', tone: 'command-accent'},
-    {text: 'Gabriel works in cruise-ship broadcast operations, running onboard TV'},
-    {text: 'systems from satellite reception and server ingest to live production'},
-    {text: 'and interactive television.'},
-    {text: 'AVTrack grew from that day-to-day technical work.', tone: 'command-dim'},
-    {text: 'Next: purpose →', command: 'purpose'}
+    {text: 'WHO I AM', tone: 'command-accent'},
+    {text: 'I’m Gabriel Moura, a broadcast technician working on cruise ships.'},
+    {text: 'I look after onboard TV, satellite reception, and live production.'}
   ],
   purpose: [
-    {text: 'WHY AVTRACK EXISTS', tone: 'command-accent'},
-    {text: 'AVTrack helps broadcast technicians and anyone responsible for AV systems'},
-    {text: 'find device IPs faster, test IPTV feeds, verify physical inventory, and'},
-    {text: 'keep known-good configuration files ready for recovery.'},
-    {text: 'It turns scattered technical records into one practical local workspace.', tone: 'command-dim'},
-    {text: 'Next: help →', command: 'help'}
+    {text: 'WHY I CREATED AVTRACK', tone: 'command-accent'},
+    {text: 'I wanted less time searching through scattered sheets during a busy shift.'},
+    {text: 'So I built a local workspace to keep the technical details close at hand.'}
+  ],
+  benefits: [
+    {text: 'HOW IT CAN HELP YOU', tone: 'command-accent'},
+    {text: 'Find device IPs, open IPTV streams in one click, check spare equipment,'},
+    {text: 'and keep configuration backups ready. Export what you need in seconds.'}
   ],
   status: [
     {text: 'AVTRACK WORKSPACE', tone: 'command-accent'},
@@ -109,9 +109,11 @@ function appendTerminalLine(line) {
     paragraph.textContent = line.text;
   }
   commandOutput.append(paragraph);
+  return paragraph;
 }
 
 function runTerminalCommand(value) {
+  if (commandForm.hidden) return;
   const entered = value.trim();
   if (!entered) return;
   commandHistory.unshift(entered);
@@ -161,6 +163,78 @@ commandBody.addEventListener('click', event => {
   }
   if (!event.target.closest('a,input,button')) commandInput.focus();
 });
+// Play once when the terminal is visible. Keep page scrolling under the visitor’s control.
+commandOutput.replaceChildren();
+commandForm.hidden = true;
+commandInput.disabled = true;
+commandOutput.setAttribute('aria-busy', 'true');
+const typingCursor = document.createElement('span');
+typingCursor.className = 'command-cursor';
+typingCursor.setAttribute('aria-hidden', 'true');
+let followTerminal = true;
+commandBody.addEventListener('scroll', () => {
+  followTerminal = commandBody.scrollHeight - commandBody.scrollTop - commandBody.clientHeight < 48;
+}, {passive: true});
+
+function followTyping() {
+  if (followTerminal) commandBody.scrollTop = commandBody.scrollHeight;
+}
+const terminalPause = ms => new Promise(resolve => setTimeout(resolve, ms));
+async function typeTerminalLine(line) {
+  const paragraph = appendTerminalLine({...line, text: ''});
+  const target = paragraph.firstElementChild || paragraph;
+  const text = document.createTextNode('');
+  target.append(text, typingCursor);
+  if (reducedMotion) {
+    text.data = line.text;
+  } else {
+    for (const character of line.text) {
+      if (document.hidden) await new Promise(resolve => {
+        const resume = () => {
+          if (!document.hidden) {
+            document.removeEventListener('visibilitychange', resume);
+            resolve();
+          }
+        };
+        document.addEventListener('visibilitychange', resume);
+      });
+      text.data += character;
+      followTyping();
+      await terminalPause(/[.,!?]/.test(character) ? 200 : 45 + Math.random() * 40);
+    }
+  }
+  typingCursor.remove();
+  followTyping();
+}
+
+async function playTerminalIntroduction() {
+  for (const name of ['aboutme', 'purpose', 'benefits']) {
+    for (const line of terminalCommands[name]) await typeTerminalLine(line);
+    appendTerminalLine({text: '', tone: 'command-blank'});
+    if (!reducedMotion) await terminalPause(850);
+  }
+  await typeTerminalLine({text: 'YOUR TURN — TRY A COMMAND', tone: 'command-accent'});
+  await typeTerminalLine({text: 'Click a suggestion or type below. Try help to see every command.', tone: 'command-dim'});
+  [
+    {text: 'status → Inspect the workspace', command: 'status'},
+    {text: 'demo → Explore sample data', command: 'demo'},
+    {text: 'github → See the project', command: 'github'},
+    {text: 'help → More commands', command: 'help'}
+  ].forEach(appendTerminalLine);
+  commandOutput.setAttribute('aria-busy', 'false');
+  commandForm.hidden = false;
+  commandInput.disabled = false;
+  commandBody.dataset.introComplete = 'true';
+  followTyping();
+}
+
+const terminalObserver = new IntersectionObserver(entries => {
+  if (!entries.some(entry => entry.isIntersecting)) return;
+  terminalObserver.disconnect();
+  playTerminalIntroduction();
+}, {threshold: .25});
+terminalObserver.observe(commandBody);
+
 const revealObserver = new IntersectionObserver(entries => {
   entries.forEach(entry => {
     if (entry.isIntersecting) {
