@@ -346,8 +346,10 @@ input.equipment-confirm{width:18px;height:18px;min-height:18px;margin:0;padding:
 .udp-field .udp-copy,.udp-field .udp-vlc{display:flex;align-items:center;justify-content:center;flex:0 0 30px;width:30px;min-height:30px;height:30px;padding:6px;border:1px solid var(--border);border-radius:5px;background:var(--secondary);color:var(--muted-foreground);text-decoration:none}
 .udp-copy svg,.udp-vlc svg{width:16px;height:16px}
 .udp-copy svg{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
-.udp-vlc svg{width:18px;height:18px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))}.udp-vlc .vlc-cone{fill:#f28c28;stroke:#ffb35c;stroke-width:.6}.udp-vlc .vlc-stripe{fill:#fff3df}.udp-vlc .vlc-base{fill:#f28c28;stroke:#ffb35c;stroke-width:.6}.udp-vlc .vlc-base-line{fill:none;stroke:#fff3df;stroke-width:1.2;stroke-linecap:round}
-.udp-vlc:hover,.udp-vlc:focus-visible{border-color:#f28c28;color:#f28c28;background:color-mix(in oklab,#f28c28 10%,var(--secondary))}
+.udp-field .udp-vlc{border-radius:7px;border-color:color-mix(in oklab,var(--accent-text) 30%,var(--border));background:color-mix(in oklab,var(--accent-text) 9%,var(--secondary));color:#ff9598;transition:background-color .15s,border-color .15s,color .15s}
+.udp-vlc svg{width:17px;height:17px;fill:currentColor;stroke:currentColor;stroke-width:1.6;stroke-linejoin:round;filter:none}
+.udp-field .udp-vlc:hover:not(:disabled){background:var(--accent-text);border-color:var(--accent-text);color:#fff}
+.udp-field .udp-vlc:focus-visible{outline:2px solid #ff9598;outline-offset:3px}
 .udp-vlc:disabled{pointer-events:none;opacity:.45}
 .directory-head,.device-directory .device-row{display:grid;grid-template-columns:var(--directory-columns);gap:0;min-width:1010px;align-items:start;padding:0;border:0;border-radius:0}
 .directory-head{position:sticky;top:0;z-index:2;background:var(--secondary);border-bottom:1px solid var(--border);font:600 11px var(--font-ui);letter-spacing:1px;color:var(--muted-foreground)}

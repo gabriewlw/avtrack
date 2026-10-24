@@ -667,7 +667,7 @@ async function load() {
   } finally { $('loading').hidden = true; $('refresh').disabled = false; }
 }
 const copyIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>';
-const vlcIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="vlc-cone" d="M11.2 2.5h1.6l4.3 14H6.9l4.3-14Z"/><path class="vlc-stripe" d="M9.2 9h5.6l1.2 3.8H8L9.2 9Z"/><path class="vlc-base" d="M6.2 16h11.6l2 3.2c.5.8-.1 1.8-1 1.8H5.2c-.9 0-1.5-1-1-1.8l2-3.2Z"/><path class="vlc-base-line" d="M6.1 18.2h11.8"/></svg>';
+const streamPlayIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 6.8 17.2 12 9 17.2Z"/></svg>';
 function udpCell(device) {
   const cell = element('div', 'udp-cell');
   const field = element('div', 'udp-field');
@@ -697,7 +697,7 @@ function udpCell(device) {
   vlc.type = 'button';
   vlc.setAttribute('aria-label', `Open ${deviceLabel(device)} network stream in VLC`);
   vlc.title = input.value ? 'Open network stream in VLC' : 'Add an IP address and port to open this stream in VLC';
-  vlc.innerHTML = vlcIcon;
+  vlc.innerHTML = streamPlayIcon;
   vlc.disabled = !input.value;
   vlc.onclick = async () => {
     vlc.disabled = true;
