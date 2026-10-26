@@ -10,7 +10,13 @@ def continue_uploaded_import(page):
     page.locator('#paste-layout-dialog:visible, #spreadsheet-dialog:visible').first.wait_for()
     if page.locator('#paste-layout-dialog').is_visible():
         page.wait_for_function("()=>!document.getElementById('keep-paste-layout').disabled")
-        page.locator('#keep-paste-layout').click()
+        if page.locator('#keep-paste-layout').is_visible():
+            page.locator('#keep-paste-layout').click()
+        else:
+            # IPTV uses its dedicated main-column preview, with direct Review.
+            page.locator('#paste-start-review').click()
+            page.locator('#inventory-import-review').wait_for(state='visible')
+            return
     page.locator('#spreadsheet-dialog').wait_for(state='visible')
     page.wait_for_function("()=>!document.getElementById('confirm-import').disabled")
     # Review rather than auto-import, so the browser can exercise row actions.

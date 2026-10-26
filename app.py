@@ -1229,7 +1229,7 @@ class Handler(BaseHTTPRequestHandler):
                 saved=directory/name
                 if not saved.is_file():raise LookupError('Recovery backup not found.')
                 return self.send(200,saved.read_bytes(),'application/zip',name)
-            return self.send(200,{'backups':[{'name':saved.name,'size':saved.stat().st_size} for saved in sorted(directory.glob('avtrack-recovery-*.zip'),reverse=True)]})
+            return self.send(200,{'backups':[{'name':saved.name,'size':saved.stat().st_size,'modified_at':saved.stat().st_mtime} for saved in sorted(directory.glob('avtrack-recovery-*.zip'),key=lambda file:file.stat().st_mtime_ns,reverse=True)]})
         if self.command == 'GET' and path == '/api/workspace/export':
             data = workspace_transfer.snapshot(connect, backup_directory)
             data['app_version']=source_revision()

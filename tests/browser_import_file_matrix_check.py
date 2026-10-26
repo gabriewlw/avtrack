@@ -38,7 +38,8 @@ with tempfile.TemporaryDirectory() as tmp:
                 page.locator('#upload-paste-inventory').click();page.locator('#import-file').set_input_files(str(path))
                 continue_uploaded_import(page)
                 if equipment and page.locator('#import-complete-rows').is_checked():page.locator('#import-complete-rows').uncheck()
-                page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
+                if page.locator('#spreadsheet-dialog').is_visible():page.locator('#confirm-import').click()
+                page.locator('#inventory-import-review').wait_for(state='visible')
                 page.locator('#inventory-import-review-save').click();page.locator('#import-summary-panel').wait_for(state='visible',timeout=7000)
                 assert page.locator('#import-summary-title').inner_text()=='Import complete';page.locator('#close-import-summary').click()
 

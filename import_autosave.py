@@ -64,6 +64,10 @@ def checkpoint(app, session_id=None, added=0, final=False):
                 destination=directory/(prefix+str(added)+'.zip')
                 saved.replace(destination)
                 saved=destination
+            else:
+                destination=directory/('avtrack-recovery-import-bulk-'+saved.stem.removeprefix('avtrack-recovery-')+'-'+str(added)+'.zip')
+                saved.replace(destination)
+                saved=destination
             return {'autosave':{'file':saved.name,'records':added}}
         except Exception:
             # The data transaction is already committed. Explicitly keep success,

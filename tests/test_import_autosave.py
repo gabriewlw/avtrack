@@ -1,6 +1,7 @@
 """Automatic complete backups after at least 25 newly imported inventory records."""
 import json
 import base64
+import os
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -136,3 +137,17 @@ class ImportAutosaveTests(unittest.TestCase):
         self.assertEqual(result['added'],1)
         self.assertEqual(app.equipment_inventory()[0]['quantity'],1000)
         self.assertEqual(self.files(),[])
+
+    def test_recovery_list_is_newest_first_instead_of_sorting_session_ids(self):
+        self.request('/api/equipment/import','POST',dict(version=1,equipment=self.rows(25)))
+        content=self.files()[0].read_bytes()
+        directory=app.DB_PATH.parent/'recovery'
+        old=directory/'avtrack-recovery-import-9-test-25.zip'
+        new=directory/'avtrack-recovery-import-10-test-25.zip'
+        old.write_bytes(content);new.write_bytes(content)
+        os.utime(old,(100,100));os.utime(new,(200,200))
+        status,result=self.request('/api/workspace/recovery')
+        self.assertEqual(status,200)
+        names=[row['name'] for row in result['backups']]
+        self.assertLess(names.index(new.name),names.index(old.name))
+        self.assertTrue(all('modified_at' in row for row in result['backups']))
