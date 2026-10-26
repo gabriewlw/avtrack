@@ -51,7 +51,7 @@ def checkpoint(app, session_id=None, added=0, final=False):
                 added,prefix=details
                 previous=status(app,session_id).get('autosave',{}).get('records',0)
                 if added<THRESHOLD:return {}
-                if added-previous<THRESHOLD and not (final and added>previous):
+                if added-previous<max(THRESHOLD,previous) and not (final and added>previous):
                     return status(app,session_id)
             elif added<THRESHOLD:return {}
             directory=app.DB_PATH.parent/'recovery'

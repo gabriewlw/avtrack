@@ -24,7 +24,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 page.locator('#equipment-inventory-select').select_option(str(tv['id']))
                 page.wait_for_function("()=>document.getElementById('equipment-inventory-title').textContent==='Replacement stock'")
                 page.locator(f'#equipment-rows tr[data-item-id="{item["id"]}"]').wait_for()
-            first.locator(f'#equipment-rows tr[data-item-id="{item["id"]}"]').get_by_role('button',name='Edit',exact=True).click()
+            first.locator(f'#equipment-rows tr[data-item-id="{item["id"]}"]').get_by_role('button',name='Edit equipment Test TV',exact=True).click()
             first.locator('#equipment-dialog').wait_for(state='visible')
             second.locator(f'#equipment-rows tr[data-item-id="{item["id"]}"]').get_by_role('button',name='Used',exact=True).click()
             second.wait_for_function("()=>document.getElementById('equipment-new-tv-units').textContent==='0'")

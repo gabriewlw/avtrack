@@ -147,6 +147,7 @@ window.importWorkflow = (() => {
     byId('import-summary-panel').showModal();
   }
   async function resume(id){
+    autosaveNotice={};
     const saved=await api(`/api/import-sessions/${id}`),state=saved.state;
     if(saved.retired){session=saved;receipts=saved.receipts;completed=new Set(saved.completed_keys);showSummary();return;}
     if(saved.target.startsWith('equipment:')){navigatePage('equipment');await window.equipmentUI.load(Number(saved.target.split(':')[1]));}

@@ -1,5 +1,6 @@
 """Automatic complete backups after at least 25 newly imported inventory records."""
 import json
+import base64
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -29,7 +30,9 @@ class ImportAutosaveTests(unittest.TestCase):
     def files(self):
         return list((app.DB_PATH.parent/'recovery').glob('*.zip'))
 
-    def test_bulk_threshold_duplicate_import_and_round_trip(self):
+    def test_bulk_threshold_and_round_trip_with_configuration_attachment(self):
+        attachment=b'<configuration>known-good</configuration>'
+        app.save_av_backup(dict(equipment_type=app.BACKUP_TYPES[0],device_name='Audit switcher',filename='atem.xml',notes='Known good',content=base64.b64encode(attachment).decode()))
         status,result=self.request('/api/equipment/import','POST',dict(version=1,equipment=self.rows(24)))
         self.assertEqual(status,200);self.assertEqual(result['added'],24)
         self.assertEqual(self.files(),[])
@@ -39,6 +42,7 @@ class ImportAutosaveTests(unittest.TestCase):
         self.assertEqual(len(self.files()),1)
         saved=transfer.unpack(self.files()[0].read_bytes())
         self.assertEqual(len(saved['tables']['equipment']),49)
+        self.assertEqual(base64.b64decode(next(iter(saved['files'].values()))),attachment)
         original=transfer.snapshot(app.connect,app.backup_directory)['tables']
         transfer.restore(saved,app.connect,app.backup_directory)
         self.assertEqual(transfer.snapshot(app.connect,app.backup_directory)['tables'],original)
