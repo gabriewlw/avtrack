@@ -60,7 +60,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert demo_link.get_attribute('href')=='/demo'
             terminal.press('ArrowUp');assert terminal.input_value()=='demo'
             terminal.fill('clear');terminal.press('Enter')
-            assert page.locator('#command-output p').count()==0
+            assert page.locator('#command-output p').count()==0, page.locator('#command-output').inner_text()
             assert terminal.evaluate('(node)=>node===document.activeElement')
             storage_logo=page.locator('.storage-brand-mark')
             storage_logo.scroll_into_view_if_needed()
