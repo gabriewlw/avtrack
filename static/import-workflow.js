@@ -5,6 +5,7 @@ window.importWorkflow = (() => {
   const panels=['paste-inventory-dialog','paste-confirmation-dialog','paste-layout-dialog','paste-field-dialog','spreadsheet-dialog','inventory-import-review','import-summary-panel'];
   let active=null,session=null,preferences={},queue=[],queueIndex=0,completed=new Set(),receipts=[],edited={},applied=false,originalLayout=null,sheetMappings={};
   let checkpointTimer=null;
+  let autosaveNotice={};
   let saving=Promise.resolve(),knownRecords=[];
   const target=()=>currentTab==='equipment'?`equipment:${(spreadsheetInventory || pasteInventory)?.id}`:currentTab;
   function showPanel(panel){
@@ -42,7 +43,7 @@ window.importWorkflow = (() => {
     clearTimeout(checkpointTimer);
     if(!session || !spreadsheetFile)return;
     const state=snapshot(),id=session.id;
-    saving=saving.catch(()=>{}).then(async()=>{const saved=await api(`/api/import-sessions/${id}`,'PUT',{state,status},20000);if(session?.id===id)session={...saved};});
+    saving=saving.catch(()=>{}).then(async()=>{const saved=await api(`/api/import-sessions/${id}`,'PUT',{state,status},20000);if(session?.id===id){session={...saved};autosaveNotice=saved.autosave_warning?{autosave_warning:saved.autosave_warning}:saved.autosave?{autosave:saved.autosave}:autosaveNotice;}});
     await saving;
   }
   async function begin(file,inventory){
@@ -52,6 +53,7 @@ window.importWorkflow = (() => {
     knownRecords=inventory?(await api('/api/equipment?inventory_id='+inventory.id)).equipment:(await api('/api/devices')).devices;
     preferences=await api('/api/import-preferences?target='+encodeURIComponent(inventory?`equipment:${inventory.id}`:currentTab));
     if(!file.confirmation_mode)file.confirmation_mode=preferences.confirmation_mode || (inventory?.layout?.confirmation_mode || (inventory?(inventory.layout?.show_status===false?'none':'storage'):currentTab==='device'?'ip':'none'));
+    autosaveNotice={};
     const saved=await api('/api/import-sessions','POST',{target:inventory?`equipment:${inventory.id}`:currentTab,name:file.source_filename||file.filename,state:{file,inventory,originalLayout,confirmation_mode:file.confirmation_mode}});
     session=saved;
   }
@@ -63,6 +65,8 @@ window.importWorkflow = (() => {
     const keys=sourceKeys(entry);
     const result=await api(`/api/import-sessions/${session.id}/rows`,'POST',{keys,row,action,sheet:byId('sheet-choice').value || spreadsheetFile.source_label || '',issues:entry.issues || []},20000);
     keys.forEach(key=>{completed.add(key);delete edited[key];});
+    if(result.autosave_warning){autosaveNotice={autosave_warning:result.autosave_warning};toast(result.autosave_warning);}
+    else if(result.autosave){autosaveNotice={autosave:result.autosave};}
     const receipt=result._receipt;delete result._receipt;
     if(receipt && !receipts.some(saved=>saved.key===receipt.key))receipts.push(receipt);
     session={...session,receipts,completed_keys:[...completed]};
@@ -127,6 +131,9 @@ window.importWorkflow = (() => {
     const groups=new Map();receipts.forEach(receipt=>{if(!groups.has(receipt.location))groups.set(receipt.location,[]);groups.get(receipt.location).push(receipt);});
     byId('import-summary-title').textContent=session.state?.undone?'Import undone':session.retired?'Saved report — inventory deleted':stopped?'Import paused — progress saved':'Import complete';
     byId('import-summary-intro').textContent=`${session.name} · ${completed.size} source rows accounted for · ${receipts.reduce((sum,r)=>sum+(r.result.added || 0),0)} records added. ${session.retired?'This report is read-only because its inventory was deleted.':stopped?'Unfinished rows are available when you resume.':'Imported records are not automatically marked Located or IP confirmed.'}`;
+    const recovery=session.autosave_warning?{autosave_warning:session.autosave_warning}:session.autosave?{autosave:session.autosave}:autosaveNotice;
+    if(recovery.autosave_warning)byId('import-summary-intro').textContent+=' '+recovery.autosave_warning;
+    else if(recovery.autosave)byId('import-summary-intro').textContent+=` Full backup saved automatically after ${recovery.autosave.records} new inventory records. Available in Back up entire app → Restore → Recovery backups.`;
     byId('import-summary-groups').replaceChildren(...[...groups].map(([location,rows])=>{
       const detail=el('details','cross-check-location'),summary=el('summary');
       summary.textContent=location+' · '+['added','updated','existing','skip','exclude','zero'].map(outcome=>`${rows.filter(row=>row.outcome===outcome).length} ${outcome==='exclude'?'excluded':outcome==='zero'?'zero stock':outcome}`).join(' · ')+` · ${rows.reduce((sum,row)=>sum+row.merged,0)} source rows combined · ${rows.filter(row=>row.issues.length).length} flagged`;

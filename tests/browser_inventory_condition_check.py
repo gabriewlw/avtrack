@@ -68,7 +68,7 @@ with tempfile.TemporaryDirectory() as temporary:
             existing=next(r for r in app.equipment_inventory(tv['id']) if r['model']=='43UN7300' and r['custom_values']['unit_status']=='New')
             page.locator('#add-device').click()
             page.locator('#equipment-dialog').wait_for(state='visible')
-            page.locator('#equipment-brand').fill('LG')
+            page.locator('#equipment-brand').select_option('LG')
             page.locator('#equipment-model').fill('43UN7300')
             page.locator('#equipment-form').get_by_label('Deck 6',exact=True).select_option('2')
             page.locator('#equipment-form').get_by_role('button',name='New',exact=True).click()

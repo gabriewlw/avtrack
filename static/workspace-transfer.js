@@ -5,7 +5,7 @@
   get('workspace-restore-open').onclick=()=>{
     get('workspace-export-menu').open=false;
     get('workspace-restore-form').reset();previewedFile=null;get('workspace-restore-submit').disabled=true;get('workspace-restore-preview').hidden=true;
-    api('/api/workspace/recovery').then(data=>{const list=get('workspace-recovery-list');list.replaceChildren();if(data.backups.length){const title=document.createElement('h3');title.textContent='Recovery backups saved before previous restores';list.append(title);data.backups.slice(0,8).forEach(backup=>{const link=document.createElement('a');link.href='/api/workspace/recovery?file='+encodeURIComponent(backup.name);link.download=backup.name;link.textContent=backup.name;list.append(link,document.createElement('br'));});}}).catch(()=>{});
+    api('/api/workspace/recovery').then(data=>{const list=get('workspace-recovery-list');list.replaceChildren();if(data.backups.length){const title=document.createElement('h3');title.textContent='Recovery backups · automatic import saves and pre-restore copies';list.append(title);data.backups.slice(0,8).forEach(backup=>{const link=document.createElement('a');link.href='/api/workspace/recovery?file='+encodeURIComponent(backup.name);link.download=backup.name;link.textContent=backup.name;list.append(link,document.createElement('br'));});}}).catch(()=>{});
     get('workspace-restore-error').hidden=true;
     get('workspace-restore-status').textContent='';
     get('workspace-restore-dialog').showModal();

@@ -4,6 +4,7 @@ import base64
 import binascii
 from contextlib import nullcontext
 import import_sessions
+import import_autosave
 import workspace_transfer
 import operations
 import io
@@ -747,10 +748,10 @@ def save_equipment(value, item_id=None):
             if previous is None:
                 raise LookupError('Inventory item not found.')
             current=equipment_record(previous)
-            checked_fields=(*EQUIPMENT_FIELDS, 'custom_values')
+            checked_fields=EQUIPMENT_FIELDS
             if not isinstance(original,dict) or any(field not in original for field in checked_fields):
                 raise ValueError('Provide the original inventory values before saving.')
-            if any(original[field] != current[field] for field in checked_fields):
+            if any(original[field] != current[field] for field in checked_fields) or original.get('custom_values',{}) != current.get('custom_values',{}):
                 raise ValueError('This inventory item changed in another tab or session. Refresh the inventory and reopen the item before saving.')
         if item_id is None:
             cursor = con.execute('INSERT INTO equipment (' + ','.join(EQUIPMENT_FIELDS) + ',inventory_id,custom_values) VALUES (?,?,?,?,?,?,?,?,?)', [row[f] for f in EQUIPMENT_FIELDS] + [inventory_id,json.dumps(values,sort_keys=True)])
@@ -1276,10 +1277,13 @@ class Handler(BaseHTTPRequestHandler):
                 match=re.fullmatch(r'/api/import-sessions/([1-9][0-9]*)(/rows|/reconciliation)?',path)
                 if match:
                     session_id=int(match[1])
-                    if self.command=='GET' and not match[2]:return self.send(200,import_sessions.get(con,session_id))
+                    if self.command=='GET' and not match[2]:
+                        saved=import_sessions.get(con,session_id)
+                        return self.send(200,dict(saved,**import_autosave.status(sys.modules[__name__],session_id)))
                     if self.command=='PUT' and not match[2]:
                         saved=import_sessions.save(con,self.body(),session_id);con.commit()
-                        return self.send(200,saved)
+                        recovery=import_autosave.checkpoint(sys.modules[__name__],session_id,final=saved['status'] in ('complete','paused'))
+                        return self.send(200,dict(saved,**recovery))
                     if self.command=='POST' and match[2]=='/rows':
                         value=self.body()
                         if not isinstance(value,dict):raise ValueError('Provide a source row.')
@@ -1287,7 +1291,8 @@ class Handler(BaseHTTPRequestHandler):
                         def apply(session,row):
                             return operations.apply_import(sys.modules[__name__],con,session,row)
                         result=import_sessions.save_receipt(con,session_id,value,apply);con.commit()
-                        return self.send(200,result)
+                        recovery=import_autosave.checkpoint(sys.modules[__name__],session_id)
+                        return self.send(200,dict(result,**recovery))
                     if self.command=='PUT' and match[2]=='/reconciliation':
                         value=self.body()
                         if import_sessions.get(con,session_id)['retired']:raise ValueError('This inventory was deleted. Its import report is read-only.')
@@ -1491,7 +1496,9 @@ class Handler(BaseHTTPRequestHandler):
         elif self.command == 'POST' and path == '/api/equipment/locations':
             return self.send(200, manage_equipment_location(self.body()))
         elif self.command == 'POST' and path == '/api/equipment/import':
-            return self.send(200, import_equipment(self.body()))
+            result=import_equipment(self.body())
+            recovery=import_autosave.checkpoint(sys.modules[__name__],added=result['added'],final=True)
+            return self.send(200,dict(result,**recovery))
         elif self.command == 'POST' and re.fullmatch(r'/api/equipment/[1-9][0-9]*/remove-unit', path):
             return self.send(200, remove_equipment_unit(int(path.split('/')[3]), self.body()))
         elif self.command == 'POST' and path.startswith('/api/equipment/') and path.endswith('/notes'):
