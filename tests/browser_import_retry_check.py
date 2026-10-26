@@ -1,4 +1,4 @@
-from browser_helpers import open_workspace
+from browser_helpers import open_workspace, continue_uploaded_import
 """A failed row write or final checkpoint stays retryable instead of freezing."""
 import shutil,sys,tempfile,threading
 from pathlib import Path
@@ -29,7 +29,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.route('**/api/import-sessions/**',interrupt)
             page.goto(f'http://127.0.0.1:{server.server_port}/');page.wait_for_function("() => !document.getElementById('refresh').disabled")
             open_workspace(page, 'iptv-tab');page.locator('#import').click();page.locator('#upload-paste-inventory').click();page.locator('#import-file').set_input_files(str(path))
-            page.locator('#spreadsheet-dialog').wait_for(state='visible');page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
+            continue_uploaded_import(page)
             page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
             page.locator('#inventory-import-review-save').click()
             page.wait_for_function("() => document.querySelector('#inventory-import-review-rows .batch-row-result').classList.contains('error')")

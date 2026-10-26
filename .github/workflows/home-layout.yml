@@ -9,6 +9,9 @@ on:
       - 'tests/browser_inventory_condition_check.py'
       - 'tests/browser_inventory_concurrency_check.py'
       - 'tests/browser_import_autosave_check.py'
+      - 'tests/browser_import_file_matrix_check.py'
+      - 'tests/browser_import_retry_check.py'
+      - 'tests/browser_helpers.py'
       - '.github/workflows/home-layout.yml'
   pull_request:
 permissions:
@@ -37,6 +40,10 @@ jobs:
         run: python tests/browser_inventory_concurrency_check.py
       - name: Verify automatic backups through import and restore
         run: python tests/browser_import_autosave_check.py
+      - name: Verify every import file type in every workspace
+        run: python tests/browser_import_file_matrix_check.py
+      - name: Verify interrupted imports remain retryable
+        run: python tests/browser_import_retry_check.py
       - name: Upload external screenshots
         if: always()
         uses: actions/upload-artifact@v4

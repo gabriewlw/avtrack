@@ -1,4 +1,4 @@
-from browser_helpers import open_workspace
+from browser_helpers import open_workspace, continue_uploaded_import
 """Every supported file type imports through each desktop workspace."""
 import json,shutil,sys,tempfile,threading
 from pathlib import Path
@@ -36,15 +36,14 @@ with tempfile.TemporaryDirectory() as tmp:
             def upload_guided(path,equipment=False):
                 page.locator('#equipment-import' if equipment else '#import').click()
                 page.locator('#upload-paste-inventory').click();page.locator('#import-file').set_input_files(str(path))
-                page.locator('#spreadsheet-dialog').wait_for(state='visible');page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
+                continue_uploaded_import(page)
                 if equipment and page.locator('#import-complete-rows').is_checked():page.locator('#import-complete-rows').uncheck()
                 page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
                 page.locator('#inventory-import-review-save').click();page.locator('#import-summary-panel').wait_for(state='visible',timeout=7000)
                 assert page.locator('#import-summary-title').inner_text()=='Import complete';page.locator('#close-import-summary').click()
 
             def upload_json(path,equipment=False):
-                page.locator('#equipment-import' if equipment else '#import').click()
-                page.locator('#upload-paste-inventory').click();page.locator('#import-file').set_input_files(str(path))
+                upload_guided(path,equipment)
 
             open_workspace(page, 'device-tab')
             upload_guided(files['device_csv']);upload_guided(files['device_xlsx']);upload_json(files['device_json'])

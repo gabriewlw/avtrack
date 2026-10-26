@@ -7,6 +7,9 @@ from playwright.sync_api import sync_playwright
 
 with tempfile.TemporaryDirectory() as tmp:
     app.DB_PATH = Path(tmp) / 'inventory.sqlite3'
+    # Match the real entry point, which initializes the schema before serving.
+    with app.connect() as connection:
+        connection.commit()
     server = app.ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
