@@ -50,16 +50,18 @@ function syncHomeHeadline() {
 }
 function updateWorkspaceHeaderExample(type) {
   const examples = {
-    device: ['0 126 564 472', 'ATEM 1 M/E Advanced Panel 10 at Main Theater, Video, VLAN 120, IP address 192.0.2.10.'],
-    iptv: ['564 126 622 472', 'Example live football channel in a generic Network Stream window. Simulated playback.'],
-    equipment: ['1186 126 451 472', 'Example Blackmagic Micro Converter marked Located, last checked Oct 23.'],
-    backups: ['1637 126 535 472', 'Example backup folder with Videohub, OBS, ATEM, and Cisco switch configuration files.']
+    device: ['device', 'ATEM 1 M/E Advanced Panel 10 at Main Theater, Video, VLAN 120, IP address 192.0.2.10.'],
+    iptv: ['iptv', 'Standalone live football channel in a generic Network Stream window. Simulated playback.'],
+    equipment: ['equipment', 'Standalone HDMI to SDI video converter marked Located, last checked Oct 23.'],
+    backups: ['backups', 'Standalone backup example with Videohub, OBS, ATEM, and Cisco switch configuration files.']
   };
-  const [viewBox, description] = examples[type] || examples.device;
-  $('workspace-example-art').setAttribute('viewBox', viewBox);
+  const [name, description] = examples[type] || examples.device;
+  $('workspace-example-image').setAttribute('href', '/workspace-' + name + '.png');
   $('workspace-example-caption').textContent = description;
-  $('workspace-example').dataset.workspace = type;
-  $('workspace-inventory-status').style.display = type === 'equipment' ? 'inline' : 'none';
+  $('workspace-example').dataset.workspace = name;
+  $('workspace-example-art').querySelectorAll('[data-example-details]').forEach(group => {
+    group.style.display = group.dataset.exampleDetails === name ? 'inline' : 'none';
+  });
 }
 function syncHomePresentation() {
   const home = onHomeRoute();

@@ -71,6 +71,13 @@ with tempfile.TemporaryDirectory() as tmp:
                         assert example.locator('.inventory-example-status').is_visible()
                         assert example.locator('.inventory-example-status text').first.text_content() == 'Located'
                     assert example.get_attribute('data-workspace') == {'/#av':'device','/#iptv':'iptv','/inventory':'equipment','/backups':'backups'}[path]
+                    artwork = example.locator('svg')
+                    assert artwork.get_attribute('viewBox') == '0 0 1536 1024'
+                    assert artwork.locator('image').count() == 1
+                    asset = '/workspace-' + example.get_attribute('data-workspace') + '.png'
+                    assert artwork.locator('image').get_attribute('href') == asset
+                    assert page.request.get(origin + asset).ok
+                    assert example.locator('image[href="/workspace-examples.png"]').count() == 0
                     assert example.locator('a,button').count()==0
                     assert example.locator('svg').bounding_box()['height']<=180
                     if width==1440:

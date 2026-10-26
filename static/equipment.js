@@ -311,7 +311,8 @@
         openEquipment(copy);
         $('equipment-form-title').textContent='Add count for '+displayName(item);
       };
-      actions.append(addCount,edit,remove); row.append(actions); return row;
+      if (!isTVInventory()) actions.append(addCount);
+      actions.append(edit,remove); row.append(actions); return row;
     }));
     $('equipment-import-report').hidden = !importReports.get(inventoryId)?.length;
     $('equipment-import-report-list').replaceChildren(...(importReports.get(inventoryId) || []).map(text => element('li', '', text)));
