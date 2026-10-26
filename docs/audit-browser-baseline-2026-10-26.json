@@ -1,0 +1,287 @@
+{
+  "date": "2026-10-26",
+  "source_commit": "b14034e738b9245f06607b46edbb250ac8d026f9",
+  "workflow_run": "https://github.com/gabriewlw/avtrack/actions/runs/40418352590",
+  "total": 46,
+  "passed": 16,
+  "failed": 30,
+  "note": "Initial unmodified outcomes. Four failed scripts were subsequently updated for the current UI and passed; remaining legacy failures are recorded in the audit report.",
+  "results": [
+    {
+      "test": "tests/browser_backups_check.py",
+      "passed": true,
+      "returncode": 0,
+      "seconds": 15.09
+    },
+    {
+      "test": "tests/browser_desktop_safety_check.py",
+      "passed": true,
+      "returncode": 0,
+      "seconds": 3.78
+    },
+    {
+      "test": "tests/browser_home_empty_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 2.57
+    },
+    {
+      "test": "tests/browser_import_retry_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 33.2
+    },
+    {
+      "test": "tests/browser_inventory_templates_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 32.14
+    },
+    {
+      "test": "tests/browser_network_xlsx_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 31.74
+    },
+    {
+      "test": "tests/browser_scala_columns_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 1.82
+    },
+    {
+      "test": "tests/browser_workspace_identity_check.py",
+      "passed": true,
+      "returncode": 0,
+      "seconds": 1.98
+    },
+    {
+      "test": "tests/browser_compact_tables_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 24.64
+    },
+    {
+      "test": "tests/browser_equipment_inventories_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 32.76
+    },
+    {
+      "test": "tests/browser_import_file_matrix_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 32.18
+    },
+    {
+      "test": "tests/browser_inventory_condition_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 3.56
+    },
+    {
+      "test": "tests/browser_landing_cmd_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 2.43
+    },
+    {
+      "test": "tests/browser_paste_quick_setup_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 5.69
+    },
+    {
+      "test": "tests/browser_venue_rename_check.py",
+      "passed": true,
+      "returncode": 0,
+      "seconds": 2.9
+    },
+    {
+      "test": "tests/browser_codespaces_csp_check.py",
+      "passed": true,
+      "returncode": 0,
+      "seconds": 14.72
+    },
+    {
+      "test": "tests/browser_equipment_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 32.49
+    },
+    {
+      "test": "tests/browser_import_batch_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 2.25
+    },
+    {
+      "test": "tests/browser_inventory_automatic_checks.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 2.03
+    },
+    {
+      "test": "tests/browser_iptv_main_columns_check.py",
+      "passed": true,
+      "returncode": 0,
+      "seconds": 4.85
+    },
+    {
+      "test": "tests/browser_paste_layout_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 2.51
+    },
+    {
+      "test": "tests/browser_tv_stock_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 2.17
+    },
+    {
+      "test": "tests/layout_browser_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 31.55
+    },
+    {
+      "test": "tests/browser_demo_check.py",
+      "passed": true,
+      "returncode": 0,
+      "seconds": 19.38
+    },
+    {
+      "test": "tests/browser_guided_import_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 32.83
+    },
+    {
+      "test": "tests/browser_import_location_skip_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 32.27
+    },
+    {
+      "test": "tests/browser_inventory_controls_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 2.17
+    },
+    {
+      "test": "tests/browser_loading_recovery_check.py",
+      "passed": true,
+      "returncode": 0,
+      "seconds": 24.9
+    },
+    {
+      "test": "tests/browser_pasted_heading_setup_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 32.35
+    },
+    {
+      "test": "tests/browser_worksheet_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 32.49
+    },
+    {
+      "test": "tests/browser_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 20.63
+    },
+    {
+      "test": "tests/browser_desktop_workbook_check.py",
+      "passed": true,
+      "returncode": 0,
+      "seconds": 6.13
+    },
+    {
+      "test": "tests/browser_home_navigation_search_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 2.33
+    },
+    {
+      "test": "tests/browser_imported_table_fit_check.py",
+      "passed": true,
+      "returncode": 0,
+      "seconds": 5.19
+    },
+    {
+      "test": "tests/browser_ip_copy_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 32.06
+    },
+    {
+      "test": "tests/browser_paste_inventory_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 2.5
+    },
+    {
+      "test": "tests/browser_tv_brand_check.py",
+      "passed": true,
+      "returncode": 0,
+      "seconds": 3.32
+    },
+    {
+      "test": "tests/browser_workspace_transfer_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 32.06
+    },
+    {
+      "test": "tests/browser_backup_compatibility_check.py",
+      "passed": true,
+      "returncode": 0,
+      "seconds": 13.2
+    },
+    {
+      "test": "tests/browser_desktop_release_check.py",
+      "passed": true,
+      "returncode": 0,
+      "seconds": 5.01
+    },
+    {
+      "test": "tests/browser_home_animation_check.py",
+      "passed": true,
+      "returncode": 0,
+      "seconds": 5.75
+    },
+    {
+      "test": "tests/browser_import_preservation_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 33.84
+    },
+    {
+      "test": "tests/browser_inventory_notes_check.py",
+      "passed": true,
+      "returncode": 0,
+      "seconds": 2.44
+    },
+    {
+      "test": "tests/browser_network_paste_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 32
+    },
+    {
+      "test": "tests/browser_project_identity_check.py",
+      "passed": false,
+      "returncode": 1,
+      "seconds": 31.66
+    },
+    {
+      "test": "tests/browser_workspace_controls_check.py",
+      "passed": true,
+      "returncode": 0,
+      "seconds": 5.82
+    }
+  ]
+}

@@ -18,6 +18,7 @@ summary warns if the recovery copy could not be saved. The next checkpoint or
 a repeated request can retry that backup.
 
 Find the ZIP files under **Back up entire app → Restore → Recovery backups**.
+The list shows the newest files first with a readable date and record count.
 They are saved in the `recovery` folder beside the SQLite database. Each ZIP uses
 the existing full-backup format, integrity validation, migration chain, and
 200 MB limit. Restore previews the data and saves the current workspace before
