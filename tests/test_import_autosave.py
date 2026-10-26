@@ -45,7 +45,14 @@ class ImportAutosaveTests(unittest.TestCase):
         self.assertEqual(base64.b64decode(next(iter(saved['files'].values()))),attachment)
         original=transfer.snapshot(app.connect,app.backup_directory)['tables']
         transfer.restore(saved,app.connect,app.backup_directory)
-        self.assertEqual(transfer.snapshot(app.connect,app.backup_directory)['tables'],original)
+        restored=transfer.snapshot(app.connect,app.backup_directory)['tables']
+        # Restore deliberately gives attachments new storage names to avoid
+        # overwriting existing files. Their contents and record metadata survive.
+        for before,after in zip(original['av_backups'],restored['av_backups']):
+            self.assertEqual(app.av_backup_file(after['id'])[1],attachment)
+            for key in ('storage_name','icon_storage_name'):
+                after[key]=before[key]
+        self.assertEqual(restored,original)
 
     def test_review_checkpoints_at_25_then_final_and_retry_is_idempotent(self):
         session=self.start()
@@ -99,4 +106,33 @@ class ImportAutosaveTests(unittest.TestCase):
         status,result=self.request('/api/equipment/import','POST',dict(version=1,equipment=self.rows(25)+[dict(model='Invalid',quantity=-1)]))
         self.assertEqual(status,400)
         self.assertEqual(app.equipment_inventory(),[])
+        self.assertEqual(self.files(),[])
+
+    def test_growing_checkpoints_and_final_failure_report(self):
+        session=self.start()
+        for i in range(50):
+            status,result=self.write(session,i)
+            self.assertEqual(status,200,result)
+        self.assertEqual(len(self.files()),2)
+        self.assertEqual(result['autosave']['records'],50)
+        self.assertEqual(self.write(session,50)[0],200)
+        url=f"/api/import-sessions/{session['id']}"
+        with patch('import_autosave.workspace_transfer.save_recovery',side_effect=OSError('disk full')):
+            status,result=self.request(url,'PUT',dict(state=session['state'],status='complete'))
+        self.assertEqual(status,200)
+        self.assertIn('autosave_warning',result)
+        status,result=self.request(url)
+        self.assertEqual(status,200)
+        self.assertEqual(result['autosave']['records'],50)
+        self.assertIn('autosave_warning',result)
+        status,result=self.request(url,'PUT',dict(state=session['state'],status='complete'))
+        self.assertEqual(status,200)
+        self.assertEqual(result['autosave']['records'],51)
+        self.assertNotIn('autosave_warning',self.request(url)[1])
+
+    def test_stock_quantity_does_not_multiply_new_record_threshold(self):
+        status,result=self.request('/api/equipment/import','POST',dict(version=1,equipment=[dict(model='Cable batch',quantity=1000)]))
+        self.assertEqual(status,200)
+        self.assertEqual(result['added'],1)
+        self.assertEqual(app.equipment_inventory()[0]['quantity'],1000)
         self.assertEqual(self.files(),[])

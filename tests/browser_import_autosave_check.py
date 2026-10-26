@@ -47,6 +47,7 @@ with tempfile.TemporaryDirectory() as tmp:
             assert len(files)==1,files
             saved=transfer.unpack(files[0].read_bytes())
             assert len(saved['tables']['equipment'])==25
+            assert saved['tables']['import_sessions'][-1]['status']=='complete'
             assert all(json.loads(row['custom_values'])['unit_status']=='New' for row in saved['tables']['equipment'])
             app.save_equipment(dict(inventory_id=tv['id'],brand='LG',model='Later item',notes='Added after autosave',custom_values={'deck_6':'2'}))
             page.locator('#workspace-restore-open').click()
