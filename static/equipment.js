@@ -1,6 +1,6 @@
 /* Equipment uses its own records and forms, with shared spreadsheet import. */
 (() => {
-  let items = [], editingId = null, deletingItem = null;
+  let items = [], editingId = null, editingOriginal = null, deletingItem = null;
   let visibleItems = [];
   const customFilterValues = new Map();
   let formCustomControls = new Map();
@@ -222,7 +222,7 @@
           const {wrapper,control}=inventoryInput(column,inventoryValue(item,field));wrapper.classList.add('inventory-cell-controls');
           control.onchange=async()=>{
             if(pendingConfirmations.has(item.id))return;
-            const write=api(`/api/equipment/${item.id}`,'PUT',inventoryBaseFields.has(field)?{...item,[field]:control.value}:{...item,custom_values:{...item.custom_values,[field]:control.value}});
+            const write=api(`/api/equipment/${item.id}`,'PUT',inventoryBaseFields.has(field)?{...item,_original:item,[field]:control.value}:{...item,_original:item,custom_values:{...item.custom_values,[field]:control.value}});
             pendingConfirmations.set(item.id,write);wrapper.querySelectorAll('input,button,select').forEach(node=>{node.disabled=true;});
             try{const updated=await write;items=items.map(record=>record.id===updated.id?updated:record);}
             catch(error){toast('Could not update '+column.label+': '+error.message);}
@@ -500,6 +500,7 @@
     if (inventoryCatalogEmpty) { openInventoryForm(); return; }
     formInventoryId = item?.inventory_id ?? inventoryId;
     editingId = item?.id ?? null;
+    editingOriginal = editingId ? structuredClone(item) : null;
     equipmentForm.reset(); $('equipment-form-error').hidden = true;
     $('equipment-shelf-label').hidden=Boolean(editingId);
     $('equipment-form-title').textContent = editingId ? 'Edit equipment' : 'Add equipment';
@@ -524,7 +525,7 @@
     event.preventDefault(); $('save-equipment').disabled = true;
     $('equipment-form-error').hidden = true;
     try {
-      await api(editingId ? `/api/equipment/${editingId}` : '/api/equipment', editingId ? 'PUT' : 'POST', {...Object.fromEntries(new FormData(equipmentForm)), inventory_id:formInventoryId,custom_values:{...JSON.parse(equipmentForm.dataset.originalCustom||'{}'),...Object.fromEntries([...formCustomControls].map(([key,input])=>[key,input.value]))}});
+      await api(editingId ? `/api/equipment/${editingId}` : '/api/equipment', editingId ? 'PUT' : 'POST', {...Object.fromEntries(new FormData(equipmentForm)), inventory_id:formInventoryId,...(editingOriginal ? {_original:editingOriginal} : {}),custom_values:{...JSON.parse(equipmentForm.dataset.originalCustom||'{}'),...Object.fromEntries([...formCustomControls].map(([key,input])=>[key,input.value]))}});
       window.desktopUI?.clearDraft(equipmentForm);
       const again=$('equipment-add-another')?.checked,location=equipmentForm.elements.location.value;
       $('equipment-dialog').close();if(again&&!editingId){openEquipment();equipmentForm.elements.location.value=location;} toast(editingId ? 'Equipment updated.' : 'Equipment added.'); await loadEquipment();

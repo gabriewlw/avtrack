@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import app
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, expect
 
 with tempfile.TemporaryDirectory() as temporary:
     app.DB_PATH=Path(temporary)/'landing.sqlite3'
@@ -38,6 +38,7 @@ with tempfile.TemporaryDirectory() as temporary:
             terminal=page.locator('#command-input')
             assert terminal.is_hidden()
             assert page.locator('[data-command]').count()==0
+            page.locator('.command-cursor').wait_for(state='attached')
             page.clock.run_for(1000)
             partial=page.locator('#command-output').inner_text()
             assert partial and 'YOUR TURN' not in partial
@@ -60,7 +61,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert demo_link.get_attribute('href')=='/demo'
             terminal.press('ArrowUp');assert terminal.input_value()=='demo'
             terminal.fill('clear');terminal.press('Enter')
-            assert page.locator('#command-output p').count()==0, page.locator('#command-output').inner_text()
+            expect(page.locator('#command-output p')).to_have_count(0)
             assert terminal.evaluate('(node)=>node===document.activeElement')
             storage_logo=page.locator('.storage-brand-mark')
             storage_logo.scroll_into_view_if_needed()

@@ -740,6 +740,18 @@ def save_equipment(value, item_id=None):
         if profile.get('unique_location') and row['location'] and any(saved['location'].strip().casefold()==row['location'].casefold() for saved in con.execute('SELECT location FROM equipment WHERE inventory_id=? AND id!=?',(inventory_id,item_id or 0))):
             raise ValueError('This Scala location already has an item. Each location must be unique.')
         previous = con.execute('SELECT * FROM equipment WHERE id=? AND inventory_id=?', (item_id, inventory_id)).fetchone() if item_id is not None else None
+        # Browser edits carry their source values so another tab cannot silently
+        # overwrite newer counts, notes, condition, or custom inventory fields.
+        if item_id is not None and '_original' in value:
+            original=value['_original']
+            if previous is None:
+                raise LookupError('Inventory item not found.')
+            current=equipment_record(previous)
+            checked_fields=(*EQUIPMENT_FIELDS, 'custom_values')
+            if not isinstance(original,dict) or any(field not in original for field in checked_fields):
+                raise ValueError('Provide the original inventory values before saving.')
+            if any(original[field] != current[field] for field in checked_fields):
+                raise ValueError('This inventory item changed in another tab or session. Refresh the inventory and reopen the item before saving.')
         if item_id is None:
             cursor = con.execute('INSERT INTO equipment (' + ','.join(EQUIPMENT_FIELDS) + ',inventory_id,custom_values) VALUES (?,?,?,?,?,?,?,?,?)', [row[f] for f in EQUIPMENT_FIELDS] + [inventory_id,json.dumps(values,sort_keys=True)])
             item_id = cursor.lastrowid
