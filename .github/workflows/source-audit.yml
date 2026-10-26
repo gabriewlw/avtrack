@@ -1,0 +1,31 @@
+name: Source and dependency checks
+on:
+  push:
+    paths:
+      - '**.py'
+      - 'static/**.js'
+      - 'requirements.txt'
+      - '.github/workflows/source-audit.yml'
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install -r requirements.txt pip-audit
+      - name: Check all source syntax
+        run: |
+          python -m compileall -q .
+          for source in static/*.js; do node --check "$source"; done
+      - run: python -m pip check
+      - name: Check runtime dependency advisories
+        run: python -m pip_audit -r requirements.txt --progress-spinner off

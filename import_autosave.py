@@ -10,7 +10,7 @@ _lock = threading.RLock()
 
 def session_details(app, session_id):
     with app.connect() as con:
-        session=con.execute('SELECT target,state FROM import_sessions WHERE id=?',(session_id,)).fetchone()
+        session=con.execute('SELECT target,state,status FROM import_sessions WHERE id=?',(session_id,)).fetchone()
         if session is None or not session['target'].startswith('equipment:'):
             return None
         # Merged source rows share one receipt: count a saved record only once.
@@ -25,12 +25,12 @@ def session_details(app, session_id):
         else:
             first=con.execute('SELECT receipt FROM import_receipts WHERE session_id=? ORDER BY source_key LIMIT 1',(session_id,)).fetchone()
             source=hashlib.sha256((session['target']+(first[0] if first else '')).encode()).hexdigest()[:12]
-    return int(added), f'avtrack-recovery-import-{session_id}-{source}-'
+    return int(added), f'avtrack-recovery-import-{session_id}-{source}-', session['status']
 
 def status(app, session_id):
     details=session_details(app,session_id)
     if details is None:return {}
-    added,prefix=details
+    added,prefix,stage=details
     if added<THRESHOLD:return {}
     directory=app.DB_PATH.parent/'recovery'
     saved=[]
@@ -38,7 +38,11 @@ def status(app, session_id):
         suffix=file.stem[len(prefix):]
         if suffix.isdigit():saved.append((int(suffix),file))
     count,file=max(saved,default=(0,None),key=lambda item:item[0])
-    if file:return {'autosave':{'file':file.name,'records':count}}
+    if file:
+        result={'autosave':{'file':file.name,'records':count}}
+        if stage in ('complete','paused') and count<added:
+            result['autosave_warning']='The latest automatic backup does not include every imported record. Export a complete backup and check free disk space.'
+        return result
     return {'autosave_warning':'Automatic backup is not available yet. Your imported records are saved in AVTrack; export a complete backup.'}
 
 def checkpoint(app, session_id=None, added=0, final=False):
@@ -48,10 +52,10 @@ def checkpoint(app, session_id=None, added=0, final=False):
             if session_id is not None:
                 details=session_details(app,session_id)
                 if details is None:return {}
-                added,prefix=details
+                added,prefix,stage=details
                 previous=status(app,session_id).get('autosave',{}).get('records',0)
                 if added<THRESHOLD:return {}
-                if added-previous<max(THRESHOLD,previous) and not (final and added>previous):
+                if added-previous<max(THRESHOLD,previous) and not final:
                     return status(app,session_id)
             elif added<THRESHOLD:return {}
             directory=app.DB_PATH.parent/'recovery'

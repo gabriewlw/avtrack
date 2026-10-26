@@ -72,6 +72,7 @@ class ImportAutosaveTests(unittest.TestCase):
         latest=app.DB_PATH.parent/'recovery'/complete['autosave']['file']
         restored=transfer.unpack(latest.read_bytes())
         self.assertEqual(len(restored['tables']['equipment']),26)
+        self.assertEqual(next(row for row in restored['tables']['import_sessions'] if row['id']==session['id'])['status'],'complete')
 
     def test_failure_keeps_import_committed_and_retry_can_create_backup(self):
         session=self.start()
