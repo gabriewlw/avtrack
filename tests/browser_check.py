@@ -31,7 +31,7 @@ with tempfile.TemporaryDirectory() as tmp:
             origin=f'http://127.0.0.1:{server.server_port}'
             page.goto(origin)
             page.wait_for_function("()=>!document.getElementById('refresh').disabled")
-            version=page.locator('[aria-label="AVTrack version"]').inner_text()
+            version=page.locator('[aria-label="AVTrack version"]').text_content().strip()
             count=subprocess.check_output(['git','rev-list','--count','HEAD'],cwd=app.ROOT).decode().strip()
             assert version=='v0.0.'+count and re.fullmatch(r'v0\.0\.\d+',version)
             toggle=page.locator('#nav-toggle')
@@ -50,7 +50,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.get_by_role('button',name='IP confirmed for Camera A',exact=True).wait_for()
             page.get_by_role('button',name='Edit Camera A',exact=True).click()
             page.locator('#device-form [name=ip]').fill('192.0.2.999')
-            page.locator('#save-device').click() if page.locator('#save-device').count() else page.get_by_role('button',name='Save changes',exact=True).click()
+            page.get_by_role('button',name='Save changes',exact=True).click()
             expect(page.locator('#form-error')).to_contain_text('valid IPv4')
             page.locator('#device-form [name=ip]').fill('192.0.2.10')
             page.locator('#device-form [name=name]').fill('Camera Alpha')
@@ -62,6 +62,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 menu=page.locator(panel+' .export-dropdown')
                 if not menu.evaluate('(n)=>n.open'):menu.locator('summary').click()
                 menu.locator('.export-scope').select_option(scope)
+                page.wait_for_function("(selector)=>{const box=document.querySelector(selector+' .export-links').getBoundingClientRect();return box.left>=0&&box.right<=innerWidth+1}",arg=panel)
                 box=menu.locator('.export-links').bounding_box()
                 assert box['x']>=0 and box['x']+box['width']<=page.viewport_size['width']+1
                 with page.expect_download() as result:

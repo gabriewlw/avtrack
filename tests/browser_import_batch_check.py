@@ -65,7 +65,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#inventory-import-review-save').click()
             page.wait_for_function("()=>document.querySelectorAll('.batch-row-done').length===1")
             page.locator('#inventory-import-review-stop').click()
-            page.locator('#spreadsheet-dialog').wait_for(state='hidden')
+            page.locator('#inventory-import-review').wait_for(state='hidden')
             assert len(app.equipment_inventory(inventory['id']))==6
             page.locator('#import-summary-panel').wait_for(state='visible')
             assert '1 skip' in page.locator('#import-summary-groups').inner_text()
@@ -86,7 +86,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.get_by_label('Qnt, row 3',exact=True).fill('2')
             page.get_by_label('Select row 3',exact=True).check()
             page.locator('#inventory-import-review-save').click()
-            page.locator('#spreadsheet-dialog').wait_for(state='hidden')
+            page.locator('#inventory-import-review').wait_for(state='hidden')
             assert len(app.equipment_inventory(stock_inventory['id']))==2
             page.locator('#import-summary-panel').wait_for(state='visible')
             page.locator('#close-import-summary').click()
@@ -96,7 +96,7 @@ with tempfile.TemporaryDirectory() as temporary:
             start_import_review(page);dialog.wait_for(state='visible')
             assert page.locator('#inventory-import-review-rows tr').count()==2
             assert len(app.equipment_inventory(stock_inventory['id']))==2
-            page.locator('#inventory-import-review-stop').click();page.locator('#spreadsheet-dialog').wait_for(state='hidden')
+            page.locator('#inventory-import-review-stop').click();page.locator('#inventory-import-review').wait_for(state='hidden')
             # Larger locations keep every row together in one dense, scrollable review table.
             many=('Item,Brand,Model,Serial number,Quantity,Location,Notes\n'+''.join(f'Camera,Sony,X,BULK-{index},,Store,note\n' for index in range(10))).encode()
             page.locator('#import-file').set_input_files({'name':'many.csv','mimeType':'text/csv','buffer':many})

@@ -38,13 +38,14 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#sheet-choice option').all_text_contents()==['Cover','Scala assets']
             assert page.locator('#sheet-choice').is_enabled()
             open_import_matching(page)
-            page.locator('#import-sheet-choices input[value="Cover"]').uncheck()
-            page.locator('#import-sheet-choices input[value="Scala assets"]').check()
             open_import_settings(page)
+            page.locator('#spreadsheet-dialog').wait_for(state='visible')
             page.locator('#sheet-choice').select_option('Scala assets')
             page.locator('#header-row').fill('2');page.locator('#reload-sheet').click()
             open_import_matching(page)
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
+            page.locator('#import-sheet-choices input[value="Cover"]').uncheck()
+            page.locator('#import-sheet-choices input[value="Scala assets"]').check()
             options=page.locator('#map-asset_id option').all_text_contents()
             assert options[0]=='Leave blank'
             assert [option.split(' — ')[0] for option in options[1:]]==['1. ID','2. Location','3. Monitor model','4. Orientation','5. Notes']

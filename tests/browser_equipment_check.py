@@ -74,7 +74,7 @@ with tempfile.TemporaryDirectory() as temp:
             microphone.locator('.equipment-confirm').click()
             page.wait_for_function("() => document.getElementById('equipment-found').textContent === '0'")
             assert page.locator('#equipment-found-percent').inner_text() == '0 / 2 locations · 0 unknown counts'
-            assert page.locator('#equipment-no-results').is_visible()
+            page.locator('#equipment-no-results').wait_for(state='visible')
             page.locator('#equipment-clear').click()
             page.locator('#equipment-status-buttons').get_by_role('button', name='All items', exact=True).click()
             page.locator('#equipment-location-filter').select_option('Main lounge')

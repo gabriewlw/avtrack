@@ -50,7 +50,8 @@ with tempfile.TemporaryDirectory() as tmp:
             page.wait_for_function("() => !document.getElementById('paste-start-review').disabled")
             assert page.locator('#spreadsheet-dialog').is_hidden()
             assert page.locator('#map-model').input_value()=='0'
-            assert page.locator('#map-field_orientation').input_value()=='1'
+            orientation_key=page.evaluate("()=>spreadsheetInventory.layout.columns.find(column=>column.label==='Orientation').key")
+            assert page.locator('#map-'+orientation_key).input_value()=='1'
             saved=next(row for row in app.equipment_inventories() if row['id']==inventory['id'])
             assert not next(c for c in saved['layout']['columns'] if c['key']=='model').get('require_confirmation',False)
             assert saved['layout']==inventory['layout']

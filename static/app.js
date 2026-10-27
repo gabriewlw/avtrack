@@ -588,9 +588,25 @@ $('confirm-batch-delete').onclick = async () => {
 $('batch-delete-dialog').addEventListener('cancel', event => {
   if ($('confirm-batch-delete').disabled) event.preventDefault();
 });
+function positionExportMenu(menu) {
+  const links = menu.querySelector('.export-links');
+  if (!links || !menu.open) return;
+  const gutter = 12;
+  links.style.maxWidth = Math.max(0, innerWidth - gutter * 2) + 'px';
+  links.style.transform = '';
+  const box = links.getBoundingClientRect();
+  const left = Math.max(gutter, Math.min(box.left, innerWidth - gutter - box.width));
+  if (Math.abs(left - box.left) > .5) links.style.transform = 'translateX(' + (left - box.left) + 'px)';
+}
+addEventListener('resize', () => {
+  document.querySelectorAll('.export-dropdown[open]').forEach(positionExportMenu);
+}, {passive:true});
 document.querySelectorAll('.export-dropdown').forEach(menu => {
   menu.addEventListener('toggle', () => {
-    if (menu.open) document.querySelectorAll('.export-dropdown').forEach(other => { if (other !== menu) other.open = false; });
+    if (menu.open) {
+      document.querySelectorAll('.export-dropdown').forEach(other => { if (other !== menu) other.open = false; });
+      positionExportMenu(menu);
+    }
   });
   menu.addEventListener('click', event => {
     if (event.target.closest('a[download]')) { menu.open = false; menu.querySelector('summary').focus(); }

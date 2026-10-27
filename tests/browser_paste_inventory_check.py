@@ -25,6 +25,8 @@ with tempfile.TemporaryDirectory() as temporary:
                 page.wait_for_function("(name)=>document.getElementById('equipment-inventory-title').textContent===name&&!document.getElementById('equipment-inventory-select').disabled",arg=inventory['name'])
             def paste(text):
                 page.locator('#equipment-import').click()
+                page.locator('#paste-inventory-dialog').wait_for(state='visible')
+                assert page.locator('#paste-inventory-text').input_value()==''
                 assert page.locator('#continue-paste-inventory').is_disabled()
                 page.locator('#paste-inventory-text').fill(text)
                 page.locator('#continue-paste-inventory').click()

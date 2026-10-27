@@ -51,7 +51,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.wait_for_function("() => document.getElementById('equipment-delete-dialog').open===false")
             saved=app.equipment_inventory(inventory['id'])[0]
             assert (saved['quantity'],saved['serial_number'])==(2,'A, C'), saved
-            assert page.locator('#equipment-stock-progress-count').inner_text()=='0 / 1 records (0%)'
+            page.wait_for_function("()=>document.getElementById('equipment-stock-progress-count').textContent==='0 / 1 records (0%)'")
             book=Workbook();book.active.title='Deck 9 Locker'
             book.active.append(['Description','Brand','Model','Serial Number','Quantity','Notes','Warranty'])
             book.active.append(['Camera','Sony','X','Z',1,'Original','2028'])
