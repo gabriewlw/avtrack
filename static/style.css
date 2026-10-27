@@ -1292,3 +1292,8 @@ body.desktop-working .hero-copy { min-width:0; align-items:flex-start; text-alig
 .workspace-example {max-width:270px}
 .workspace-example svg {height:auto;max-height:180px;aspect-ratio:3/2}
 @media(max-width:600px){.workspace-example{max-width:240px}.workspace-example svg{height:auto;max-height:160px}}
+
+/* Location progress can wrap before it pushes a tablet page sideways. */
+#equipment-panel .stats > div { min-width:0; }
+#equipment-panel .equipment-confirmed-stat { min-width:0; max-width:100%; flex-wrap:wrap; }
+#equipment-panel #equipment-found-percent { min-width:0; max-width:100%; white-space:normal; overflow-wrap:anywhere; line-height:1.5; }

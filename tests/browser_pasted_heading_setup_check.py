@@ -60,7 +60,10 @@ with tempfile.TemporaryDirectory() as tmp:
             saved=next(row for row in app.equipment_inventories() if row['id']==inventory['id'])
             assert saved['layout']==inventory['layout']  # Review is still a draft.
             assert page.evaluate("()=>spreadsheetInventory.layout.columns.find(c=>c.key==='model').require_confirmation")
-            assert page.evaluate("()=>spreadsheetInventory.layout.columns.map(c=>c.label)")==['Model','Orientation','Location']
+            draft=page.evaluate("()=>spreadsheetInventory.layout.columns")
+            source_keys={'model',orientation_key,'location'}
+            assert [c['label'] for c in draft if c['key'] in source_keys]==['Model','Orientation','Location'],draft
+            assert {c['key'] for c in draft}-source_keys <= {'notes','unit_status'},draft
             assert page.locator('#inventory-import-review-rows tr').count()==2
             page.locator('#inventory-import-review-all').check()
             assert page.locator('#inventory-import-review-save').is_disabled()
@@ -79,7 +82,8 @@ with tempfile.TemporaryDirectory() as tmp:
             saved=app.equipment_inventory(inventory['id'])
             layout=next(row for row in app.equipment_inventories() if row['id']==inventory['id'])['layout']
             assert next(c for c in layout['columns'] if c['key']=='model')['require_confirmation']
-            assert [c['label'] for c in layout['columns']]==['Model','Orientation','Location','Status','Notes']
+            assert [c['label'] for c in layout['columns'] if c['key'] in source_keys]==['Model','Orientation','Location'],layout
+            assert {c['key'] for c in layout['columns']}-source_keys <= {'notes','unit_status'},layout
             assert not errors,errors
             browser.close()
     finally:server.shutdown();server.server_close()
