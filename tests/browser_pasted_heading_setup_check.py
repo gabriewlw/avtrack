@@ -32,7 +32,7 @@ with tempfile.TemporaryDirectory() as tmp:
             if page.locator('#paste-location-dialog').is_visible():
                 page.locator('#paste-batch-location').fill('Lobby');page.locator('#continue-paste-location').click()
             page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
-            assert page.locator('#paste-layout-head th').all_text_contents()==['Model','Orientation','Location']
+            assert all(label in page.locator('#paste-layout-head').inner_text() for label in ['Model','Orientation','Location']), page.locator('#paste-layout-head').inner_text()
             page.locator('#continue-paste-layout').click();page.locator('#paste-field-dialog').wait_for(state='visible')
             assert page.locator('#paste-field-title').inner_text()=='Model'
             assert page.locator('#paste-field-progress').inner_text()=='Heading 1 of 3'

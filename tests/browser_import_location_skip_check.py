@@ -42,11 +42,11 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#confirm-import').inner_text()=='Apply setup & review 5 rows'
             delete('Locker A')
             start_import_review(page);page.locator('#inventory-import-review').wait_for(state='visible')
-            assert page.locator('#inventory-import-review-rows tr').count()==1
-            assert page.locator('#inventory-import-review-rows tr').get_attribute('data-source-row')=='5'
+            assert page.locator('#inventory-import-review-rows tr').count()==2
+            assert set(page.locator('#inventory-import-review-rows tr').evaluate_all('(rows)=>rows.map(row=>row.dataset.sourceRow)'))=={'4','5'}
             assert 'Locker B' in page.locator('#inventory-import-review-title').inner_text()
             page.get_by_label('Brand, row 5',exact=True).fill('Sony')
-            page.get_by_role('checkbox',name='Select row 5',exact=True).check()
+            page.locator('#inventory-import-review-all').check()
             page.locator('#inventory-import-review-save').click()
             page.wait_for_function("() => document.getElementById('inventory-import-review-title').textContent==='Review Locker C'")
             assert 'Unusual location' in page.locator('#inventory-import-review-rows').inner_text()
@@ -75,7 +75,9 @@ with tempfile.TemporaryDirectory() as temporary:
             # A fresh file restores the locations and their items automatically.
             upload(b'Item,Brand,Model,Serial number,Quantity,Location,Notes\nNew,Sony,X,N1,1,Locker A,note\n')
             assert page.locator('#confirm-import').inner_text()=='Apply setup & review 1 rows'
-            start_import_review(page);page.locator('#spreadsheet-dialog').wait_for(state='hidden')
+            start_import_review(page)
+            page.locator('#inventory-import-review').wait_for(state='visible')
+            page.locator('#inventory-import-review-save').click()
             page.wait_for_function("() => document.getElementById('equipment-records').textContent==='5'")
             assert 'N1' in {row['serial_number'] for row in app.equipment_inventory(inventory['id'])}
             assert not errors,errors

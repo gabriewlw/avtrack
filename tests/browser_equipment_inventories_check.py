@@ -34,6 +34,7 @@ with tempfile.TemporaryDirectory() as temp:
             def create(name):
                 page.locator('#new-equipment-inventory').click()
                 page.locator('#equipment-inventory-name').fill(name)
+                page.locator('#equipment-template').select_option('spare_parts')
                 page.locator('#save-equipment-inventory').click()
                 page.locator('#equipment-inventory-dialog').wait_for(state='hidden')
                 wait_loaded(name)
@@ -119,9 +120,19 @@ with tempfile.TemporaryDirectory() as temp:
             json_file = Path(temp) / 'tvs.json'
             json_file.write_text(json.dumps(exported))
             page.locator('#import-file').set_input_files(str(json_file))
+            open_import_matching(page)
+            start_import_review(page)
+            for index in range(2):
+                page.locator('#inventory-import-review').wait_for(state='visible')
+                title=page.locator('#inventory-import-review-title').inner_text()
+                page.locator('#inventory-import-review-all').check()
+                page.locator('#inventory-import-review-save').click()
+                if index==0:page.wait_for_function('(old)=>document.getElementById("inventory-import-review-title").textContent!==old',arg=title)
+            page.locator('#import-summary-panel').wait_for(state='visible')
+            page.locator('#close-import-summary').click()
             page.wait_for_function("() => document.getElementById('equipment-records').textContent === '2'")
             assert {row['inventory_id'] for row in app.equipment_inventory(spare)} == {spare}
-            assert page.locator('#equipment-found').inner_text() == '1'
+            assert page.locator('#equipment-found').inner_text() == '0'
             page.locator('#add-device').click()
             page.locator('#equipment-description').fill('USB cable')
             page.locator('#equipment-model').fill('USB-C')

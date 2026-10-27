@@ -1,5 +1,5 @@
 """Run isolated browser regressions and retain a complete, reviewable audit report."""
-import json, os, subprocess, sys, time
+import json, os, subprocess, sys, time, tempfile
 from pathlib import Path
 
 shard = int(os.environ.get('AUDIT_SHARD', '0'))
@@ -11,15 +11,16 @@ output.mkdir(parents=True, exist_ok=True)
 results = []
 for script in scripts:
     started = time.monotonic()
-    try:
-        run = subprocess.run([sys.executable, str(script)], stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT, timeout=150, text=True)
-        code, log = run.returncode, run.stdout
-    except subprocess.TimeoutExpired as error:
-        code = 124
-        log = error.stdout or b''
-        if isinstance(log, bytes): log = log.decode('utf-8', errors='replace')
-        log += '\nAUDIT: exceeded 150 second limit.'
+    with tempfile.TemporaryFile(mode='w+', encoding='utf-8') as capture:
+        try:
+            run = subprocess.run([sys.executable, str(script)], stdout=capture,
+                                 stderr=subprocess.STDOUT, timeout=150, text=True)
+            code = run.returncode
+        except subprocess.TimeoutExpired:
+            code = 124
+        capture.seek(0)
+        log = capture.read()
+    if code == 124: log += '\nAUDIT: exceeded 150 second limit.'
     log = '\n'.join(line for line in log.splitlines() if 'AVTRACK_PREVIEW_JPEG:' not in line)
     (output/(script.stem+'.log')).write_text(log, encoding='utf-8')
     result = dict(test=str(script), passed=code == 0, returncode=code,

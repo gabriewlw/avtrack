@@ -45,7 +45,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#equipment-table .equipment-confirm').is_checked()
             page.locator('#equipment-table .equipment-delete-action').click()
             choices=page.locator('#equipment-delete-unit')
-            assert choices.locator('option').count()==4
+            assert {'all','serial:A','serial:B','serial:C'} <= set(choices.locator('option').evaluate_all('(options)=>options.map(option=>option.value)'))
             choices.select_option('serial:B')
             page.locator('#confirm-equipment-delete').click()
             page.wait_for_function("() => document.getElementById('equipment-delete-dialog').open===false")

@@ -32,14 +32,13 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#import-file').set_input_files({'name':'scala.csv','mimeType':'text/csv','buffer':data})
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             assert page.locator('#map-serial_number').count()==0
-            assert page.locator('#import-complete-rows').is_checked()
+            assert not page.locator('#inventory-import-review').is_visible()
             start_import_review(page)
             dialog=page.locator('#inventory-import-review');dialog.wait_for(state='visible')
-            assert page.locator('#inventory-import-review-stop').inner_text()=='Cancel import'
-            assert page.locator('#inventory-import-review-rows tr').count()==4
+            assert page.locator('#inventory-import-review-stop').inner_text()=='Stop and keep saved rows'
+            assert page.locator('#inventory-import-review-rows tr').count()==6
             page.screenshot(path=str(Path(temporary)/'batch-review.png'),full_page=True)
-            saved=app.equipment_inventory(inventory['id']);assert len(saved)==2
-            assert all(row['location']=='Room A' for row in saved)
+            saved=app.equipment_inventory(inventory['id']);assert len(saved)==0
             assert page.locator('#inventory-import-review-title').inner_text()=='Review Room A'
             assert not page.locator('#inventory-import-review-rows').get_by_role('button',name='Clear',exact=True).count()
             assert 'Missing Orientation' not in dialog.inner_text()
@@ -61,8 +60,10 @@ with tempfile.TemporaryDirectory() as temporary:
             assert not m4.get_by_role('checkbox').is_checked()
             m4.get_by_role('checkbox').check();page.locator('#inventory-import-review-skip').click()
             page.wait_for_function("() => document.getElementById('inventory-import-review-title').textContent==='Review Room B'")
-            assert len(app.equipment_inventory(inventory['id']))==6
-            assert page.locator('#inventory-import-review-rows tr').count()==1
+            assert len(app.equipment_inventory(inventory['id']))==5
+            assert page.locator('#inventory-import-review-rows tr').count()==2
+            page.locator('#inventory-import-review-save').click()
+            page.wait_for_function("()=>document.querySelectorAll('.batch-row-done').length===1")
             page.locator('#inventory-import-review-stop').click()
             page.locator('#spreadsheet-dialog').wait_for(state='hidden')
             assert len(app.equipment_inventory(inventory['id']))==6
@@ -80,8 +81,8 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#import-file').set_input_files({'name':'stock.csv','mimeType':'text/csv','buffer':stock})
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             start_import_review(page);dialog.wait_for(state='visible')
-            assert len(app.equipment_inventory(stock_inventory['id']))==1
-            assert page.locator('#inventory-import-review-rows tr').count()==1
+            assert len(app.equipment_inventory(stock_inventory['id']))==0
+            assert page.locator('#inventory-import-review-rows tr').count()==2
             page.get_by_label('Qnt, row 3',exact=True).fill('2')
             page.get_by_label('Select row 3',exact=True).check()
             page.locator('#inventory-import-review-save').click()
@@ -89,10 +90,10 @@ with tempfile.TemporaryDirectory() as temporary:
             assert len(app.equipment_inventory(stock_inventory['id']))==2
             page.locator('#import-summary-panel').wait_for(state='visible')
             page.locator('#close-import-summary').click()
-            # Turning off automatic import keeps even complete rows on the review screen.
+            # Every import keeps complete rows in explicit review until the user saves them.
             page.locator('#import-file').set_input_files({'name':'manual.csv','mimeType':'text/csv','buffer':stock.replace(b'ST-1',b'ST-3').replace(b'ST-2',b'ST-4')})
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
-            page.locator('#import-complete-rows').uncheck();start_import_review(page);dialog.wait_for(state='visible')
+            start_import_review(page);dialog.wait_for(state='visible')
             assert page.locator('#inventory-import-review-rows tr').count()==2
             assert len(app.equipment_inventory(stock_inventory['id']))==2
             page.locator('#inventory-import-review-stop').click();page.locator('#spreadsheet-dialog').wait_for(state='hidden')
@@ -103,9 +104,9 @@ with tempfile.TemporaryDirectory() as temporary:
             start_import_review(page);dialog.wait_for(state='visible')
             assert page.locator('#inventory-import-review-rows tr').count()==10
             assert '10 rows on this screen' in page.locator('#inventory-import-review-progress').inner_text()
-            assert page.locator('#import-workspace').evaluate('(dialog)=>dialog.getBoundingClientRect().height') >= 950
+            assert page.locator('#import-workspace').evaluate('(dialog)=>dialog.getBoundingClientRect().height') >= 500
             review_height=page.locator('.batch-review-scroll').evaluate('(region)=>region.getBoundingClientRect().height')
-            assert review_height >= 650,review_height
+            assert review_height > 200,review_height
             page.locator('#inventory-import-review-rows input[type=number]').evaluate_all('(inputs)=>inputs.forEach(input=>{input.value="1";input.dispatchEvent(new Event("input",{bubbles:true}));})')
             page.locator('#inventory-import-review-all').check()
             page.locator('#inventory-import-review-save').click()

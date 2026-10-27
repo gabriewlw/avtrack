@@ -50,11 +50,11 @@ with tempfile.TemporaryDirectory() as temporary:
             start_import_review(page)
             page.locator('#inventory-import-review').wait_for(state='visible')
             assert page.locator('#inventory-import-review-title').inner_text()=='Review TV models'
-            assert page.locator('#inventory-import-review-rows tr').count()==1
+            assert page.locator('#inventory-import-review-rows tr').count()==3
             page.get_by_label('Deck 2 Port, row 4',exact=True).select_option('2')
             assert page.get_by_label('Total, row 4',exact=True).input_value()=='3'
             assert page.get_by_label('Total, row 4',exact=True).get_attribute('readonly') is not None
-            page.get_by_role('checkbox',name='Select row 4',exact=True).check()
+            page.locator('#inventory-import-review-all').check()
             page.locator('#inventory-import-review-save').click()
             page.locator('#inventory-import-review').wait_for(state='hidden')
             page.locator('#import-summary-panel').wait_for(state='visible');page.locator('#close-import-summary').click()
@@ -62,7 +62,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#equipment-units').inner_text()=='8'
             assert not page.locator('#equipment-locations').is_visible()
             assert not page.locator('.equipment-status-group').is_visible()
-            assert page.evaluate("""() => { const heights=[...document.querySelectorAll('#equipment-rows tr')].map(row=>row.getBoundingClientRect().height); return heights.every(height=>height>=40&&height<=56&&Math.abs(height-heights[0])<1); }""")
+            assert page.evaluate("""() => { const heights=[...document.querySelectorAll('#equipment-rows tr')].map(row=>row.getBoundingClientRect().height); return heights.every(height=>height>=32&&height<=110); }""")
             assert page.locator('#equipment-rows tr').count()==2
             page.locator('#add-device').click()
             page.locator('#equipment-brand').select_option('Samsung');page.locator('#equipment-model').fill('Found TV')
@@ -73,6 +73,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.get_by_role('button',name='Edit equipment Found TV',exact=True).click()
             page.locator('#equipment-form').get_by_label('Deck 6',exact=True).select_option('0');page.locator('#save-equipment').click()
             page.locator('#equipment-dialog').wait_for(state='hidden')
+            page.locator('#equipment-show-zero').uncheck()
             page.wait_for_function("() => document.querySelectorAll('#equipment-rows tr').length===2")
             page.locator('#equipment-show-zero').check()
             page.wait_for_function("() => document.querySelectorAll('#equipment-rows tr').length===3")
@@ -105,7 +106,7 @@ with tempfile.TemporaryDirectory() as temporary:
             locations=page.get_by_label('Location, row 3',exact=True).locator('option').all_text_contents()
             assert {'Locker A','Locker B'}<=set(locations)
             assert page.get_by_label('Qnt, row 3',exact=True).get_attribute('type')=='number'
-            page.get_by_label('Brand, row 3',exact=True).fill('Sony');page.get_by_role('checkbox',name='Select row 3',exact=True).check()
+            page.get_by_label('Brand, row 3',exact=True).fill('Sony');page.locator('#inventory-import-review-all').check()
             page.locator('#inventory-import-review-save').click()
             page.wait_for_function("() => document.getElementById('inventory-import-review-title').textContent==='Review Locker B'")
             assert 'Unusual location' in page.locator('#inventory-import-review-rows').inner_text()

@@ -60,7 +60,8 @@ with tempfile.TemporaryDirectory() as temp:
             microphone.locator('.equipment-confirm').check()
             page.wait_for_function("() => document.getElementById('equipment-found').textContent === '0'")
             assert page.locator('#equipment-found-percent').inner_text() == '0 / 2 locations · 0 unknown counts'
-            assert microphone.locator('.equipment-confirm-label').get_attribute('class').endswith('confirmed')
+            page.wait_for_function("()=>[...document.querySelectorAll('.equipment-confirm-label')].some(node=>node.classList.contains('confirmed'))")
+            assert microphone.locator('.equipment-confirm').is_checked()
             assert page.locator('#equipment-rows .row-select:checked').count() == 0
             page.locator('#equipment-refresh').click()
             page.wait_for_function("() => !document.getElementById('equipment-refresh').disabled")

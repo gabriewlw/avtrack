@@ -43,9 +43,9 @@ with tempfile.TemporaryDirectory() as temporary:
             with page.expect_download() as download:
                 page.get_by_role('link',name='Complete backup ZIP · recommended',exact=True).click()
             backup=Path(temporary)/'transfer.zip';download.value.save_as(backup)
-            assert download.value.suggested_filename=='avtrack-all-data.zip'
+            assert download.value.suggested_filename.startswith('avtrack-all-data-') and download.value.suggested_filename.endswith('.zip')
             with app.connect() as con:con.execute('DELETE FROM devices')
-            page.get_by_role('button',name='Workspace import',exact=True).click()
+            page.locator('#workspace-restore-open').click()
             page.locator('#workspace-restore-file').set_input_files(str(backup))
             page.locator('#workspace-restore-replace').check()
             page.locator('#workspace-restore-submit').click()
@@ -53,11 +53,10 @@ with tempfile.TemporaryDirectory() as temporary:
             page.wait_for_function("() => document.getElementById('workspace-restore-dialog').open===false")
             assert app.inventory()[0]['notes']=='Preserve me'
             assert app.av_backup_file(1)[1]==b'{"saved":true}'
-            page.get_by_role('button',name='Workspace import',exact=True).click()
+            page.locator('#workspace-restore-open').click()
             page.locator('#workspace-restore-file').set_input_files({'name':'invalid.json','mimeType':'application/json','buffer':b'{}'})
-            page.locator('#workspace-restore-replace').check()
-            page.locator('#workspace-restore-submit').click()
             page.locator('#workspace-restore-error').wait_for(state='visible')
+            assert page.locator('#workspace-restore-submit').is_disabled()
             assert len(app.inventory())==1
             page.locator('#workspace-restore-cancel').click()
             page.set_viewport_size({'width':390,'height':844})

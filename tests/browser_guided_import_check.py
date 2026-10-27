@@ -96,9 +96,15 @@ with tempfile.TemporaryDirectory() as tmp:
             assert page.locator('#header-row').input_value()=='5'
             page.locator('#import-sheet-choices input[value="Locker B"]').check()
             start_import_review(page)
+            page.locator('#inventory-import-review').wait_for(state='visible')
+            page.locator('#inventory-import-review-save').click()
             page.wait_for_function("() => document.getElementById('sheet-choice').value==='Locker B' && !document.getElementById('confirm-import').disabled")
+            open_import_matching(page)
             assert page.locator('#map-model').input_value()=='0'
-            start_import_review(page);page.locator('#import-summary-panel').wait_for(state='visible')
+            start_import_review(page)
+            page.locator('#inventory-import-review').wait_for(state='visible')
+            page.locator('#inventory-import-review-save').click()
+            page.locator('#import-summary-panel').wait_for(state='visible')
             rows=app.equipment_inventory(parts['id']);assert len(rows)==2,rows
             assert {r['location'] for r in rows}=={'Locker A','Locker B'}
             assert {r['serial_number'] for r in rows}=={'0001','0002'}

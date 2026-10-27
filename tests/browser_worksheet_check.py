@@ -37,8 +37,10 @@ with tempfile.TemporaryDirectory() as temporary:
             page.wait_for_function("() => document.querySelectorAll('#sheet-choice option').length===2")
             assert page.locator('#sheet-choice option').all_text_contents()==['Cover','Scala assets']
             assert page.locator('#sheet-choice').is_enabled()
+            open_import_matching(page)
             page.locator('#import-sheet-choices input[value="Cover"]').uncheck()
             page.locator('#import-sheet-choices input[value="Scala assets"]').check()
+            open_import_settings(page)
             page.locator('#sheet-choice').select_option('Scala assets')
             page.locator('#header-row').fill('2');page.locator('#reload-sheet').click()
             open_import_matching(page)
@@ -47,7 +49,10 @@ with tempfile.TemporaryDirectory() as temporary:
             assert options[0]=='Leave blank'
             assert [option.split(' — ')[0] for option in options[1:]]==['1. ID','2. Location','3. Monitor model','4. Orientation','5. Notes']
             assert page.locator('#sheet-choice').input_value()=='Scala assets'
-            start_import_review(page);page.locator('#import-summary-panel').wait_for(state='visible')
+            start_import_review(page)
+            page.locator('#inventory-import-review').wait_for(state='visible')
+            page.locator('#inventory-import-review-save').click()
+            page.locator('#import-summary-panel').wait_for(state='visible')
             page.locator('#close-import-summary').click()
             assert app.equipment_inventory(inventory['id'])[0]['custom_values']['asset_id']=='SC-55'
             page.locator('#import-file').set_input_files({'name':'simple.csv','mimeType':'text/csv','buffer':b'ID,Location,Monitor model,Orientation,Notes\nSC-56,Lobby,LG,,note\n'})
