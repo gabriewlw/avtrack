@@ -28,20 +28,30 @@ No workplace database, records, files, or installation were accessed.
   database before serving, matching the actual application entry point.
 - Added persistent CI checks for source syntax, runtime dependencies, stale-tab
   safety and large-import recovery.
+- Fixed inventory location summaries wrapping at tablet widths and export dropdown positioning on narrow screens. The menu is clamped inside
+  the viewport, including when resized while open; keyboard and dismissal behavior
+  remain covered. All four report formats are checked at 390px and 320px widths.
+- Preserved the numeric commit-count website version, such as `v0.0.251`, and
+  added an assertion comparing the footer with the actual Git revision count.
+- Made the exhaustive browser runner capture output in a temporary file, avoiding
+  pipe overflow from screenshot output while retaining per-script logs/results.
 
 No database schema, historical fixture, migration, or backup contract was changed.
 See [automatic-import-backups.md](automatic-import-backups.md) for operation details.
 
 ## Verification
 
+- **All 49 browser suites passed**, across six exhaustive audit shards. No browser
+  script was disabled or skipped. Per-script results and logs are retained as CI artifacts.
+  [Complete browser audit](https://github.com/gabriewlw/avtrack/actions/runs/40578604416).
 - **226 backend tests passed**, with PDF verification tools available and no skips.
-  [Backend and historical-backup run](https://github.com/gabriewlw/avtrack/actions/runs/40420555276).
-- **All 8 maintained browser suites passed**, including nine import-format/workspace
+  [Backend and historical-backup run](https://github.com/gabriewlw/avtrack/actions/runs/40578604533).
+- **All 9 maintained browser suites passed**, including nine import-format/workspace
   combinations, stale-tab protection, import retries, automatic recovery and restore.
-  [Browser run](https://github.com/gabriewlw/avtrack/actions/runs/40420555302).
+  [Browser run](https://github.com/gabriewlw/avtrack/actions/runs/40578604314).
 - **All Python/JavaScript syntax checks, dependency consistency checks, and the
   updated runtime advisory scan passed.**
-  [Source/dependency run](https://github.com/gabriewlw/avtrack/actions/runs/40420555360).
+  [Source/dependency run](https://github.com/gabriewlw/avtrack/actions/runs/40578604623).
 
 The backend suite includes every supported historical ZIP/JSON backup fixture,
 attachment preservation, invalid/newer-backup rejection, integrity checks and
@@ -68,12 +78,27 @@ navigation, an absent optional Status filter, immediate imports of JSON files,
 or earlier setup dialogs and selectors. These are not 30 established data-loss
 bugs. However, a failed legacy script is not counted as a passed check.
 
-The maintained landing, condition, import-file matrix and retry checks were
-updated and rerun. The remaining **26** legacy scripts still need individual maintenance
-or replacement with equivalent checks of the current UI. They were not deleted,
-disabled, or rewritten merely to make the exhaustive run green. The exhaustive
-historical browser suite therefore remains an open test-maintenance finding;
-this report does **not** certify that every archived UI scenario passes.
+The 26 remaining scripts were maintained against the current interface. Every
+browser script remains enabled in the exhaustive runner. Obsolete product
+expectations were replaced with current behavior: explicit row review, separate
+stock batches when notes differ, optional Status controls, flexible two-line rows,
+and workspace tables reached through the current navigation.
+
+Coverage retained or redistributed from the old general browser monolith:
+
+| Behavior | Current browser coverage |
+| --- | --- |
+| Mobile navigation, CRUD, version, selected/filtered exports and safe deletion | `browser_check.py` |
+| Network CSV/XLSX imports, DHCP and validation | `browser_network_paste_check.py`, `browser_network_xlsx_check.py`, `browser_import_file_matrix_check.py` |
+| IPTV field selection and scope isolation | `browser_iptv_main_columns_check.py`, `browser_import_file_matrix_check.py`, `browser_check.py` |
+| Inventory batch review, source preservation, distinct notes and calculated counts | `browser_import_batch_check.py`, `browser_import_preservation_check.py`, `browser_paste_inventory_check.py` |
+| Heading setup, draft persistence, per-cell confirmation and worksheet recovery | `browser_pasted_heading_setup_check.py`, `browser_worksheet_check.py`, `browser_desktop_workbook_check.py` |
+| Current Status/Located controls and retained confirmation history | `browser_inventory_condition_check.py`, `browser_equipment_check.py`, `browser_tv_stock_check.py` |
+| Backup compatibility, checkpoint restore and retries | `browser_backup_compatibility_check.py`, `browser_import_autosave_check.py`, `browser_import_retry_check.py` |
+
+The original baseline remains unchanged as historical evidence. The current run
+results are recorded in Verification above and in
+[audit-browser-verified-2026-10-27.json](audit-browser-verified-2026-10-27.json).
 
 ## Practical boundaries
 
