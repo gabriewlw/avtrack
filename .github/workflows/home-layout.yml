@@ -5,6 +5,7 @@ on:
       - 'static/**'
       - 'tests/browser_home_animation_check.py'
       - 'tests/browser_landing_cmd_check.py'
+      - 'tests/browser_landing_scroll_check.py'
       - 'tests/browser_imported_table_fit_check.py'
       - 'tests/browser_inventory_condition_check.py'
       - 'tests/browser_inventory_concurrency_check.py'
@@ -32,6 +33,8 @@ jobs:
         run: python tests/browser_home_animation_check.py
       - name: Verify automatic landing terminal and commands
         run: python tests/browser_landing_cmd_check.py
+      - name: Verify seamless landing backgrounds and native scrolling
+        run: python tests/browser_landing_scroll_check.py
       - name: Verify imported table content sizing
         run: python tests/browser_imported_table_fit_check.py
       - name: Verify inventory batches, condition and shelf notes

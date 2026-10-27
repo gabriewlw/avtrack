@@ -3,24 +3,18 @@ document.documentElement.classList.add('js');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const progress = document.querySelector('.scroll-progress span');
 const heroProduct = document.querySelector('.hero-product');
-const ambientOne = document.querySelector('.ambient-one');
-const ambientTwo = document.querySelector('.ambient-two');
 const floatingTags = document.querySelectorAll('.floating-tag');
 let scrollQueued = false;
+let scrollRange = 1;
 
 function renderScroll() {
   const top = scrollY;
-  const total = Math.max(1, document.documentElement.scrollHeight - innerHeight);
-  progress.style.transform = `scaleX(${Math.min(1, top / total)})`;
+  progress.style.transform = `scaleX(${Math.max(0, Math.min(1, top / scrollRange))})`;
   if (!reducedMotion && top < 1250) {
     const travel = Math.min(1, top / 1100);
     heroProduct.style.transform = `translate3d(0, ${travel * 54}px, 0) scale(${1 - travel * .035})`;
     floatingTags[0].style.transform = `translate3d(0, ${top * -.045}px, 0)`;
     floatingTags[1].style.transform = `translate3d(0, ${top * .035}px, 0)`;
-  }
-  if (!reducedMotion) {
-    ambientOne.style.transform = `translate3d(0, ${top * .04}px, 0)`;
-    ambientTwo.style.transform = `translate3d(0, ${top * -.025}px, 0)`;
   }
   scrollQueued = false;
 }
@@ -29,7 +23,15 @@ addEventListener('scroll', () => {
   if (!scrollQueued) requestAnimationFrame(renderScroll);
   scrollQueued = true;
 }, {passive: true});
-renderScroll();
+// Cache document geometry when it changes, rather than measuring it each scroll.
+function updateScrollRange() {
+  scrollRange = Math.max(1, document.documentElement.scrollHeight - innerHeight);
+  if (!scrollQueued) requestAnimationFrame(renderScroll);
+  scrollQueued = true;
+}
+addEventListener('resize', updateScrollRange, {passive: true});
+new ResizeObserver(updateScrollRange).observe(document.querySelector('main'));
+updateScrollRange();
 
 const commandBody = document.querySelector('#command-body');
 const commandOutput = document.querySelector('#command-output');
