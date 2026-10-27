@@ -122,6 +122,7 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#save-equipment').click()
             page.locator('#equipment-dialog').wait_for(state='hidden')
             page.wait_for_function("() => document.getElementById('equipment-found').textContent === '0'")
+            page.wait_for_function("()=>{const row=[...document.querySelectorAll('#equipment-rows tr')].find(row=>row.textContent.includes('Handheld microphone'));return row&&!row.querySelector('.equipment-confirm').checked;}")
             assert not microphone.locator('.equipment-confirm').is_checked()
             for width in [1440,900,390,320]:
                 page.set_viewport_size({'width':width,'height':1000})

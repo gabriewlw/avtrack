@@ -58,8 +58,9 @@ with tempfile.TemporaryDirectory() as tmp:
             assert not app.equipment_inventory(inventory['id'])
             page.locator('#paste-start-review').click();page.locator('#inventory-import-review').wait_for(state='visible')
             saved=next(row for row in app.equipment_inventories() if row['id']==inventory['id'])
-            assert next(c for c in saved['layout']['columns'] if c['key']=='model')['require_confirmation']
-            assert [col['label'] for col in saved['layout']['columns']]==['Model','Orientation','Location']
+            assert saved['layout']==inventory['layout']  # Review is still a draft.
+            assert page.evaluate("()=>spreadsheetInventory.layout.columns.find(c=>c.key==='model').require_confirmation")
+            assert page.evaluate("()=>spreadsheetInventory.layout.columns.map(c=>c.label)")==['Model','Orientation','Location','Status','Notes']
             assert page.locator('#inventory-import-review-rows tr').count()==2
             page.locator('#inventory-import-review-all').check()
             assert page.locator('#inventory-import-review-save').is_disabled()
@@ -75,6 +76,10 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#inventory-import-review').wait_for(state='hidden')
             page.locator('#spreadsheet-dialog').wait_for(state='hidden')
             assert len(app.equipment_inventory(inventory['id']))==2
+            saved=app.equipment_inventory(inventory['id'])
+            layout=next(row for row in app.equipment_inventories() if row['id']==inventory['id'])['layout']
+            assert next(c for c in layout['columns'] if c['key']=='model')['require_confirmation']
+            assert [c['label'] for c in layout['columns']]==['Model','Orientation','Location','Status','Notes']
             assert not errors,errors
             browser.close()
     finally:server.shutdown();server.server_close()

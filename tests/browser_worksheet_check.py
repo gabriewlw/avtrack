@@ -44,14 +44,19 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#header-row').fill('2');page.locator('#reload-sheet').click()
             open_import_matching(page)
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
+            # Desktop places worksheet queue choices on the table preview.
+            page.locator('#back-spreadsheet-layout').click()
+            page.locator('#paste-layout-dialog').wait_for(state='visible')
             page.locator('#import-sheet-choices input[value="Cover"]').uncheck()
             page.locator('#import-sheet-choices input[value="Scala assets"]').check()
+            open_import_matching(page)
             options=page.locator('#map-asset_id option').all_text_contents()
             assert options[0]=='Leave blank'
             assert [option.split(' — ')[0] for option in options[1:]]==['1. ID','2. Location','3. Monitor model','4. Orientation','5. Notes']
             assert page.locator('#sheet-choice').input_value()=='Scala assets'
             start_import_review(page)
             page.locator('#inventory-import-review').wait_for(state='visible')
+            page.locator('#inventory-import-review-all').check()
             page.locator('#inventory-import-review-save').click()
             page.locator('#import-summary-panel').wait_for(state='visible')
             page.locator('#close-import-summary').click()

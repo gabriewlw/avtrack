@@ -3,7 +3,7 @@ import json, shutil, sys, tempfile, threading
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import app
-from browser_helpers import open_import_matching, start_import_review
+from browser_helpers import open_import_matching, start_import_review, open_import_settings
 from playwright.sync_api import sync_playwright, expect
 
 with tempfile.TemporaryDirectory() as temporary:
@@ -85,6 +85,7 @@ with tempfile.TemporaryDirectory() as temporary:
             # Same brand/model/location/notes can be deliberately merged.
             paste('Description\tBrand\tModel\tSerial Number\tQuantity\tLocation\tNotes\nReceiver\tAtlona\tRX-1\t\t2\tLocker E\tSame batch\nReceiver\tAtlona\tRX-1\t\t3\tLocker E\tSame batch\n')
             assert not page.locator('#paste-merge-models').is_checked()
+            open_import_settings(page)
             page.locator('#paste-merge-models').check()
             assert '1 item' in page.locator('#paste-preview-counts').inner_text()
             start_import_review(page)

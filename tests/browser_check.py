@@ -133,7 +133,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#equipment-delete-dialog').wait_for(state='hidden')
             assert app.equipment_inventory(inv['id'])==[]
             assert len(app.equipment_inventory(other['id']))==1
-            assert page.locator('[aria-label="AVTrack version"]').inner_text()==version
+            assert page.locator('[aria-label="AVTrack version"]').text_content().strip()==version
             assert not errors,errors
             browser.close()
     finally:
