@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Home summary, workspace navigation and exact search links across workspaces."""
 from pathlib import Path
 import base64,json,shutil,sys,tempfile,threading
@@ -14,7 +15,8 @@ with tempfile.TemporaryDirectory() as tmp:
     tv=app.save_equipment_inventory(dict(name='TV inventory',layout=next(t['layout'] for t in templates if t['id']=='tv')))
     item=app.save_equipment(dict(inventory_id=tv['id'],brand='LG',model='Target screen',custom_values=dict(deck_6='0',deck_2_port='0',deck_2_stbd='0')))
     backup=app.save_av_backup(dict(equipment_type='ATEM',device_name='Target backup',filename='setup.xml',notes='',content=base64.b64encode(b'<setup/>').decode()))
-    server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
+    with app.connect() as connection:connection.commit()
+    server = app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
         with sync_playwright() as p:
@@ -27,19 +29,19 @@ with tempfile.TemporaryDirectory() as tmp:
             assert page.locator('#home-tab').get_attribute('aria-current')=='page'
             assert page.locator('#homepage-overview').is_visible()
             assert page.locator('#inventory').is_hidden()
-            assert page.locator('.hero-side').is_visible()
-            assert page.locator('#example-media img').is_visible()
-            assert page.locator('.hero-copy').bounding_box()['x'] < page.locator('.hero-side').bounding_box()['x']
-            assert page.locator('.hero-copy').evaluate('(node)=>getComputedStyle(node).textAlign') == 'left'
+            assert page.locator('.hero-side').is_hidden()
+            assert page.locator('.home-workspace-examples').is_visible()
+            assert page.locator('.workspace-example-labels span').count()==4
+            assert page.locator('.hero-copy').evaluate('(node)=>getComputedStyle(node).textAlign') == 'center'
             assert page.locator('#device-tab').is_hidden()
             page.locator('#workspaces-toggle').click()
             assert page.locator('#device-tab').is_visible()
             page.keyboard.press('Escape')
             assert page.locator('#device-tab').is_hidden()
             assert page.locator('#workspaces-toggle').evaluate('(node)=>node===document.activeElement')
-            Path('/workspace/artifacts').mkdir(exist_ok=True)
-            page.screenshot(path='/workspace/artifacts/avtrack-home-clean.png')
-            page.locator('#workspaces-toggle').click();page.locator('#device-tab').click()
+            Path('work/artifacts').mkdir(parents=True,exist_ok=True)
+            page.screenshot(path='work/artifacts/avtrack-home-clean.png')
+            page.locator('#workspaces-toggle').click();open_workspace(page, 'device-tab')
             assert page.locator('#inventory').is_visible()
             assert not page.locator('#workspaces-menu').evaluate('(node)=>node.open')
             assert page.locator('#workspaces-toggle').get_attribute('aria-current')=='page'

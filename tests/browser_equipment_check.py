@@ -1,4 +1,4 @@
-from browser_helpers import open_workspace
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Optional equipment CSV/location/located workflow check with Playwright."""
 import json
 import shutil
@@ -15,6 +15,7 @@ from playwright.sync_api import sync_playwright
 with tempfile.TemporaryDirectory() as temp:
     app.DB_PATH = Path(temp) / 'inventory.sqlite3'
     app.save_equipment_inventory({'name':'Spare parts'})
+    with app.connect() as connection:connection.commit()
     server = app.ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
@@ -32,10 +33,11 @@ with tempfile.TemporaryDirectory() as temp:
                                 'Handheld microphone,Shure,SM58,MIC-01,1,Main lounge,With cable\n'
                                 'Audio cable,Neutrik,XLR,CABLE-01|CABLE-02,20,Main lounge,Spare stock\n')
             page.locator('#import-file').set_input_files(str(csv_file))
+            open_import_matching(page)
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             assert page.locator('#map-description').input_value() == '0'
             page.locator('#import-complete-rows').uncheck()
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             page.locator('#inventory-import-review').wait_for(state='visible')
             assert page.locator('#inventory-import-review-title').inner_text()=='Review Main lounge'
             assert page.locator('#inventory-import-review-rows tr').count()==2
@@ -51,13 +53,13 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#equipment-search').fill('')
             assert all(row['item_confirmed'] == 0 for row in app.equipment_inventory())
             headers=page.locator('#equipment-table th').all_text_contents()
-            assert headers == ['Item','Brand','Model','Serial number','Qnt','Location','Status','Last checked','Notes','Actions'],headers
+            assert headers == ['Item','Brand','Model','Serial number','Qnt','Location','Status','Location check','Notes','Actions'],headers
             page.locator('#equipment-location-filter').select_option('Main lounge')
             assert page.locator('#equipment-rows tr').count() == 2
             microphone = page.locator('#equipment-rows tr').filter(has_text='Handheld microphone')
             microphone.locator('.equipment-confirm').check()
-            page.wait_for_function("() => document.getElementById('equipment-found').textContent === '1'")
-            assert page.locator('#equipment-found-percent').inner_text() == '4.5% of units'
+            page.wait_for_function("() => document.getElementById('equipment-found').textContent === '0'")
+            assert page.locator('#equipment-found-percent').inner_text() == '0 / 2 locations · 0 unknown counts'
             assert microphone.locator('.equipment-confirm-label').get_attribute('class').endswith('confirmed')
             assert page.locator('#equipment-rows .row-select:checked').count() == 0
             page.locator('#equipment-refresh').click()
@@ -70,7 +72,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert page.locator('#equipment-rows tr').count() == 1
             microphone.locator('.equipment-confirm').click()
             page.wait_for_function("() => document.getElementById('equipment-found').textContent === '0'")
-            assert page.locator('#equipment-found-percent').inner_text() == '0% of units'
+            assert page.locator('#equipment-found-percent').inner_text() == '0 / 2 locations · 0 unknown counts'
             assert page.locator('#equipment-no-results').is_visible()
             page.locator('#equipment-clear').click()
             page.locator('#equipment-status-buttons').get_by_role('button', name='All items', exact=True).click()

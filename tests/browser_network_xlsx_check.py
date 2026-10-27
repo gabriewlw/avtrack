@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """IPTV and AV Device XLSX imports complete their shared batch review."""
 import shutil,sys,tempfile,threading
 from pathlib import Path
@@ -20,7 +21,8 @@ with tempfile.TemporaryDirectory() as tmp:
             sheet.append(['Device Name','IP Address','Venue','VLAN','Notes'])
             sheet.append(['Switcher','10.1.2.3','Broadcast Center',50,'Test device'])
         path=Path(tmp)/(target+'.xlsx');book.save(path);files.append((target,path))
-    server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
+    with app.connect() as connection:connection.commit()
+    server = app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
         with sync_playwright() as p:
@@ -30,14 +32,15 @@ with tempfile.TemporaryDirectory() as tmp:
             page.goto(f'http://127.0.0.1:{server.server_port}/')
             page.wait_for_function("() => !document.getElementById('refresh').disabled")
             for target,path in files:
-                page.locator('#iptv-tab' if target=='iptv' else '#device-tab').click()
+                open_workspace(page, 'iptv-tab' if target=='iptv' else 'device-tab')
                 page.locator('#import').click();page.locator('#upload-paste-inventory').click()
                 page.locator('#import-file').set_input_files(str(path))
-                page.locator('#spreadsheet-dialog').wait_for(state='visible')
+                open_import_matching(page)
+                page.locator('#spreadsheet-dialog:visible, #paste-layout-dialog:visible').first.wait_for()
                 page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
                 assert page.locator('#map-name').input_value()=='0'
                 assert page.locator('#map-ip').input_value()=='1'
-                page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
+                start_import_review(page);page.locator('#inventory-import-review').wait_for(state='visible')
                 expected=2 if target=='iptv' else 1
                 assert page.locator('#inventory-import-review-rows tr').count()==expected
                 page.locator('#inventory-import-review-save').click()

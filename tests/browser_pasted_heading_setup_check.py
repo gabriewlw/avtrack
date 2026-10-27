@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Each pasted heading gets an editable field and import confirmation settings."""
 import sys,tempfile,threading,shutil
 from pathlib import Path
@@ -6,7 +7,8 @@ import app
 from playwright.sync_api import sync_playwright
 with tempfile.TemporaryDirectory() as tmp:
     app.DB_PATH=Path(tmp)/'test.sqlite3'
-    server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
+    with app.connect() as connection:connection.commit()
+    server = app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
         with sync_playwright() as p:
@@ -20,7 +22,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#equipment-inventory-name').fill('Custom signage')
             page.locator('#equipment-template').select_option('custom')
             page.locator('#save-equipment-inventory').click()
-            page.locator('#paste-inventory-dialog').wait_for(state='visible')
+            choose_new_inventory_import(page)
             assert page.locator('#inventory-columns-dialog').is_hidden()
             inventory=next(row for row in app.equipment_inventories() if row['name']=='Custom signage')
             text='Model\tOrientation\tLocation\nM1\tVertical\tLobby\nM2\tHorizontal\tLobby'

@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Import location deletion skips complete/flagged rows with undo and session reset."""
 import shutil
 import sys
@@ -13,7 +14,8 @@ with tempfile.TemporaryDirectory() as temporary:
     app.DB_PATH=Path(temporary)/'inventory.sqlite3'
     inventory=app.save_equipment_inventory({'name':'Spare stock','layout':DEFAULT_PROFILE})
     existing=app.save_equipment({'inventory_id':inventory['id'],'description':'Previously saved','serial_number':'OLD','location':'Locker A'})
-    server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
+    with app.connect() as connection:connection.commit()
+    server = app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
         with sync_playwright() as p:
@@ -27,6 +29,7 @@ with tempfile.TemporaryDirectory() as temporary:
             data=b'Item,Brand,Model,Serial number,Quantity,Location,Notes\nDeleted,Sony,X,DUP,1,Locker A,note\nDeleted,,X,A2,,Locker A,note\nKept,Sony,X,DUP,1,Locker B,note\nKept,,X,B2,2,Locker B,note\nKept,Sony,X,C1,3,Locker C,note\n,,,,,,\n'
             def upload(content=data):
                 page.locator('#import-file').set_input_files({'name':'locations.csv','mimeType':'text/csv','buffer':content})
+                open_import_matching(page)
                 page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             def delete(name):page.get_by_role('button',name=f'Exclude location {name} and skip its items',exact=True).first.click()
             upload()
@@ -38,7 +41,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.get_by_role('button',name='Restore location Locker A',exact=True).click()
             assert page.locator('#confirm-import').inner_text()=='Apply setup & review 5 rows'
             delete('Locker A')
-            page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
+            start_import_review(page);page.locator('#inventory-import-review').wait_for(state='visible')
             assert page.locator('#inventory-import-review-rows tr').count()==1
             assert page.locator('#inventory-import-review-rows tr').get_attribute('data-source-row')=='5'
             assert 'Locker B' in page.locator('#inventory-import-review-title').inner_text()
@@ -66,13 +69,13 @@ with tempfile.TemporaryDirectory() as temporary:
             page.get_by_role('button',name='Restore location Locker A',exact=True).first.click()
             assert page.locator('#confirm-import').inner_text()=='Apply setup & review 2 rows'
             delete('Locker A')
-            page.locator('#confirm-import').click();page.locator('#spreadsheet-dialog').wait_for(state='hidden')
+            start_import_review(page);page.locator('#spreadsheet-dialog').wait_for(state='hidden')
             page.locator('#import-summary-panel').wait_for(state='visible');page.locator('#close-import-summary').click()
             assert len(app.equipment_inventory(inventory['id']))==4
             # A fresh file restores the locations and their items automatically.
             upload(b'Item,Brand,Model,Serial number,Quantity,Location,Notes\nNew,Sony,X,N1,1,Locker A,note\n')
             assert page.locator('#confirm-import').inner_text()=='Apply setup & review 1 rows'
-            page.locator('#confirm-import').click();page.locator('#spreadsheet-dialog').wait_for(state='hidden')
+            start_import_review(page);page.locator('#spreadsheet-dialog').wait_for(state='hidden')
             page.wait_for_function("() => document.getElementById('equipment-records').textContent==='5'")
             assert 'N1' in {row['serial_number'] for row in app.equipment_inventory(inventory['id'])}
             assert not errors,errors

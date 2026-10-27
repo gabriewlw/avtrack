@@ -1,4 +1,4 @@
-from browser_helpers import open_workspace
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Optional browser check of independent inventory creation and CSV/JSON work."""
 import json
 import shutil
@@ -14,6 +14,7 @@ from playwright.sync_api import sync_playwright
 
 with tempfile.TemporaryDirectory() as temp:
     app.DB_PATH = Path(temp) / 'inventory.sqlite3'
+    with app.connect() as connection:connection.commit()
     server = app.ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
@@ -37,6 +38,7 @@ with tempfile.TemporaryDirectory() as temp:
                 page.locator('#equipment-inventory-dialog').wait_for(state='hidden')
                 wait_loaded(name)
                 assert page.locator('#equipment-empty').is_visible()
+                page.locator('#inventory-start-import').click()
                 if page.locator('#paste-inventory-dialog').is_visible():
                     page.locator('#close-paste-inventory').click()
                 return int(page.locator('#equipment-inventory-select').input_value())
@@ -45,11 +47,12 @@ with tempfile.TemporaryDirectory() as temp:
                 file = Path(temp) / filename
                 file.write_text('Item,Brand,Model,Serial number,Quantity,Location,Notes\n'+rows)
                 page.locator('#import-file').set_input_files(str(file))
+                open_import_matching(page)
                 page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
                 target = page.locator('#equipment-inventory-title').inner_text()
                 assert 'Inventory: '+target in page.locator('#spreadsheet-summary').inner_text()
-                page.locator('#import-confirmation-choice').select_option('storage')
-                page.locator('#confirm-import').click()
+                set_import_confirmation(page, 'storage')
+                start_import_review(page)
                 locations={line.split(',')[5] for line in rows.strip().splitlines()}
                 for index in range(len(locations)):
                     page.locator('#inventory-import-review').wait_for(state='visible')

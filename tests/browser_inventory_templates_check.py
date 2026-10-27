@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Desktop inventory templates: creation, matching, batch review and stock edits."""
 import json
 import shutil
@@ -11,7 +12,8 @@ from playwright.sync_api import sync_playwright
 
 with tempfile.TemporaryDirectory() as temporary:
     app.DB_PATH=Path(temporary)/'inventory.sqlite3'
-    server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
+    with app.connect() as connection:connection.commit()
+    server = app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
         with sync_playwright() as p:
@@ -28,7 +30,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#save-equipment-inventory').click()
             assert page.locator('#inventory-columns-dialog').is_hidden()
             # Paste comes before column setup; file upload remains available.
-            page.locator('#paste-inventory-dialog').wait_for(state='visible')
+            choose_new_inventory_import(page)
             page.locator('#paste-inventory-text').fill('Model\tBrand\tDeck 6\nX\tSony\t2')
             page.locator('#continue-paste-inventory').click()
             page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
@@ -45,7 +47,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#map-total_count').count()==0
             assert page.locator('#map-deck_6').input_value()=='2'
             assert '1 zero-stock rows' in page.locator('#equipment-import-audit').inner_text()
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             page.locator('#inventory-import-review').wait_for(state='visible')
             assert page.locator('#inventory-import-review-title').inner_text()=='Review TV models'
             assert page.locator('#inventory-import-review-rows tr').count()==1
@@ -99,7 +101,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#inventory-columns-dialog').wait_for(state='hidden')
             page.locator('#import-file').set_input_files({'name':'parts.csv','mimeType':'text/csv','buffer':b'Description,Brand,Model,Serial Number,Quantity,Location,Notes\nCable,Sony,X,S1,1,Locker A,note\nCable,,X,S2,2,Locker A,note\nCable,Sony,X,S3,1,Locker B,note\n'})
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
-            page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
+            start_import_review(page);page.locator('#inventory-import-review').wait_for(state='visible')
             locations=page.get_by_label('Location, row 3',exact=True).locator('option').all_text_contents()
             assert {'Locker A','Locker B'}<=set(locations)
             assert page.get_by_label('Qnt, row 3',exact=True).get_attribute('type')=='number'

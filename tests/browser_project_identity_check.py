@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Official AVTrack names reach actual downloads for every inventory and format."""
 import io,json,shutil,sys,tempfile,threading
 from pathlib import Path
@@ -12,7 +13,8 @@ with tempfile.TemporaryDirectory() as tmp:
     app.save_device(dict(name='Crew TV',ip='239.1.1.1',port=1234,record_type='iptv'))
     inventory=app.save_equipment_inventory(dict(name='Spare TVs',layout=dict(app.DEFAULT_PROFILE,show_status=False)))
     app.save_equipment(dict(inventory_id=inventory['id'],model='OLED55C4',brand='LG',quantity=2,location='Locker'))
-    server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
+    with app.connect() as connection:connection.commit()
+    server = app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
         with sync_playwright() as p:
@@ -25,7 +27,7 @@ with tempfile.TemporaryDirectory() as tmp:
             assert page.locator('meta[name=application-name]').get_attribute('content')=='avtrack'
             assert 'broadcasthub' not in page.content().lower()
             for tab,prefix,panel in [('device','av-devices','#inventory'),('iptv','iptv-channels','#inventory'),('equipment','spare-tvs','#equipment-panel')]:
-                page.locator('#'+('equipment-tab' if tab=='equipment' else 'iptv-tab' if tab=='iptv' else 'device-tab')).click()
+                open_workspace(page, 'equipment-tab' if tab=='equipment' else 'iptv-tab' if tab=='iptv' else 'device-tab')
                 if tab=='equipment':
                     page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled")
                     page.locator('#equipment-inventory-select').select_option(str(inventory['id']))

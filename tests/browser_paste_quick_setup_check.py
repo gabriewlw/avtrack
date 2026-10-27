@@ -1,4 +1,4 @@
-from browser_helpers import open_workspace
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Paste preview combines matching and table checks without repeated setup screens."""
 import json,shutil,sys,tempfile,threading
 from pathlib import Path
@@ -10,7 +10,8 @@ with tempfile.TemporaryDirectory() as tmp:
     app.DB_PATH=Path(tmp)/'inventory.sqlite3'
     templates=json.loads((Path(app.__file__).parent/'static/inventory-templates.json').read_text())
     tv=app.save_equipment_inventory(dict(name='Quick TVs',layout=next(t['layout'] for t in templates if t['id']=='tv')))
-    server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
+    with app.connect() as connection:connection.commit()
+    server = app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
         with sync_playwright() as p:
@@ -36,7 +37,7 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#paste-map-ip').select_option('2')
             assert '10.2.3.5' in page.locator('#paste-layout-rows').inner_text()
             assert page.locator('#map-ip').input_value()=='2'
-            page.locator('#paste-preview-confirmation').select_option('none')
+            set_import_confirmation(page, 'none')
             assert page.locator('#paste-inventory-check-options').is_hidden()
             page.locator('#paste-start-review').click();page.locator('#inventory-import-review').wait_for(state='visible')
             assert page.get_by_label('IP address, row 2',exact=True).input_value()=='10.2.3.5'
@@ -48,7 +49,7 @@ with tempfile.TemporaryDirectory() as tmp:
             assert page.locator('#paste-map-ip').input_value()=='4'
             assert page.locator('#paste-map-name').input_value()=='3'
             assert page.locator('#paste-preview-confirmation').input_value()=='none'
-            page.locator('#paste-preview-confirmation').select_option('ip')
+            set_import_confirmation(page, 'ip')
             page.locator('#paste-start-review').click();page.locator('#inventory-import-review').wait_for(state='visible')
             page.locator('#inventory-import-review-save').click();page.locator('#import-summary-panel').wait_for(state='visible')
             assert next(r for r in app.inventory() if r['name']=='Second')['ip']=='10.2.3.7'
@@ -65,14 +66,14 @@ with tempfile.TemporaryDirectory() as tmp:
             assert page.locator('th[data-field-key=notes] #paste-map-notes').count()==1
             before=next(i for i in app.equipment_inventories() if i['id']==tv['id'])
             assert not page.locator('#paste-inventory-check-options').is_visible()
-            page.locator('#paste-preview-confirmation').select_option('storage')
+            set_import_confirmation(page, 'storage')
             page.locator('#close-paste-layout').click()
             assert next(i for i in app.equipment_inventories() if i['id']==tv['id'])==before
             assert not app.equipment_inventory(tv['id'])
             paste(text,True)
-            page.locator('#paste-preview-auto').uncheck()
+            assert page.locator('#paste-preview-auto-label').is_hidden()
             assert not page.locator('#paste-inventory-check-options').is_visible()
-            page.locator('#paste-preview-confirmation').select_option('storage')
+            set_import_confirmation(page, 'storage')
             Path('work').mkdir(exist_ok=True);page.screenshot(path='work/paste-quick-preview.png')
             page.locator('#paste-start-review').click();page.locator('#inventory-import-review').wait_for(state='visible')
             page.locator('#inventory-import-review-save').click();page.locator('#import-summary-panel').wait_for(state='visible')
@@ -84,11 +85,11 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#close-import-summary').click()
             headers=page.locator('#equipment-table thead').inner_text().lower()
             assert 'stock check' not in headers
-            assert all(label in headers for label in ['last checked','status'])
+            assert 'status' in headers and 'last checked' not in headers
             assert page.locator('#equipment-table tbody tr').first.locator('td').count()==page.locator('#equipment-table thead th').count()
-            assert page.locator('.equipment-last-checked').inner_text()=='Not checked'
+            assert not app.equipment_inventory(tv['id'])[0]['inventory_checked_at']
             page.locator('.equipment-status button').click()
-            page.wait_for_function("()=>document.querySelector('.equipment-last-checked').textContent!=='Not checked'")
+            page.wait_for_function("()=>document.querySelector('.equipment-status button').getAttribute('aria-pressed')==='true'")
             assert app.equipment_inventory(tv['id'])[0]['item_confirmed']
             assert app.equipment_inventory(tv['id'])[0]['inventory_checked_at']
             assert not app.equipment_stock_history(item['id'])

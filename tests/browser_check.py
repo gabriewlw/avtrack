@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Optional end-to-end check: requires Playwright and Chromium."""
 import csv
 import json
@@ -16,6 +17,7 @@ from playwright.sync_api import sync_playwright
 
 with tempfile.TemporaryDirectory() as temp:
     app.DB_PATH = Path(temp) / 'inventory.sqlite3'
+    with app.connect() as connection:connection.commit()
     server = app.ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
@@ -27,10 +29,7 @@ with tempfile.TemporaryDirectory() as temp:
 
             def open_page(name):
                 identifier = {'Devices':'device-tab', 'IPTV channels':'iptv-tab', 'Equipment inventory':'equipment-tab'}[name]
-                link = page.locator('#'+identifier)
-                if not link.is_visible():
-                    page.locator('#nav-toggle').click()
-                link.click()
+                open_workspace(page, identifier)
 
             def clear_network_filters():
                 if page.locator('#clear-filters').is_visible():
@@ -66,9 +65,9 @@ with tempfile.TemporaryDirectory() as temp:
             assert nav_toggle.get_attribute('aria-expanded') == 'false'
             nav_toggle.focus(); nav_toggle.press('Enter')
             assert navigation.is_visible()
-            assert navigation.get_by_role('link', name='Inventory', exact=True).is_visible()
+            assert page.locator('#workspaces-toggle').is_visible()
             nav_toggle.press('Tab')
-            assert navigation.get_by_role('link', name='Devices', exact=True).evaluate('(node) => node === document.activeElement')
+            assert navigation.get_by_role('link', name='Home', exact=True).evaluate('(node) => node === document.activeElement')
             page.keyboard.press('Escape')
             assert navigation.is_hidden()
             assert nav_toggle.evaluate('(node) => node === document.activeElement')
@@ -76,7 +75,7 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#hero-intro').click()
             assert navigation.is_hidden()
             nav_toggle.click()
-            navigation.get_by_role('link', name='Devices', exact=True).click()
+            open_workspace(page, 'device-tab')
             assert navigation.is_hidden() and nav_toggle.get_attribute('aria-expanded') == 'false'
             nav_toggle.click()
             page.set_viewport_size({'width':1440,'height':1000})
@@ -200,7 +199,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert 'Excel camera' in page.locator('#spreadsheet-preview').inner_text()
             assert len(app.inventory()) == 2  # Preview never writes.
             page.screenshot(path='/tmp/avtrack-excel-mobile.png', full_page=True)
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             accept_rows(1)
             page.get_by_role('button', name='Edit Excel camera').wait_for()
             assert len(app.inventory()) == 3
@@ -210,7 +209,7 @@ with tempfile.TemporaryDirectory() as temp:
             path.write_text('Device,IP Address,VLAN\nCSV device,invalid,1500\n')
             page.locator('#import-file').set_input_files(str(path))
             page.locator('#map-venue').wait_for()
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             page.locator('#row-review-dialog').wait_for(state='visible')
             assert page.locator('#row-review-ip-hint').is_visible()
             assert page.locator('#review-ip').input_value() == 'invalid'
@@ -265,7 +264,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert page.locator('#map-ip').input_value() == '4'
             assert page.locator('#map-port').input_value() == '5'
             before = len(app.inventory())
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             page.locator('#row-review-dialog').wait_for(state='visible')
             assert page.locator('#row-review-fields input').evaluate_all('(nodes) => nodes.map(n => n.id)') == ['review-name','review-ip','review-port']
             assert page.locator('#row-review-fields > label').evaluate_all('(nodes) => nodes.map(n => n.childNodes[0].textContent)') == ['Channel Name','Multicast IP','Port','Type','Notes']
@@ -339,7 +338,7 @@ with tempfile.TemporaryDirectory() as temp:
             page.get_by_label('Edit location Storeroom', exact=True).fill('Store 2')
             assert 'Store 2' in page.locator('#spreadsheet-preview').inner_text()
             assert len(app.equipment_inventory()) == 1
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             accept_rows(1)
             page.get_by_role('button', name='Edit equipment Neutrik XLR').wait_for()
             assert page.locator('#equipment-units').inner_text() == '22'
@@ -399,7 +398,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert len(set(preview_colors)) == 2
             assert len([r for r in app.inventory() if r['record_type'] == 'device']) == 3
             page.screenshot(path='/tmp/avtrack-venue-preview-mobile.png', full_page=True)
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             accept_rows(3, total=5)
             page.get_by_role('button', name='Edit CSV camera', exact=True).wait_for()
             assert len([r for r in app.inventory() if r['record_type'] == 'device']) == 6
@@ -456,7 +455,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert not page.locator('[id^=default-]').count()
             assert not page.locator('#map-category, #map-discipline, #map-record_type, #map-channel_source, #map-port').count()
             assert 'Missing' not in page.locator('#spreadsheet-preview').inner_text()
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             accept_rows(4)
             assert any(row['notes'] == 'Find this device later' for row in app.inventory())
             page.get_by_role('button', name='Edit Unassigned camera', exact=True).wait_for()
@@ -503,7 +502,7 @@ with tempfile.TemporaryDirectory() as temp:
                 page.locator('#import-file').set_input_files(str(path))
                 page.wait_for_function("() => document.getElementById('spreadsheet-dialog').open && !document.getElementById('confirm-import').disabled")
                 assert page.locator('#spreadsheet-error').is_hidden()
-                page.locator('#confirm-import').click()
+                start_import_review(page)
                 page.locator('#spreadsheet-dialog').wait_for(state='hidden')
                 assert len(app.inventory()) == before
             open_page('Equipment inventory')
@@ -512,7 +511,7 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#import-file').set_input_files(str(path))
             page.wait_for_function("() => document.getElementById('spreadsheet-dialog').open && !document.getElementById('confirm-import').disabled")
             assert page.locator('#map-quantity').input_value() == ''
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             accept_rows(2)
             page.wait_for_function("() => document.getElementById('equipment-records').textContent === '4'")
             partial = page.locator('#equipment-rows tr').filter(has_text='Unidentified spare')
@@ -531,7 +530,7 @@ with tempfile.TemporaryDirectory() as temp:
             path.write_text('Channel\nUnassigned channel\n')
             page.locator('#import-file').set_input_files(str(path))
             page.wait_for_function("() => document.getElementById('spreadsheet-dialog').open && !document.getElementById('confirm-import').disabled")
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             accept_rows(1)
             page.get_by_role('button', name='Edit Unassigned channel', exact=True).wait_for()
             assert next(r for r in app.inventory() if r['name'] == 'Unassigned channel')['channel_source'] == ''
@@ -551,7 +550,7 @@ with tempfile.TemporaryDirectory() as temp:
                             'RD CONTROL ROOM,Static camera,10.24.176.97,4095\n')
             page.locator('#import-file').set_input_files(str(path))
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             page.locator('#row-review-dialog').wait_for(state='visible')
             assert len(app.inventory()) == before
             assert page.locator('#row-review-fields input').evaluate_all('(nodes) => nodes.map(n => n.id)') == ['review-venue','review-name','review-ip','review-vlan']
@@ -610,7 +609,7 @@ with tempfile.TemporaryDirectory() as temp:
             path.write_text('DEVICE NAME,IP Address\nAccepted before stop,DHCP\nNever accepted,DHCP\n')
             page.locator('#import-file').set_input_files(str(path))
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             page.locator('#row-review-dialog').wait_for(state='visible')
             review_action('#accept-review-row')
             page.locator('#row-review-dialog').press('Escape')
@@ -686,7 +685,7 @@ with tempfile.TemporaryDirectory() as temp:
             before = len(app.inventory())
             page.locator('#import-file').set_input_files(str(path))
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             page.locator('#row-review-dialog').wait_for(state='visible')
             assert page.locator('#row-review-fields > label').evaluate_all('(nodes) => new Set(nodes.map(n => n.getBoundingClientRect().top)).size') == 1
             assert page.locator('.review-line-scroll').evaluate('(node) => node.scrollWidth <= node.clientWidth')
@@ -801,7 +800,7 @@ with tempfile.TemporaryDirectory() as temp:
                             'RD CONTROL ROOM,Next review camera,10.24.177.3,1500,\n')
             page.locator('#import-file').set_input_files(str(path))
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             page.locator('#row-review-dialog').wait_for(state='visible')
             assert page.locator('#review-name').input_value() == 'New review camera'
             assert '2 of 5' in page.locator('#row-review-progress').inner_text()
@@ -827,7 +826,7 @@ with tempfile.TemporaryDirectory() as temp:
                             'Duplicate reviewed,10.24.177.1,4095,Keep saved notes\n')
             page.locator('#import-file').set_input_files(str(path))
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             page.locator('#spreadsheet-dialog').wait_for(state='hidden')
             assert page.locator('#row-review-dialog').is_hidden()
             assert len(app.inventory()) == before + 2
@@ -1023,7 +1022,7 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#import-file').set_input_files(str(path))
             page.locator('#confirm-import').wait_for(state='visible')
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             expected_notes = ['Live feed · H.265','Primary feed · H.264','Already h.264','Keep this note','H.265','Operator note · H.264','Edited note · H.264']
             for index, expected_note in enumerate(expected_notes):
                 page.locator('#row-review-dialog').wait_for(state='visible')
@@ -1058,7 +1057,7 @@ with tempfile.TemporaryDirectory() as temp:
                             'AV-only pair,10.220.2.2,1234,\n')
             page.locator('#import-file').set_input_files(str(path))
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             for name, note in [('AVC first','H.264'), ('HEVC second','H.265'), ('AV-only pair','')]:
                 page.locator('#row-review-dialog').wait_for(state='visible')
                 assert page.locator('#review-notes').input_value() == note
@@ -1118,7 +1117,7 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#import-file').set_input_files(str(path))
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             assert 'Satellite' in page.locator('#spreadsheet-preview').inner_text()
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             for index, name in enumerate(names):
                 page.locator('#row-review-dialog').wait_for(state='visible')
                 assert page.locator('#review-channel_source').input_value() == ('Satellite' if index < 3 else '')

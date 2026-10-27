@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Preserve unmapped spreadsheet columns, stock progress, and chosen serial removal."""
 import json
 import shutil
@@ -14,6 +15,7 @@ with tempfile.TemporaryDirectory() as temporary:
     app.DB_PATH = Path(temporary) / 'inventory.sqlite3'
     inventory = app.save_equipment_inventory({'name': 'Spare Parts'})
     item = app.save_equipment(dict(inventory_id=inventory['id'], description='Camera', brand='Sony', model='X', quantity=3, serial_number='A, B, C', location='Locker', notes=''))
+    with app.connect() as connection:connection.commit()
     server = app.ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
@@ -38,11 +40,9 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#equipment-inventory-select').select_option(str(inventory['id']))
             page.wait_for_function("() => document.getElementById('equipment-stock-progress-count').textContent==='0 / 1 records (0%)'")
             assert page.locator('#equipment-stock-progress-count').inner_text()=='0 / 1 records (0%)'
-            page.locator('#equipment-table .equipment-stock-confirm').click()
-            page.locator('#save-equipment-record-review').click()
+            page.locator('#equipment-table .equipment-confirm').check()
             page.wait_for_function("() => document.getElementById('equipment-stock-progress-bar').value===1")
-            button=page.locator('#equipment-table .equipment-stock-confirm')
-            assert 'equipment-stock-confirm' in button.get_attribute('class')
+            assert page.locator('#equipment-table .equipment-confirm').is_checked()
             page.locator('#equipment-table .equipment-delete-action').click()
             choices=page.locator('#equipment-delete-unit')
             assert choices.locator('option').count()==4

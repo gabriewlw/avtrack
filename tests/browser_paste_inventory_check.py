@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Paste a message table or Excel cells, match fields, review, and import."""
 import json
 import shutil
@@ -14,7 +15,8 @@ with tempfile.TemporaryDirectory() as temporary:
     templates=json.loads((Path(app.__file__).parent/'static/inventory-templates.json').read_text())
     tv=app.save_equipment_inventory({'name':'Spare TVs','layout':next(t['layout'] for t in templates if t['id']=='tv')})
     parts=app.save_equipment_inventory({'name':'Spare parts','layout':next(t['layout'] for t in templates if t['id']=='spare_parts')})
-    server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
+    with app.connect() as connection:connection.commit()
+    server = app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
         with sync_playwright() as p:
@@ -41,7 +43,7 @@ with tempfile.TemporaryDirectory() as temporary:
                 assert page.locator('#spreadsheet-dialog').is_hidden()
                 assert page.locator('#paste-layout-head th').count()>0
                 assert page.locator('#paste-layout-rows tr').count()<=5
-                page.locator('#keep-paste-layout').click()
+                open_import_matching(page)
                 page.locator('#spreadsheet-dialog').wait_for(state='visible')
                 page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             choose(tv)
@@ -66,7 +68,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#confirm-import').inner_text()=='Apply setup & review 7 rows'
             assert 'Brand: LG' in page.locator('#spreadsheet-preview').inner_text()
             assert 'Deck 6: 8' in page.locator('#spreadsheet-preview').inner_text()
-            page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
+            start_import_review(page);page.locator('#inventory-import-review').wait_for(state='visible')
             assert len(app.equipment_inventory(tv['id']))==4
             assert page.locator('#inventory-import-review-rows tr').count()==2
             combined=page.locator('tr[data-source-row="3, 4"]')
@@ -88,7 +90,7 @@ with tempfile.TemporaryDirectory() as temporary:
             # Excel tabs feed the same stages, including location deletion.
             choose(parts)
             paste('Description\tBrand\tModel\tSerial Number\tQuantity\tLocation\tNotes\nCable\tSony\tX\tS1\t1\tLocker A\tnote\nCable\tSony\tY\tS2\t1\tLocker B\tnote\n','Locker B')
-            page.locator('#confirm-import').click();page.locator('#spreadsheet-dialog').wait_for(state='hidden')
+            start_import_review(page);page.locator('#spreadsheet-dialog').wait_for(state='hidden')
             page.wait_for_function("() => document.getElementById('equipment-records').textContent==='2'")
             assert {row['location'] for row in app.equipment_inventory(parts['id'])}=={'Locker B'}
             page.locator('#import-summary-panel').wait_for(state='visible');page.locator('#close-import-summary').click()
@@ -105,14 +107,14 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#spreadsheet-dialog').is_hidden()
             assert page.locator('#paste-layout-head th').count()>0
             assert page.locator('#paste-layout-rows tr').count()<=5
-            page.locator('#keep-paste-layout').click()
+            open_import_matching(page)
             page.locator('#spreadsheet-dialog').wait_for(state='visible')
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             assert page.locator('#confirm-import').inner_text()=='Apply setup & review 2 rows'
             assert 'Locker B' in page.locator('#spreadsheet-preview').inner_text()
             assert 'Locker D' not in page.locator('#spreadsheet-preview').inner_text()
             page.locator('#import-complete-rows').uncheck()
-            page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
+            start_import_review(page);page.locator('#inventory-import-review').wait_for(state='visible')
             assert page.locator('#inventory-import-review-title').inner_text()=='Review Locker B'
             assert page.locator('#inventory-import-review-rows tr').count()==2
             page.locator('#inventory-import-review-all').check();page.locator('#inventory-import-review-save').click()

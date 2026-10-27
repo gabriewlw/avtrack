@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """TV inventory Last checked updates when missing required details are completed."""
 import json
 import shutil
@@ -14,7 +15,8 @@ with tempfile.TemporaryDirectory() as temporary:
     templates=json.loads((Path(app.__file__).parent/'static/inventory-templates.json').read_text())
     inventory=app.save_equipment_inventory({'name':'Spare TVs','layout':next(t['layout'] for t in templates if t['id']=='tv')})
     row=app.save_equipment(dict(inventory_id=inventory['id'],brand='',model='X',notes='Long notes. '*60,custom_values=dict(deck_6='1',deck_2_port='2',deck_2_stbd='0')))
-    server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
+    with app.connect() as connection:connection.commit()
+    server = app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
         with sync_playwright() as p:
@@ -27,21 +29,21 @@ with tempfile.TemporaryDirectory() as temporary:
             page.wait_for_function("() => document.getElementById('equipment-inventory-title').textContent==='Spare TVs' && !document.getElementById('equipment-inventory-select').disabled")
             assert 'Serial number' not in page.locator('#equipment-table thead').inner_text()
             assert 'record check' not in page.locator('#equipment-table thead').inner_text().lower()
-            assert 'last checked' in page.locator('#equipment-table thead').inner_text().lower()
+            assert 'last checked' not in page.locator('#equipment-table thead').inner_text().lower()
             assert page.locator('#equipment-table tbody tr').first.locator('td').count()==page.locator('#equipment-table thead th').count()
-            check=page.locator('.equipment-last-checked')
-            assert check.inner_text()=='Not checked'
-            assert check.locator('button').count()==0
+            check=page.locator('.unit-status-choices')
+            assert check.get_by_role('button',name='New',exact=True).is_visible()
+            assert check.locator('button').count()==3
             page.locator('.equipment-edit-action').click()
             page.locator('#equipment-form [name=brand]').select_option('LG')
             page.locator('#save-equipment').click()
             page.locator('#equipment-dialog').wait_for(state='hidden')
             assert app.equipment_inventory(inventory['id'])[0]['inventory_checked_at'].endswith('Z')
             assert app.equipment_inventory(inventory['id'])[0]['last_checked_at'] is None
-            assert check.inner_text()!='Not checked'
-            assert 'Last checked:' in check.get_attribute('title')
+            assert check.get_by_role('button',name='Used',exact=True).is_visible()
+            assert page.locator('.equipment-last-checked').count()==0
             page.reload();page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled")
-            assert page.locator('.equipment-last-checked').inner_text()!='Not checked'
+            assert app.equipment_inventory(inventory['id'])[0]['inventory_checked_at']
             assert not errors,errors
             browser.close()
     finally:server.shutdown();server.server_close()

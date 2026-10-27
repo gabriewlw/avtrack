@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Scala status/serial visibility and deleting configured columns without data loss."""
 import shutil
 import sys
@@ -6,16 +7,17 @@ import threading
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import app
-from inventory_profiles import DEFAULT_PROFILE
+from inventory_profiles import SCALA_PROFILE
 from playwright.sync_api import sync_playwright
 
 with tempfile.TemporaryDirectory() as temporary:
     app.DB_PATH=Path(temporary)/'inventory.sqlite3'
     app.save_equipment({'description':'Stock item','serial_number':'STOCK-1'})
-    # An existing Scala inventory can still have the original stock column layout.
-    scala=app.save_equipment_inventory({'name':'Scala inventory','layout':DEFAULT_PROFILE})
+    # Scala behavior is defined by its explicit template, not the inventory name.
+    scala=app.save_equipment_inventory({'name':'Scala inventory','layout':SCALA_PROFILE})
     saved=app.save_equipment({'inventory_id':scala['id'],'description':'Scala screen','brand':'LG','model':'55','serial_number':'OLD-SERIAL','location':'Lobby','notes':'Retain these notes'})
-    server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
+    with app.connect() as connection:connection.commit()
+    server = app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
         with sync_playwright() as p:

@@ -1,4 +1,4 @@
-from browser_helpers import open_workspace
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Optional IP-only clipboard check for website rows and plain-address exports."""
 import io
 import json
@@ -20,6 +20,7 @@ with tempfile.TemporaryDirectory() as temp:
     app.save_device(dict(name='BGM PC', ip='DHCP', venue='Main lounge', discipline='Audio'))
     app.save_device(dict(name='Spare display', venue='Storeroom', discipline='Video'))
     app.save_device(dict(name='News channel', record_type='iptv', ip='239.252.2.122', port=1234))
+    with app.connect() as connection:connection.commit()
     server = app.ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
@@ -29,7 +30,7 @@ with tempfile.TemporaryDirectory() as temp:
             page = context.new_page()
             errors = []
             page.on('pageerror', lambda error: errors.append(str(error)))
-            page.goto(f'http://127.0.0.1:{server.server_port}')
+            page.goto(f'http://127.0.0.1:{server.server_port}/#av')
             page.wait_for_function("() => document.querySelectorAll('.device-row').length === 3")
             row = page.locator('.device-row').filter(has_text='Bridge Cam')
             copy = row.get_by_role('button', name='Copy IP address for Bridge Cam', exact=True)

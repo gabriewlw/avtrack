@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Optional browser check for inventory deletion, all-column search and filter controls."""
 import copy
 import shutil
@@ -18,7 +19,8 @@ with tempfile.TemporaryDirectory() as temporary:
     profile['columns'].append({'key':'custom_asset_tag','label':'Asset tag','type':'text','important':False,'filter':'none','options':[]})
     target=app.save_equipment_inventory({'name':'Spare TVs','layout':profile})
     app.save_equipment(dict(inventory_id=target['id'],description='Studio display',brand='ViewBrand',model='ModelQ',serial_number='ABC123',quantity=7,location='Store room',notes='Remote included',custom_values={'custom_asset_tag':'TAG-44'}))
-    server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
+    with app.connect() as connection:connection.commit()
+    server = app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
         with sync_playwright() as p:
@@ -32,7 +34,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#equipment-status-buttons button').all_text_contents()==['All items','Located','To be found']
             assert page.locator('#equipment-location-buttons button').all_text_contents()==['Store room']
             assert page.locator('#equipment-location-filter option').first.inner_text()=='All locations'
-            assert page.locator('#equipment-custom-filters fieldset').count()==0
+            assert page.locator('#equipment-custom-filters').get_by_text('Status',exact=True).is_visible()
             for query in ['studio','viewbrand','modelq','abc123','7','store','remote','tag-44','to be found']:
                 page.locator('#equipment-search').fill(query)
                 assert page.locator('#equipment-rows tr').count()==1,query

@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """The empty home route is a landing page instead of a blank data directory."""
 import shutil
 import sys
@@ -12,6 +13,7 @@ from playwright.sync_api import sync_playwright
 
 with tempfile.TemporaryDirectory() as temp:
     app.DB_PATH = Path(temp) / "inventory.sqlite3"
+    with app.connect() as connection:connection.commit()
     server = app.ThreadingHTTPServer(("127.0.0.1", 0), app.Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
@@ -45,7 +47,9 @@ with tempfile.TemporaryDirectory() as temp:
             page.goto(origin + "/")
             page.wait_for_function("() => document.getElementById('overview-av-total').textContent.includes('1 device')")
             assert page.locator("#home-empty-state").is_hidden()
-            assert page.locator("#inventory").is_visible()
+            assert page.locator("#inventory").is_hidden()
+            page.locator(".overview-workspace-link").first.click()
+            page.locator("#inventory").wait_for(state="visible")
             assert page.locator(".device-row").count() == 1
             browser.close()
     finally:

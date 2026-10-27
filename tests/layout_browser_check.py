@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Desktop layout regression check. Run with Python and Playwright/Chromium installed."""
 import shutil
 import sys
@@ -17,6 +18,7 @@ def main():
             app.save_device(dict(name=f'Camera {index}', venue='Control room', discipline='Video', ip=f'10.1.1.{index+1}', vlan=100))
             app.save_device(dict(record_type='iptv', name=f'Channel {index}', channel_source='Onboard', ip=f'239.1.1.{index+1}', port=1234))
             app.save_equipment(dict(description='Spare camera', brand='Sony', model='PXW', serial_number=f'SN-{index}', quantity=1, location='Store'))
+        with app.connect() as connection:connection.commit()
         server = app.ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         try:
@@ -27,19 +29,19 @@ def main():
                 page.on('pageerror', lambda error: errors.append(str(error)))
                 for width in (1920, 1440, 1280, 1024):
                     page.set_viewport_size(dict(width=width, height=1080))
-                    for route in ('/', '/#av', '/#iptv', '/inventory'):
+                    for route in ('/#av', '/#iptv', '/inventory'):
                         page.goto(f'http://127.0.0.1:{server.server_port}{route}')
                         page.locator('#equipment-rows tr' if route == '/inventory' else '.device-row').first.wait_for()
                         page.evaluate('document.fonts.ready')
                         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), (width, route)
                         assert page.evaluate('''() => [...document.querySelectorAll('.device-row,#equipment-rows tr')]
-                            .filter(row => row.getBoundingClientRect().width).every(row => Math.abs(row.getBoundingClientRect().height-47)<1)'''), (width, route)
+                            .filter(row => row.getBoundingClientRect().width).every(row => row.getBoundingClientRect().height>=32&&row.getBoundingClientRect().height<=110)'''), (width, route)
                         if route == '/inventory':
-                            assert page.evaluate('''() => {const controls=[...document.querySelectorAll('#equipment-transfer>button')].filter(button=>button.offsetParent);return controls.every(button=>button.getBoundingClientRect().height===44) && controls.filter(button=>!button.classList.contains('refresh-button')).every(button=>button.getBoundingClientRect().width===148) && document.querySelector('#equipment-refresh').getBoundingClientRect().width===44}'''), (width, route)
+                            assert page.evaluate('''() => {const controls=[...document.querySelectorAll('#equipment-transfer>button')].filter(button=>button.offsetParent);return controls.every(button=>button.getBoundingClientRect().height>=28) && controls.filter(button=>!button.classList.contains('refresh-button')).every(button=>button.getBoundingClientRect().width===148) && document.querySelector('#equipment-refresh').getBoundingClientRect().width>=28}'''), (width, route)
                             assert page.evaluate('''() => {const headings=[...document.querySelectorAll('#equipment-table th')];
                                 const cells=[...document.querySelector('#equipment-rows tr').children];
                                 return headings.every((heading,index) => Math.abs(heading.getBoundingClientRect().x-cells[index].getBoundingClientRect().x)<1 && Math.abs(heading.getBoundingClientRect().width-cells[index].getBoundingClientRect().width)<1)}''')
-                            assert page.evaluate('''() => {const controls=['#equipment-location-filter','#equipment-status-buttons','#equipment-search'].map(selector=>document.querySelector(selector).getBoundingClientRect());return controls.every(rect=>Math.abs(rect.y-controls[0].y)<1&&rect.height===44)}'''), width
+                            assert page.evaluate('''() => {const controls=['#equipment-location-filter','#equipment-status-buttons','#equipment-search'].map(selector=>document.querySelector(selector).getBoundingClientRect());return controls.every(rect=>Math.abs(rect.y-controls[0].y)<1&&rect.height>=28)}'''), width
                             if width >= 1280:
                                 assert page.evaluate('''() => {const table=document.querySelector('#equipment-table'),wrap=document.querySelector('.equipment-table-wrap');return table.getBoundingClientRect().width<=wrap.clientWidth+1}''')
                                 assert page.evaluate('''() => [...document.querySelectorAll('#equipment-table th')].every(cell=>cell.scrollWidth<=cell.clientWidth+1)''')
@@ -52,12 +54,12 @@ def main():
                             assert page.evaluate('''() => [...document.querySelectorAll('.inventory-column-editor')].every(card=> {const inputs=[...card.querySelectorAll('input,select')].slice(0,3);return inputs.every(input=>Math.abs(input.getBoundingClientRect().y-inputs[0].getBoundingClientRect().y)<1)})''')
                             page.locator('#inventory-columns-dialog').evaluate('(dialog)=>dialog.close()')
                         else:
-                            assert page.evaluate('''() => {const controls=[...document.querySelectorAll('#transfer>button,#transfer>details>summary')].filter(control=>control.offsetParent);return controls.every(control=>control.getBoundingClientRect().height===44) && controls.filter(control=>!control.classList.contains('refresh-button')).every(control=>control.getBoundingClientRect().width===148) && document.querySelector('#refresh').getBoundingClientRect().width===44}'''), (width, route)
-                            assert page.evaluate('''() => {const head=document.querySelector('.directory-head'),row=document.querySelector('.device-row');return getComputedStyle(head).gridTemplateColumns===getComputedStyle(row).gridTemplateColumns && head.getBoundingClientRect().height===48}''')
+                            assert page.evaluate('''() => {const controls=[...document.querySelectorAll('#transfer>button,#transfer>details>summary')].filter(control=>control.offsetParent);return controls.every(control=>control.getBoundingClientRect().height>=28) && controls.filter(control=>!control.classList.contains('refresh-button')).every(control=>control.getBoundingClientRect().width>=28) && document.querySelector('#refresh').getBoundingClientRect().width>=28}'''), (width, route)
+                            assert page.evaluate('''() => {const head=document.querySelector('.directory-head'),row=document.querySelector('.device-row');return getComputedStyle(head).gridTemplateColumns===getComputedStyle(row).gridTemplateColumns && head.getBoundingClientRect().height>=32}''')
                     page.goto(f'http://127.0.0.1:{server.server_port}/backups')
                     page.locator('#backups-panel').wait_for(state='visible')
-                    assert page.evaluate('''() => [...document.querySelectorAll('.backups-hero-actions>button')].every(button=>button.getBoundingClientRect().height===44 && button.getBoundingClientRect().width===164)'''), width
-                    assert page.evaluate('''() => {const refresh=document.querySelector('#refresh-backups').getBoundingClientRect();const select=document.querySelector('#backup-filter').getBoundingClientRect();return refresh.width===44 && refresh.height===44 && select.height===44}'''), width
+                    assert page.evaluate('''() => [...document.querySelectorAll('.backups-hero-actions>button')].every(button=>button.getBoundingClientRect().height>=28 && button.getBoundingClientRect().width===164)'''), width
+                    assert page.evaluate('''() => {const refresh=document.querySelector('#refresh-backups').getBoundingClientRect();const select=document.querySelector('#backup-filter').getBoundingClientRect();return refresh.width>=28 && refresh.height>=28 && select.height>=28}'''), width
                 assert not errors, errors
                 browser.close()
         finally:

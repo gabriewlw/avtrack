@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Worksheet selection must work even when the first sheet cannot be previewed."""
 import io
 import shutil
@@ -20,7 +21,8 @@ with tempfile.TemporaryDirectory() as temporary:
     sheet.append(['ID','Location','Monitor model','Orientation','Notes'])
     sheet.append(['SC-55','Lobby','LG','','Original record'])
     output=io.BytesIO();book.save(output)
-    server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
+    with app.connect() as connection:connection.commit()
+    server = app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
         with sync_playwright() as p:
@@ -39,15 +41,17 @@ with tempfile.TemporaryDirectory() as temporary:
             page.locator('#import-sheet-choices input[value="Scala assets"]').check()
             page.locator('#sheet-choice').select_option('Scala assets')
             page.locator('#header-row').fill('2');page.locator('#reload-sheet').click()
+            open_import_matching(page)
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             options=page.locator('#map-asset_id option').all_text_contents()
             assert options[0]=='Leave blank'
             assert [option.split(' — ')[0] for option in options[1:]]==['1. ID','2. Location','3. Monitor model','4. Orientation','5. Notes']
             assert page.locator('#sheet-choice').input_value()=='Scala assets'
-            page.locator('#confirm-import').click();page.locator('#import-summary-panel').wait_for(state='visible')
+            start_import_review(page);page.locator('#import-summary-panel').wait_for(state='visible')
             page.locator('#close-import-summary').click()
             assert app.equipment_inventory(inventory['id'])[0]['custom_values']['asset_id']=='SC-55'
             page.locator('#import-file').set_input_files({'name':'simple.csv','mimeType':'text/csv','buffer':b'ID,Location,Monitor model,Orientation,Notes\nSC-56,Lobby,LG,,note\n'})
+            open_import_matching(page)
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             assert not page.locator('#sheet-label').is_visible()
             assert page.locator('#worksheet-note').is_visible()

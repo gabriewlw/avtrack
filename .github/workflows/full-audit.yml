@@ -5,6 +5,8 @@ on:
     paths:
       - '.github/workflows/full-audit.yml'
       - 'scripts/run_browser_audit.py'
+      - 'tests/browser*.py'
+      - 'tests/layout_browser_check.py'
 permissions:
   contents: read
 jobs:
@@ -43,7 +45,13 @@ jobs:
       - run: python -m pip install -r requirements.txt playwright
       - name: Install browser and PDF verification tools
         run: |
-          python -m playwright install --with-deps chromium
+          if command -v google-chrome >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/avtrack-browser"
+            ln -s "$(command -v google-chrome)" "$RUNNER_TEMP/avtrack-browser/chromium"
+            printf '%s\n' "$RUNNER_TEMP/avtrack-browser" >> "$GITHUB_PATH"
+          else
+            python -m playwright install --with-deps chromium
+          fi
           sudo apt-get install -y poppler-utils
       - name: Run every browser regression with isolated synthetic records
         env:

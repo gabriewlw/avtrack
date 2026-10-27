@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Optional browser check of automatic complete rows and multi-row location review."""
 import shutil
 import sys
@@ -15,7 +16,8 @@ with tempfile.TemporaryDirectory() as temporary:
     batch_profile=dict(SCALA_PROFILE,template='custom',unique_location=False)
     batch_profile['columns']=[dict(column,key='model') if column['key']=='monitor_model' else dict(column) for column in SCALA_PROFILE['columns']]
     inventory=app.save_equipment_inventory({'name':'Signage review','layout':batch_profile})
-    server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
+    with app.connect() as connection:connection.commit()
+    server = app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
         with sync_playwright() as p:
@@ -31,7 +33,7 @@ with tempfile.TemporaryDirectory() as temporary:
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             assert page.locator('#map-serial_number').count()==0
             assert page.locator('#import-complete-rows').is_checked()
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             dialog=page.locator('#inventory-import-review');dialog.wait_for(state='visible')
             assert page.locator('#inventory-import-review-stop').inner_text()=='Cancel import'
             assert page.locator('#inventory-import-review-rows tr').count()==4
@@ -77,7 +79,7 @@ with tempfile.TemporaryDirectory() as temporary:
             stock=b'Item,Brand,Model,Serial number,Quantity,Location,Notes\nCamera,Sony,X,ST-1,1,Store,note\nCamera,Sony,X,ST-2,,Store,note\n'
             page.locator('#import-file').set_input_files({'name':'stock.csv','mimeType':'text/csv','buffer':stock})
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
-            page.locator('#confirm-import').click();dialog.wait_for(state='visible')
+            start_import_review(page);dialog.wait_for(state='visible')
             assert len(app.equipment_inventory(stock_inventory['id']))==1
             assert page.locator('#inventory-import-review-rows tr').count()==1
             page.get_by_label('Qnt, row 3',exact=True).fill('2')
@@ -90,7 +92,7 @@ with tempfile.TemporaryDirectory() as temporary:
             # Turning off automatic import keeps even complete rows on the review screen.
             page.locator('#import-file').set_input_files({'name':'manual.csv','mimeType':'text/csv','buffer':stock.replace(b'ST-1',b'ST-3').replace(b'ST-2',b'ST-4')})
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
-            page.locator('#import-complete-rows').uncheck();page.locator('#confirm-import').click();dialog.wait_for(state='visible')
+            page.locator('#import-complete-rows').uncheck();start_import_review(page);dialog.wait_for(state='visible')
             assert page.locator('#inventory-import-review-rows tr').count()==2
             assert len(app.equipment_inventory(stock_inventory['id']))==2
             page.locator('#inventory-import-review-stop').click();page.locator('#spreadsheet-dialog').wait_for(state='hidden')
@@ -98,7 +100,7 @@ with tempfile.TemporaryDirectory() as temporary:
             many=('Item,Brand,Model,Serial number,Quantity,Location,Notes\n'+''.join(f'Camera,Sony,X,BULK-{index},,Store,note\n' for index in range(10))).encode()
             page.locator('#import-file').set_input_files({'name':'many.csv','mimeType':'text/csv','buffer':many})
             page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
-            page.locator('#confirm-import').click();dialog.wait_for(state='visible')
+            start_import_review(page);dialog.wait_for(state='visible')
             assert page.locator('#inventory-import-review-rows tr').count()==10
             assert '10 rows on this screen' in page.locator('#inventory-import-review-progress').inner_text()
             assert page.locator('#import-workspace').evaluate('(dialog)=>dialog.getBoundingClientRect().height') >= 950

@@ -1,4 +1,4 @@
-from browser_helpers import open_workspace
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Desktop import drafts, batch IPs, resume, workbook queues and saved reports."""
 import json,shutil,sys,tempfile,threading
 from pathlib import Path
@@ -16,7 +16,8 @@ with tempfile.TemporaryDirectory() as tmp:
     sheet.append(['Cable','LG','A','0001',1,'','note'])
     other=book.create_sheet('Locker B');other.append(['Model','Description','Brand','Quantity','Serial Number','Location','Notes']);other.append(['B','Cable','LG',1,'0002','','note'])
     file=Path(tmp)/'inventory.xlsx';book.save(file)
-    server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler);threading.Thread(target=server.serve_forever,daemon=True).start()
+    with app.connect() as connection:connection.commit()
+    server = app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler);threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
         with sync_playwright() as p:
             browser=p.chromium.launch(executable_path=shutil.which('chromium'))
@@ -33,13 +34,13 @@ with tempfile.TemporaryDirectory() as tmp:
                     page.locator('#paste-batch-location').fill('Shelf');page.locator('#continue-paste-location').click()
                 page.locator('#paste-layout-dialog').wait_for(state='visible')
                 page.wait_for_function("() => !document.getElementById('paste-start-review').disabled")
-                if mode:page.locator('#paste-preview-confirmation').select_option(mode)
+                if mode:set_import_confirmation(page, mode)
                 page.locator('#paste-layout-dialog').wait_for(state='visible')
                 page.wait_for_function("() => !document.getElementById('keep-paste-layout').disabled")
                 assert not errors,errors
-                page.locator('#keep-paste-layout').click()
+                open_import_matching(page)
             paste('Device Name\tIP Address\tVenue\tVLAN\tNotes\nFirst\t10.20.1.1\tStudio\t50\tlong notes\nSecond\tbad-ip\tStudio\t50\t', 'none')
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             try:page.locator('#inventory-import-review').wait_for(state='visible',timeout=5000)
             except Exception:
                 print('UI ERROR:',page.locator('#spreadsheet-error').inner_text(),'JS:',errors,'ACTIVE:',page.evaluate("document.querySelectorAll('#import-workspace section:not([hidden])').length"));raise
@@ -52,8 +53,8 @@ with tempfile.TemporaryDirectory() as tmp:
             assert app.inventory()[0]['notes']=='Edited floating notes'
             assert app.inventory()[0]['confirmation_required']==0
             page.reload();page.locator('#import').click();page.get_by_role('button',name='Resume previous import',exact=True).click()
-            page.locator('#spreadsheet-dialog').wait_for(state='visible');page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
-            page.locator('#confirm-import').click();page.locator('#inventory-import-review').wait_for(state='visible')
+            page.locator('#spreadsheet-dialog:visible, #paste-layout-dialog:visible').first.wait_for();page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
+            start_import_review(page);page.locator('#inventory-import-review').wait_for(state='visible')
             assert page.locator('#inventory-import-review-rows tr').count()==1
             page.get_by_label('IP address, row 3',exact=True).fill('10.20.1.2');page.get_by_label('Select row 3',exact=True).check()
             page.locator('#inventory-import-review-save').click();page.locator('#import-summary-panel').wait_for(state='visible')
@@ -70,7 +71,7 @@ with tempfile.TemporaryDirectory() as tmp:
             if page.locator('#paste-confirmation-dialog').is_visible():page.locator('#continue-paste-confirmation').click()
             page.locator('#paste-layout-dialog').wait_for(state='visible')
             page.wait_for_function("() => !document.getElementById('keep-paste-layout').disabled")
-            page.locator('#keep-paste-layout').click()
+            open_import_matching(page)
             assert page.locator('#map-ip').input_value()=='1'
             assert page.locator('#map-name').input_value()=='2'
             assert page.locator('#map-venue').input_value()==''
@@ -91,13 +92,13 @@ with tempfile.TemporaryDirectory() as tmp:
             assert next(i for i in app.equipment_inventories() if i['id']==parts['id'])==before
             # Whole workbook: header detection, per-sheet matching and blank-location defaults.
             page.locator('#equipment-import').click();page.locator('#upload-paste-inventory').click();page.locator('#import-file').set_input_files(str(file))
-            page.locator('#spreadsheet-dialog').wait_for(state='visible');page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
+            page.locator('#spreadsheet-dialog:visible, #paste-layout-dialog:visible').first.wait_for();page.wait_for_function("() => !document.getElementById('confirm-import').disabled")
             assert page.locator('#header-row').input_value()=='5'
             page.locator('#import-sheet-choices input[value="Locker B"]').check()
-            page.locator('#confirm-import').click()
+            start_import_review(page)
             page.wait_for_function("() => document.getElementById('sheet-choice').value==='Locker B' && !document.getElementById('confirm-import').disabled")
             assert page.locator('#map-model').input_value()=='0'
-            page.locator('#confirm-import').click();page.locator('#import-summary-panel').wait_for(state='visible')
+            start_import_review(page);page.locator('#import-summary-panel').wait_for(state='visible')
             rows=app.equipment_inventory(parts['id']);assert len(rows)==2,rows
             assert {r['location'] for r in rows}=={'Locker A','Locker B'}
             assert {r['serial_number'] for r in rows}=={'0001','0002'}
@@ -114,7 +115,8 @@ with tempfile.TemporaryDirectory() as tmp:
             page.locator('#equipment-inventory-select').select_option(str(tv['id']));page.wait_for_function("() => !document.getElementById('equipment-inventory-select').disabled")
             row=app.save_equipment(dict(inventory_id=tv['id'],brand='LG',model='TV1',custom_values={'deck_6':'2','deck_2_port':'0','deck_2_stbd':'0'}))
             page.locator('#equipment-refresh').click();page.wait_for_function("() => document.getElementById('equipment-records').textContent==='1'")
-            assert page.get_by_role('button',name='Confirm stock check for TV1',exact=True).inner_text()=='Never checked'
+            assert page.locator('.equipment-last-checked').count()==0
+            assert page.locator('.unit-status-choices').get_by_role('button',name='New',exact=True).is_visible()
             assert app.equipment_inventory(tv['id'])[0]['last_checked_at'] is None
             app.delete_equipment_inventory(parts['id'],{'name':parts['name']})
             page.reload();assert page.locator('#import-history-panel').count()==0

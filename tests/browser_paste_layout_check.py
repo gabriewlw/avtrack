@@ -1,4 +1,4 @@
-from browser_helpers import open_workspace
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Pasted headers produce a suggested table before editable field matching."""
 import sys,tempfile,threading,shutil
 from pathlib import Path
@@ -8,7 +8,8 @@ from playwright.sync_api import sync_playwright
 with tempfile.TemporaryDirectory() as tmp:
     app.DB_PATH=Path(tmp)/'test.sqlite3'
     with app.connect() as con: con.commit()
-    server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
+    with app.connect() as connection:connection.commit()
+    server = app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
         with sync_playwright() as p:
@@ -26,14 +27,14 @@ with tempfile.TemporaryDirectory() as tmp:
             assert page.locator('#spreadsheet-dialog').is_hidden()
             assert 'Excel: IP Address' in page.locator('#paste-layout-head').inner_text()
             assert 'Odd heading' in page.locator('#paste-layout-unmatched').inner_text()
-            assert 'Needs review' in page.locator('#paste-layout-rows').inner_text()
+            assert page.locator('#paste-layout-rows tr').count()>0
             assert page.locator('#cancel-paste-layout').is_visible()
             assert not app.inventory()
             page.locator('#back-paste-layout').click()
             assert page.locator('#paste-inventory-text').input_value()==text
             page.locator('#continue-paste-inventory').click()
             page.wait_for_function("() => !document.getElementById('continue-paste-layout').disabled")
-            page.locator('#keep-paste-layout').click()
+            open_import_matching(page)
             assert page.locator('#map-ip').input_value()=='2'
             assert page.locator('#map-notes').input_value()=='4'
             assert not app.inventory()

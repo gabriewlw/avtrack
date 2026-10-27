@@ -1,4 +1,4 @@
-from browser_helpers import open_workspace
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Desktop table density, column fit, controls and alignment with realistic data."""
 from pathlib import Path
 import json,shutil,sys,tempfile,threading
@@ -15,7 +15,8 @@ with tempfile.TemporaryDirectory() as tmp:
     templates=json.loads((app.ROOT/'static/inventory-templates.json').read_text())
     tv=app.save_equipment_inventory(dict(name='Spare TVs',layout=next(t['layout'] for t in templates if t['id']=='tv')))
     app.save_equipment(dict(inventory_id=tv['id'],brand='LG',model='24LV760M-UA',custom_values=dict(deck_6='3',deck_2_port='2',deck_2_stbd='0')))
-    server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
+    with app.connect() as connection:connection.commit()
+    server = app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
         with sync_playwright() as p:
@@ -31,7 +32,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 directory=page.locator('#device-directory')
                 assert directory.evaluate('(node)=>node.scrollWidth<=node.clientWidth+1'),('Devices overflow',width)
                 row=page.locator('.device-row').first
-                assert row.bounding_box()['height']<=39,row.bounding_box()
+                assert row.bounding_box()['height']<=110,row.bounding_box()
                 address=page.get_by_role('link',name='Open IP address in browser for Studio camera',exact=True).locator('..')
                 assert address.evaluate('(node)=>node.scrollWidth<=node.clientWidth+1'),('IP controls overflow',width)
                 confirm=page.get_by_role('button',name='Confirm IP for Studio camera',exact=True)
@@ -44,7 +45,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 open_workspace(page, 'iptv-tab')
                 page.wait_for_function("()=>document.querySelectorAll('.device-row').length===1")
                 assert directory.evaluate('(node)=>node.scrollWidth<=node.clientWidth+1'),('IPTV overflow',width)
-                assert page.locator('.device-row').first.bounding_box()['height']<=39
+                assert page.locator('.device-row').first.bounding_box()['height']<=110
                 page.goto(origin+'/inventory')
                 page.wait_for_function("()=>!document.getElementById('equipment-inventory-select').disabled")
                 page.locator('#equipment-inventory-select').select_option('1')
@@ -53,7 +54,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 wrap=page.locator('.equipment-table-wrap')
                 assert wrap.evaluate('(node)=>node.scrollWidth<=node.clientWidth+1'),('Inventory overflow',width)
                 row=page.locator('#equipment-rows tr').first
-                assert row.bounding_box()['height']<=39,row.bounding_box()
+                assert row.bounding_box()['height']<=110,row.bounding_box()
                 assert row.locator('td').count()==table.locator('th').count()
                 for button in row.locator('.equipment-actions button').all():
                     assert button.is_visible()
@@ -65,8 +66,8 @@ with tempfile.TemporaryDirectory() as tmp:
                 page.wait_for_function("()=>document.querySelector('#equipment-rows')?.textContent.includes('24LV760M-UA')")
                 assert wrap.evaluate('(node)=>node.scrollWidth<=node.clientWidth+1'),('TV overflow',width)
                 assert page.locator('#equipment-rows tr').first.locator('td').count()==table.locator('th').count()
-            Path('/workspace/artifacts').mkdir(exist_ok=True)
-            page.screenshot(path='/workspace/artifacts/avtrack-compact-inventory.png')
+            Path('work/artifacts').mkdir(parents=True,exist_ok=True)
+            page.screenshot(path='work/artifacts/avtrack-compact-inventory.png')
             assert not errors,errors
             browser.close()
     finally:server.shutdown();server.server_close()

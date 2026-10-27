@@ -1,3 +1,4 @@
+from browser_helpers import open_workspace, open_import_settings, set_import_confirmation, open_import_matching, start_import_review, choose_new_inventory_import
 """Download and restore one complete backup from the homepage controls."""
 import base64
 import shutil
@@ -13,7 +14,8 @@ with tempfile.TemporaryDirectory() as temporary:
     app.DB_PATH=Path(temporary)/'inventory.sqlite3'
     device=app.save_device(dict(name='Transfer camera',category='Camera',venue='Studio',discipline='Video',ip='10.20.1.1',vlan=1,notes='Preserve me'))
     app.save_av_backup(dict(equipment_type='OBS profile',device_name='PC',filename='profile.json',notes='Test',content=base64.b64encode(b'{"saved":true}').decode()))
-    server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
+    with app.connect() as connection:connection.commit()
+    server = app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:
         with sync_playwright() as p:
@@ -30,6 +32,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.locator('#workspace-export-menu summary svg').count()==2
             assert page.locator('#network-paste, #equipment-paste, #address-filter-group').count()==0
             assert page.locator('#import').evaluate("el=>el.classList.contains('primary')")
+            open_workspace(page, 'device-tab')
             page.locator('#import').click()
             page.locator('#paste-inventory-dialog').wait_for(state='visible')
             assert page.locator('#paste-inventory-title').inner_text()=='Import data'
