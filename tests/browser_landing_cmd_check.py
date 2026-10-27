@@ -52,15 +52,17 @@ with tempfile.TemporaryDirectory() as temporary:
             assert page.get_by_role('button',name='demo → Explore sample data',exact=True).count()==1
             assert page.locator('.command-entry .command-prompt').inner_text()=='C:\\Users\\visitor\\avtrack>'
             terminal.focus()
-            terminal.fill('help');terminal.press('Enter')
+            terminal.fill('help');page.clock.run_for(600);terminal.press('Enter')
             assert 'AVTRACK COMMANDS' in page.locator('#command-output').inner_text()
             assert page.locator('.command-accent').first.evaluate('(node)=>getComputedStyle(node).color')=='rgb(230, 230, 230)'
             assert page.locator('.command-option button').first.evaluate('(node)=>getComputedStyle(node).textDecorationLine')=='none'
-            terminal.fill('demo');terminal.press('Enter')
+            terminal.fill('demo');page.clock.run_for(600);terminal.press('Enter')
             demo_link=page.get_by_role('link',name='Launch the interactive demo →',exact=True)
             assert demo_link.get_attribute('href')=='/demo'
             terminal.press('ArrowUp');assert terminal.input_value()=='demo'
-            terminal.fill('clear');terminal.press('Enter')
+            # Chromium can suppress rapid repeated implicit form submissions.
+            # Advance the installed clock to model the pause between commands.
+            terminal.fill('clear');page.clock.run_for(600);terminal.press('Enter')
             expect(page.locator('#command-output p')).to_have_count(0)
             assert terminal.evaluate('(node)=>node===document.activeElement')
             storage_logo=page.locator('.storage-brand-mark')
