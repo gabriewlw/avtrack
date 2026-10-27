@@ -94,7 +94,7 @@ with tempfile.TemporaryDirectory() as temporary:
             save_group();finish()
             merged=next(row for row in app.equipment_inventory(parts['id']) if row['model']=='RX-1')
             assert merged['quantity']==5 and not merged['serial_number']
-            assert merged['notes']=='Same batch'
+            assert merged['notes']=='Same batch · Combined source rows: 2, 3', merged['notes']
 
             # Different notes remain separate, including quantity annotations.
             paste('Description\tBrand\tModel\tSerial Number\tQuantity\tLocation\tNotes\nReceiver\tAtlona\tRX-2\t\t2 USED\tLocker E\tFirst\nReceiver\tAtlona\tRX-2\t\t3\tLocker E\tSecond\n')

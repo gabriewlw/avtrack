@@ -60,7 +60,7 @@ with tempfile.TemporaryDirectory() as tmp:
             saved=next(row for row in app.equipment_inventories() if row['id']==inventory['id'])
             assert saved['layout']==inventory['layout']  # Review is still a draft.
             assert page.evaluate("()=>spreadsheetInventory.layout.columns.find(c=>c.key==='model').require_confirmation")
-            assert page.evaluate("()=>spreadsheetInventory.layout.columns.map(c=>c.label)")==['Model','Orientation','Location','Status','Notes']
+            assert page.evaluate("()=>spreadsheetInventory.layout.columns.map(c=>c.label)")==['Model','Orientation','Location']
             assert page.locator('#inventory-import-review-rows tr').count()==2
             page.locator('#inventory-import-review-all').check()
             assert page.locator('#inventory-import-review-save').is_disabled()

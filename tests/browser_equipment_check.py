@@ -126,7 +126,8 @@ with tempfile.TemporaryDirectory() as temp:
             assert not microphone.locator('.equipment-confirm').is_checked()
             for width in [1440,900,390,320]:
                 page.set_viewport_size({'width':width,'height':1000})
-                assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), width
+                page.wait_for_function("()=>matchMedia('(max-width: '+innerWidth+'px)').matches")
+                assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), {'width':width,'overflow':page.evaluate("()=>[...document.querySelectorAll('body *')].filter(n=>{const r=n.getBoundingClientRect();return r.width&&r.right>innerWidth+1&&getComputedStyle(n).position!=='fixed'&&!n.closest('.table-scroll,.equipment-table-scroll,.home-global-search-results')}).slice(0,25).map(n=>({tag:n.tagName,id:n.id,class:n.className,right:n.getBoundingClientRect().right,text:n.textContent.slice(0,70)}))")}
                 assert microphone.locator('.equipment-confirm').is_visible()
                 if width > 900:
                     assert page.locator('.equipment-filters').evaluate('node => { const location=node.querySelector("#equipment-location-filter-label").getBoundingClientRect(), search=node.querySelector(".search").getBoundingClientRect(); return location.left < search.left && Math.abs(location.top-search.top)<1; }')
