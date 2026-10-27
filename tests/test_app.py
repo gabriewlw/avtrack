@@ -50,7 +50,7 @@ class AppTests(unittest.TestCase):
         self.assertNotIn(b'{{AVTRACK_VERSION}}', page)
         self.assertNotIn(b'Commit #', page)
         with patch('app.subprocess.run', side_effect=FileNotFoundError):
-            self.assertEqual(app.source_revision(), 'unversioned')
+            self.assertEqual(app.source_revision(), (app.ROOT / 'VERSION').read_text().strip())
 
     def test_codespaces_signin_connection_policy(self):
         from unittest.mock import patch

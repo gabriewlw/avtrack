@@ -18,3 +18,15 @@ of stored fields:
 Only local application code performs migrations; never execute SQL or code from an
 imported backup. Unknown newer formats must explain that AVTrack needs updating
 and must leave existing records and files untouched.
+
+# Website version
+
+Preserve the footer format `v0.0.<total reachable commit count>`. A shallow clone's
+local count is incomplete; never display it as the build number.
+
+Before EVERY new commit, including documentation-only commits, run
+`python scripts/stamp_version.py --next` with complete Git history and include
+`VERSION` in that commit. If committing through a Git data API, count the full
+parent history and write its count plus one to VERSION in the same tree.
+CI verifies this stamp with `python scripts/stamp_version.py --check`.
+Shallow clones and ZIP copies use the shipped VERSION without network requests.

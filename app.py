@@ -37,15 +37,30 @@ BACKUP_ICON_TYPES = {
 
 
 def source_revision():
-    """Use the checked-out commit as the displayed build identifier."""
+    """Use complete Git history, or the shipped count in shallow/offline builds."""
     try:
-        revision = subprocess.run(['git', 'rev-parse', '--short=7', 'HEAD'], cwd=ROOT,
-                                  capture_output=True, text=True, check=True, timeout=2).stdout.strip()
-        count = subprocess.run(['git', 'rev-list', '--count', 'HEAD'], cwd=ROOT,
-                               capture_output=True, text=True, check=True, timeout=2).stdout.strip()
-        return f'v0.0.{count} · {revision}' if count.isdigit() and re.fullmatch(r'[0-9a-f]{7,40}', revision) else 'unversioned'
+        packaged = (ROOT / 'VERSION').read_text(encoding='utf-8').strip()
+        if not re.fullmatch(r'v0\.0\.[1-9][0-9]*', packaged):
+            packaged = 'unversioned'
+    except (OSError, UnicodeError):
+        packaged = 'unversioned'
+    try:
+        def git(*args):
+            return subprocess.run(['git', *args], cwd=ROOT, capture_output=True,
+                                  text=True, check=True, timeout=2).stdout.strip()
+        revision = git('rev-parse', '--short=7', 'HEAD')
+        version = packaged
+        # A depth-one checkout reports count=1 regardless of the actual build.
+        # Never use that incomplete count as the website version.
+        if git('rev-parse', '--is-shallow-repository') == 'false':
+            count = git('rev-list', '--count', 'HEAD')
+            if count.isdigit() and int(count) > 0:
+                version = f'v0.0.{count}'
+        if version != 'unversioned' and re.fullmatch(r'[0-9a-f]{7,40}', revision):
+            return f'{version} · {revision}'
+        return version
     except (OSError, subprocess.SubprocessError):
-        return 'unversioned'
+        return packaged
 
 
 def backup_directory():
